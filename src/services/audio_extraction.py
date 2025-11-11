@@ -10,8 +10,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from ..utils.common_validation import FileValidator
-from ..utils.file_validation import safe_validate_media_file
+from ..utils.file_validation import FileValidator, safe_validate_media_file
 from .ffmpeg_core import build_extract_commands
 
 logger = logging.getLogger(__name__)

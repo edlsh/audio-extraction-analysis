@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from src.utils.validation import FileValidator
+from src.utils.file_validation import FileValidator
 
 
 class TestFileValidator:
@@ -37,7 +37,7 @@ class TestFileValidator:
         """Test that validate_path_security delegates to PathSanitizer."""
         test_file = tmp_path / "test.mp4"
 
-        with patch("src.utils.validation.PathSanitizer.validate_path_security") as mock_validate:
+        with patch("src.utils.file_validation.PathSanitizer.validate_path_security") as mock_validate:
             FileValidator.validate_path_security(test_file)
             mock_validate.assert_called_once_with(test_file)
 
