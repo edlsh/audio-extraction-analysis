@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from src.utils.common_validation import (
+from src.utils.file_validation import (
     ConfigValidator,
     FileValidator,
     validate_file_path,
