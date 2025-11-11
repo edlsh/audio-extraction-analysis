@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from ..config.config import Config
+from ..config import Config
 from ..models.transcription import (
     TranscriptionResult,
     TranscriptionUtterance,
