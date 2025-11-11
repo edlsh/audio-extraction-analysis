@@ -1,5 +1,18 @@
 """Audio processing pipeline that chains extraction and transcription.
 
+DEPRECATED: This class is deprecated as of v1.2.0 and will be removed in v2.0.0.
+Please use `src.pipeline.simple_pipeline.process_pipeline()` instead, which provides
+a simpler, more maintainable API with the same functionality.
+
+Migration example:
+    # Old (deprecated):
+    pipeline = AudioProcessingPipeline(temp_dir=temp_dir, console_manager=console)
+    result = await pipeline.process_file(input_path, output_dir, **options)
+
+    # New (recommended):
+    from src.pipeline.simple_pipeline import process_pipeline
+    result = await process_pipeline(input_path, output_dir, console_manager=console, **options)
+
 Enhanced with optional progress tracking via a ConsoleManager for
 interactive runs, while preserving the original synchronous API.
 """
@@ -28,6 +41,9 @@ logger = logging.getLogger(__name__)
 class AudioProcessingPipeline:
     """Complete pipeline for video to transcript processing.
 
+    DEPRECATED: This class is deprecated. Use `process_pipeline()` from
+    `src.pipeline.simple_pipeline` instead.
+
     This class maintains backward-compatible synchronous methods and adds
     optional async methods that emit rich progress when a ConsoleManager
     is supplied.
@@ -38,10 +54,19 @@ class AudioProcessingPipeline:
     ):
         """Initialize pipeline with optional temporary directory.
 
+        DEPRECATED: Use `process_pipeline()` instead.
+
         Args:
             temp_dir: Directory for temporary files. If None, uses system temp.
             console_manager: Optional ConsoleManager for rich/progress output
         """
+        import warnings
+        warnings.warn(
+            "AudioProcessingPipeline is deprecated as of v1.2.0 and will be removed in v2.0.0. "
+            "Use src.pipeline.simple_pipeline.process_pipeline() instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         if temp_dir:
             self.temp_dir = Path(temp_dir)
             self.temp_dir.mkdir(parents=True, exist_ok=True)
