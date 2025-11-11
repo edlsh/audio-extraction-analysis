@@ -144,7 +144,7 @@ jobs:
         name: unit-tests
     
     - name: Upload test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: unit-test-results
@@ -200,7 +200,7 @@ jobs:
         ELEVENLABS_API_KEY: test_key_for_mocking
     
     - name: Upload test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: integration-test-results
@@ -257,7 +257,7 @@ jobs:
         ELEVENLABS_API_KEY: test_key_for_mocking
     
     - name: Upload test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: cli-e2e-results
@@ -305,7 +305,7 @@ jobs:
         ELEVENLABS_API_KEY: test_key_for_mocking
     
     - name: Upload test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: provider-e2e-results
@@ -363,7 +363,7 @@ jobs:
         safety check --json --output safety_report.json || true
     
     - name: Upload security results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: security-test-results
@@ -422,7 +422,7 @@ jobs:
         ELEVENLABS_API_KEY: test_key_for_mocking
     
     - name: Upload performance results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: performance-test-results
@@ -476,7 +476,7 @@ jobs:
         ELEVENLABS_API_KEY: ${{ github.event.inputs.use_real_api_keys == 'true' && secrets.ELEVENLABS_API_KEY || 'test_key_for_mocking' }}
     
     - name: Upload comprehensive results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: comprehensive-e2e-results
@@ -548,7 +548,7 @@ jobs:
         cat summary.md
     
     - name: Upload summary
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: test-results-summary
         path: summary.md
@@ -625,7 +625,7 @@ jobs:
         cat readiness.md
     
     - name: Upload readiness assessment
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: production-readiness-assessment
         path: readiness.md
