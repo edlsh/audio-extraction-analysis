@@ -68,10 +68,10 @@ redis = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/lucchesi-sec/audio-extraction-analysis"
-Repository = "https://github.com/lucchesi-sec/audio-extraction-analysis.git"
-Documentation = "https://github.com/lucchesi-sec/audio-extraction-analysis#readme"
-"Bug Tracker" = "https://github.com/lucchesi-sec/audio-extraction-analysis/issues"
+Homepage = "https://github.com/edlsh/audio-extraction-analysis"
+Repository = "https://github.com/edlsh/audio-extraction-analysis.git"
+Documentation = "https://github.com/edlsh/audio-extraction-analysis#readme"
+"Bug Tracker" = "https://github.com/edlsh/audio-extraction-analysis/issues"
 
 [project.scripts]
 audio-extraction-analysis = "src.cli:main"
@@ -101,3 +101,29 @@ addopts = "-q"
 testpaths = ["tests"]
 pythonpath = ["."]
 asyncio_mode = "strict"
+
+[tool.importlinter]
+root_package = "src"
+
+[[tool.importlinter.contracts]]
+name = "Layered architecture: CLI should not import from providers"
+type = "layers"
+layers = [
+    "src.cli",
+    "src.services",
+    "src.providers",
+]
+
+[[tool.importlinter.contracts]]
+name = "Config independence"
+type = "independence"
+modules = [
+    "src.config",
+]
+
+[[tool.importlinter.contracts]]
+name = "No circular imports in utils"
+type = "independence"
+modules = [
+    "src.utils",
+]
