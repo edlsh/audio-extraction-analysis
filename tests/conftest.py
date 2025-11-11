@@ -122,33 +122,4 @@ def empty_audio(tmp_path: Path) -> Path:
     return empty
 
 
-@pytest.fixture
-def test_config(tmp_path: Path) -> Generator:
-    """Create test configuration with secure defaults.
 
-    Args:
-        tmp_path: pytest temp directory
-
-    Yields:
-        ConfigurationManager instance for testing
-    """
-    from src.config.secure_config import ConfigurationManager
-    import os
-
-    # Set test environment variable
-    os.environ['PYTEST_CURRENT_TEST'] = 'test'
-
-    # Create test .env file
-    env_file = tmp_path / ".env"
-    env_file.write_text(
-        "DEEPGRAM_API_KEY=test-key-deepgram-12345678\n"
-        "ELEVENLABS_API_KEY=test-key-elevenlabs-12345678\n"
-    )
-
-    config = ConfigurationManager(env_file=env_file)
-
-    yield config
-
-    # Cleanup
-    if 'PYTEST_CURRENT_TEST' in os.environ:
-        del os.environ['PYTEST_CURRENT_TEST']
