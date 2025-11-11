@@ -26,7 +26,7 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Type
 
-from ..config.config import Config
+from ..config import Config
 from ..utils.retry import RetryConfig
 from .base import BaseTranscriptionProvider, CircuitBreakerConfig
 
