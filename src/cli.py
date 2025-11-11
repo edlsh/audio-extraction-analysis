@@ -17,7 +17,7 @@ from typing import Any, Optional
 
 # Backwards compatibility imports for tests
 try:
-    from .config.config import Config
+    from .config import Config
     from .formatters.markdown_formatter import MarkdownFormatter
     from .pipeline.audio_pipeline import AudioProcessingPipeline
     from .pipeline.simple_pipeline import process_pipeline
@@ -28,7 +28,7 @@ try:
     from .utils.paths import ensure_subpath, safe_write_json, sanitize_dirname
     from .utils.sanitization import PathSanitizer
 except ImportError:  # pragma: no cover - fallback for installed package layout
-    from config.config import Config
+    from config import Config
     from formatters.markdown_formatter import MarkdownFormatter
     from pipeline.audio_pipeline import AudioProcessingPipeline
     from pipeline.simple_pipeline import process_pipeline
