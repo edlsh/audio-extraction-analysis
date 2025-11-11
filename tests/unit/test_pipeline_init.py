@@ -144,3 +144,21 @@ class TestPipelinePackage:
         # Verify the docstring mentions relevant concepts
         assert any(keyword in docstring_lower for keyword in expected_keywords), \
             f"Docstring should mention pipeline/audio concepts: {pipeline.__doc__}"
+
+    def test_audio_processing_pipeline_deprecation_warning(self):
+        """Test that AudioProcessingPipeline emits deprecation warning on instantiation."""
+        import warnings
+        from src.pipeline import AudioProcessingPipeline
+
+        # Capture deprecation warnings
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            
+            # Instantiate the deprecated class
+            pipeline = AudioProcessingPipeline()
+            
+            # Verify deprecation warning was emitted
+            assert len(w) > 0, "Expected deprecation warning to be emitted"
+            assert issubclass(w[0].category, DeprecationWarning)
+            assert "deprecated" in str(w[0].message).lower()
+            assert "process_pipeline" in str(w[0].message)
