@@ -118,17 +118,21 @@ class TestTranscriptionProviderFactoryConfiguredProviders:
 
     def test_get_configured_providers_none(self):
         """Test getting configured providers when none are configured."""
-        with patch("src.providers.factory.Config") as mock_config:
+        with patch("src.providers.factory.get_config") as mock_get_config:
+            mock_config = Mock()
             mock_config.DEEPGRAM_API_KEY = None
             mock_config.ELEVENLABS_API_KEY = None
+            mock_get_config.return_value = mock_config
             configured = TranscriptionProviderFactory.get_configured_providers()
             assert configured == []
 
     def test_get_configured_providers_deepgram_only(self, monkeypatch):
         """Test getting configured providers with only Deepgram configured."""
-        with patch("src.providers.factory.Config") as mock_config:
+        with patch("src.providers.factory.get_config") as mock_get_config:
+            mock_config = Mock()
             mock_config.DEEPGRAM_API_KEY = "test_deepgram_key"
             mock_config.ELEVENLABS_API_KEY = None
+            mock_get_config.return_value = mock_config
 
             configured = TranscriptionProviderFactory.get_configured_providers()
 
@@ -137,9 +141,11 @@ class TestTranscriptionProviderFactoryConfiguredProviders:
 
     def test_get_configured_providers_elevenlabs_only(self, monkeypatch):
         """Test getting configured providers with only ElevenLabs configured."""
-        with patch("src.providers.factory.Config") as mock_config:
+        with patch("src.providers.factory.get_config") as mock_get_config:
+            mock_config = Mock()
             mock_config.DEEPGRAM_API_KEY = None
             mock_config.ELEVENLABS_API_KEY = "test_elevenlabs_key"
+            mock_get_config.return_value = mock_config
 
             configured = TranscriptionProviderFactory.get_configured_providers()
 
@@ -148,9 +154,11 @@ class TestTranscriptionProviderFactoryConfiguredProviders:
 
     def test_get_configured_providers_both(self, monkeypatch):
         """Test getting configured providers with both configured."""
-        with patch("src.providers.factory.Config") as mock_config:
+        with patch("src.providers.factory.get_config") as mock_get_config:
+            mock_config = Mock()
             mock_config.DEEPGRAM_API_KEY = "test_deepgram_key"
             mock_config.ELEVENLABS_API_KEY = "test_elevenlabs_key"
+            mock_get_config.return_value = mock_config
 
             configured = TranscriptionProviderFactory.get_configured_providers()
 
@@ -213,17 +221,21 @@ class TestTranscriptionProviderFactoryAutoSelection:
 
     def test_auto_select_provider_no_configured(self):
         """Test auto-selection when no providers are configured."""
-        with patch("src.providers.factory.Config") as mock_config:
+        with patch("src.providers.factory.get_config") as mock_get_config:
+            mock_config = Mock()
             mock_config.DEEPGRAM_API_KEY = None
             mock_config.ELEVENLABS_API_KEY = None
+            mock_get_config.return_value = mock_config
             with pytest.raises(ValueError, match="No transcription providers are configured"):
                 TranscriptionProviderFactory.auto_select_provider()
 
     def test_auto_select_provider_single_configured(self, monkeypatch):
         """Test auto-selection with single configured provider."""
-        with patch("src.providers.factory.Config") as mock_config:
+        with patch("src.providers.factory.get_config") as mock_get_config:
+            mock_config = Mock()
             mock_config.DEEPGRAM_API_KEY = "test_key"
             mock_config.ELEVENLABS_API_KEY = None
+            mock_get_config.return_value = mock_config
 
             selected = TranscriptionProviderFactory.auto_select_provider()
 
@@ -231,9 +243,11 @@ class TestTranscriptionProviderFactoryAutoSelection:
 
     def test_auto_select_provider_file_size_constraint(self, monkeypatch, large_audio_file):
         """Test auto-selection considers file size constraints."""
-        with patch("src.providers.factory.Config") as mock_config:
+        with patch("src.providers.factory.get_config") as mock_get_config:
+            mock_config = Mock()
             mock_config.DEEPGRAM_API_KEY = "test_deepgram_key"
             mock_config.ELEVENLABS_API_KEY = "test_elevenlabs_key"
+            mock_get_config.return_value = mock_config
 
             # Large file should force Deepgram selection
             selected = TranscriptionProviderFactory.auto_select_provider(
@@ -244,9 +258,11 @@ class TestTranscriptionProviderFactoryAutoSelection:
 
     def test_auto_select_provider_file_size_no_deepgram(self, monkeypatch, large_audio_file):
         """Test auto-selection with large file but no Deepgram configured."""
-        with patch("src.providers.factory.Config") as mock_config:
+        with patch("src.providers.factory.get_config") as mock_get_config:
+            mock_config = Mock()
             mock_config.DEEPGRAM_API_KEY = None
             mock_config.ELEVENLABS_API_KEY = "test_elevenlabs_key"
+            mock_get_config.return_value = mock_config
 
             # This should use auto_select_provider on the class, not instance
             with pytest.raises(ValueError, match="File size .* exceeds limits"):
@@ -254,9 +270,11 @@ class TestTranscriptionProviderFactoryAutoSelection:
 
     def test_auto_select_provider_small_file_both_configured(self, monkeypatch, temp_audio_file):
         """Test auto-selection with small file and both providers configured."""
-        with patch("src.providers.factory.Config") as mock_config:
+        with patch("src.providers.factory.get_config") as mock_get_config:
+            mock_config = Mock()
             mock_config.DEEPGRAM_API_KEY = "test_deepgram_key"
             mock_config.ELEVENLABS_API_KEY = "test_elevenlabs_key"
+            mock_get_config.return_value = mock_config
 
             selected = TranscriptionProviderFactory.auto_select_provider(
                 audio_file_path=temp_audio_file
@@ -267,9 +285,11 @@ class TestTranscriptionProviderFactoryAutoSelection:
 
     def test_auto_select_provider_feature_requirements(self, monkeypatch, mock_provider_class):
         """Test auto-selection based on feature requirements."""
-        with patch("src.providers.factory.Config") as mock_config:
+        with patch("src.providers.factory.get_config") as mock_get_config:
+            mock_config = Mock()
             mock_config.DEEPGRAM_API_KEY = "test_deepgram_key"
             mock_config.ELEVENLABS_API_KEY = "test_elevenlabs_key"
+            mock_get_config.return_value = mock_config
 
             # Mock provider creation for feature checking
             with patch.object(TranscriptionProviderFactory, "create_provider") as mock_create:
@@ -306,9 +326,11 @@ class TestTranscriptionProviderFactoryAutoSelection:
 
     def test_auto_select_provider_only_elevenlabs_configured(self, monkeypatch):
         """Test auto-selection with only ElevenLabs configured."""
-        with patch("src.providers.factory.Config") as mock_config:
+        with patch("src.providers.factory.get_config") as mock_get_config:
+            mock_config = Mock()
             mock_config.DEEPGRAM_API_KEY = None
             mock_config.ELEVENLABS_API_KEY = "test_elevenlabs_key"
+            mock_get_config.return_value = mock_config
 
             selected = TranscriptionProviderFactory.auto_select_provider()
 

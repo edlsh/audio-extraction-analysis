@@ -26,7 +26,7 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Type
 
-from ..config import Config
+from ..config import get_config
 from ..utils.retry import RetryConfig
 from .base import BaseTranscriptionProvider, CircuitBreakerConfig
 
@@ -93,12 +93,13 @@ class TranscriptionProviderFactory:
             Use check_provider_health() for runtime health validation.
         """
         configured = []
+        config = get_config()
 
         # Check API-based providers (require authentication keys)
-        if Config.DEEPGRAM_API_KEY:
+        if config.DEEPGRAM_API_KEY:
             configured.append("deepgram")
 
-        if Config.ELEVENLABS_API_KEY:
+        if config.ELEVENLABS_API_KEY:
             configured.append("elevenlabs")
 
         # Check local providers (require dependencies but no API keys)
@@ -160,7 +161,7 @@ class TranscriptionProviderFactory:
         if circuit_config is not None and retry_config is not None:
             return circuit_config, retry_config
 
-        config = Config()
+        config = get_config()
 
         if circuit_config is None:
             circuit_config = CircuitBreakerConfig(
@@ -192,11 +193,11 @@ class TranscriptionProviderFactory:
             provider_name: Name of the provider for logging purposes
 
         Note:
-            - Skipped if Config.HEALTH_CHECK_ENABLED is False
+            - Skipped if get_config().HEALTH_CHECK_ENABLED is False
             - Failures are logged but not raised (non-blocking)
             - Internal method, prefer check_provider_health() for external use
         """
-        if not Config.HEALTH_CHECK_ENABLED:
+        if not get_config().HEALTH_CHECK_ENABLED:
             return
 
         try:
@@ -388,7 +389,7 @@ class TranscriptionProviderFactory:
             )
 
         # Filter by health status if requested
-        if include_health_check and Config.HEALTH_CHECK_ENABLED:
+        if include_health_check and get_config().HEALTH_CHECK_ENABLED:
             healthy_providers = []
             for provider_name in configured_providers:
                 try:
@@ -514,12 +515,14 @@ class TranscriptionProviderFactory:
                 return False
         elif provider_name == "whisper":
             # Whisper local model: check against global file size configuration
-            if file_size_mb > (Config.MAX_FILE_SIZE / (1024 * 1024)):
+            config = get_config()
+            if file_size_mb > (config.MAX_FILE_SIZE / (1024 * 1024)):
                 logger.warning(f"File size {file_size_mb:.1f}MB exceeds global file size limit")
                 return False
         elif provider_name == "parakeet":
             # Parakeet local model: check against global file size configuration
-            if file_size_mb > (Config.MAX_FILE_SIZE / (1024 * 1024)):
+            config = get_config()
+            if file_size_mb > (config.MAX_FILE_SIZE / (1024 * 1024)):
                 logger.warning(f"File size {file_size_mb:.1f}MB exceeds global file size limit")
                 return False
 

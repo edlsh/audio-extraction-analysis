@@ -11,11 +11,13 @@ from src.providers.whisper import WhisperTranscriber
 
 @pytest.fixture(autouse=True)
 def mock_whisper_config():
-    """Automatically mock Config for all whisper tests."""
-    with patch("src.providers.whisper.Config") as mock_config:
+    """Automatically mock get_config() for all whisper tests."""
+    with patch("src.providers.whisper.get_config") as mock_get_config:
+        mock_config = Mock()
         mock_config.WHISPER_MODEL = "base"
         mock_config.WHISPER_DEVICE = "cpu"
         mock_config.WHISPER_COMPUTE_TYPE = "float16"
+        mock_get_config.return_value = mock_config
         yield mock_config
 
 
