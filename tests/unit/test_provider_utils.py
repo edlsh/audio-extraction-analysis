@@ -19,16 +19,18 @@ from src.utils.retry import RetryConfig
 
 @pytest.fixture(autouse=True)
 def mock_config():
-    """Mock Config class with integer/float attributes instead of properties."""
-    with patch("src.providers.provider_utils.Config") as mock_cfg:
-        # Set up mock to return actual values instead of property objects
+    """Mock get_config() function to return config with test values."""
+    with patch("src.providers.provider_utils.get_config") as mock_get_config:
+        # Create mock config instance with test values
+        mock_cfg = Mock()
         mock_cfg.MAX_API_RETRIES = 3
         mock_cfg.API_RETRY_DELAY = 1.0
         mock_cfg.MAX_RETRY_DELAY = 60.0
         mock_cfg.RETRY_EXPONENTIAL_BASE = 2.0
         mock_cfg.RETRY_JITTER_ENABLED = True
-        mock_cfg.CIRCUIT_BREAKER_THRESHOLD = 5
-        mock_cfg.CIRCUIT_BREAKER_TIMEOUT = 60.0
+        mock_cfg.CIRCUIT_BREAKER_FAILURE_THRESHOLD = 5
+        mock_cfg.CIRCUIT_BREAKER_RECOVERY_TIMEOUT = 60.0
+        mock_get_config.return_value = mock_cfg
         yield mock_cfg
 
 
