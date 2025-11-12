@@ -162,3 +162,4 @@ reports/static/
 
 # AI assistant configuration and specs
 .claude/
+.sugar/
