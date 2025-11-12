@@ -17,7 +17,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from ..config import Config
+from ..config import get_config
 from ..models.transcription import (
     TranscriptionChapter,
     TranscriptionResult,
@@ -281,7 +281,7 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
         """Initialize the transcriber with API key and configurations.
 
         Args:
-            api_key: Optional Deepgram API key. If None, uses Config.DEEPGRAM_API_KEY
+            api_key: Optional Deepgram API key. If None, uses get_config().DEEPGRAM_API_KEY
             circuit_config: Circuit breaker configuration
             retry_config: Retry configuration
         """
@@ -293,14 +293,15 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
             )
 
         if circuit_config is None:
+            config = get_config()
             circuit_config = CircuitBreakerConfig(
-                failure_threshold=Config.CIRCUIT_BREAKER_FAILURE_THRESHOLD,
-                recovery_timeout=Config.CIRCUIT_BREAKER_RECOVERY_TIMEOUT,
-                expected_exception_types=Config.CIRCUIT_BREAKER_EXPECTED_EXCEPTION_TYPES,
+                failure_threshold=config.CIRCUIT_BREAKER_FAILURE_THRESHOLD,
+                recovery_timeout=config.CIRCUIT_BREAKER_RECOVERY_TIMEOUT,
+                expected_exception_types=config.CIRCUIT_BREAKER_EXPECTED_EXCEPTION_TYPES,
             )
 
         super().__init__(api_key, circuit_config, retry_config)
-        self.api_key = api_key or Config.DEEPGRAM_API_KEY
+        self.api_key = api_key or get_config().DEEPGRAM_API_KEY
         if not self.api_key:
             raise ValueError(
                 "DEEPGRAM_API_KEY not found. Set it as environment variable or pass to constructor."

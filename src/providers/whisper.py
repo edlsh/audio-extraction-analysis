@@ -38,7 +38,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from ..config import Config
+from ..config import get_config
 from ..models.transcription import TranscriptionResult, TranscriptionUtterance
 from ..utils.retry import RetryConfig
 from .base import BaseTranscriptionProvider, CircuitBreakerConfig
@@ -145,11 +145,12 @@ class WhisperTranscriber(BaseTranscriptionProvider):
         """
         super().__init__(api_key, circuit_config, retry_config)
         self.model = None
-        self.model_name = Config.WHISPER_MODEL or "base"
+        config = get_config()
+        self.model_name = config.WHISPER_MODEL or "base"
         self.device = (
-            Config.WHISPER_DEVICE or "cuda" if torch and torch.cuda.is_available() else "cpu"
+            config.WHISPER_DEVICE or "cuda" if torch and torch.cuda.is_available() else "cpu"
         )
-        self.compute_type = Config.WHISPER_COMPUTE_TYPE or "float16"
+        self.compute_type = config.WHISPER_COMPUTE_TYPE or "float16"
 
     def validate_configuration(self) -> bool:
         """Validate that Whisper is properly configured and dependencies are available.
