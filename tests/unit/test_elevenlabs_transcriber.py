@@ -398,7 +398,7 @@ class TestElevenLabsTranscriberHealthCheck:
     async def test_health_check_sdk_not_available(self):
         """Test health check when SDK is not available."""
         with pytest.raises(ImportError, match="ElevenLabs SDK not available"):
-            transcriber = ElevenLabsTranscriber(api_key="test_key")
+            ElevenLabsTranscriber(api_key="test_key")
 
     @pytest.mark.asyncio
     @patch("elevenlabs.client.ElevenLabs")
@@ -422,7 +422,6 @@ class TestElevenLabsTranscriberHealthCheck:
     @patch("elevenlabs.client.ElevenLabs")
     async def test_health_check_timeout(self, mock_elevenlabs_class):
         """Test health check with timeout."""
-        import asyncio
 
         mock_client = Mock()
 
@@ -531,15 +530,19 @@ class TestElevenLabsTranscriberMemoryManagement:
         transcriber = ElevenLabsTranscriber(api_key="test_key")
 
         # Mock the chunked reading to verify it's called
-        with patch.object(transcriber, "_read_file_chunked", return_value=b"mocked_data") as mock_read:
-            result = transcriber.transcribe(large_file, "en")
+        with patch.object(
+            transcriber, "_read_file_chunked", return_value=b"mocked_data"
+        ) as mock_read:
+            transcriber.transcribe(large_file, "en")
 
         # Verify streaming approach was used
         assert mock_read.called
 
     @patch("elevenlabs.client.ElevenLabs")
     @patch("src.providers.elevenlabs.safe_validate_audio_file")
-    def test_transcribe_validation_failure(self, mock_validate, mock_elevenlabs_class, temp_audio_file):
+    def test_transcribe_validation_failure(
+        self, mock_validate, mock_elevenlabs_class, temp_audio_file
+    ):
         """Test transcription when file validation fails."""
         mock_validate.return_value = None  # Validation failed
 
@@ -632,7 +635,6 @@ class TestElevenLabsTranscriberEdgeCases:
     @patch("elevenlabs.client.ElevenLabs")
     async def test_transcribe_async_timeout(self, mock_elevenlabs_class, temp_audio_file):
         """Test async transcription with timeout."""
-        import asyncio
 
         mock_client = Mock()
 

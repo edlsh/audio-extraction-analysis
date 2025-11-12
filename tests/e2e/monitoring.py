@@ -34,14 +34,14 @@ Usage Example:
     >>> report_generator.generate_html_report(Path("report.html"))
     >>> alert_system.check_and_send_alerts("suite_name", suite_metrics)
 """
+
 import json
-import time
-import sqlite3
-from pathlib import Path
-from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass, asdict
-from datetime import datetime, timedelta
 import logging
+import sqlite3
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Dict, List, Optional
 
 
 @dataclass
@@ -63,6 +63,7 @@ class TestMetrics:
         error_message: Error message if test failed, None if passed
         coverage_percent: Code coverage percentage for this test, if available
     """
+
     test_name: str
     suite_name: str
     execution_time: float
@@ -94,6 +95,7 @@ class SuiteMetrics:
         timestamp: ISO 8601 formatted timestamp of suite execution
         coverage_percent: Overall code coverage percentage for suite, if available
     """
+
     suite_name: str
     total_tests: int
     passed_tests: int
@@ -127,6 +129,7 @@ class TrendData:
             - Negative values indicate decrease
             - Interpretation depends on metric (e.g., execution time increase is bad)
     """
+
     metric_name: str
     timestamps: List[str]
     values: List[float]
@@ -179,7 +182,7 @@ class TestMetricsCollector:
         self.db_path = db_path or Path("test_metrics.db")
         self.logger = logging.getLogger(__name__)
         self._init_database()
-    
+
     def _init_database(self):
         """
         Initialize SQLite database schema and indexes.
@@ -198,7 +201,8 @@ class TestMetricsCollector:
             cursor = conn.cursor()
 
             # Create test metrics table for individual test execution records
-            cursor.execute("""
+            cursor.execute(
+                """
                 CREATE TABLE IF NOT EXISTS test_metrics (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     test_name TEXT NOT NULL,
@@ -211,10 +215,12 @@ class TestMetricsCollector:
                     error_message TEXT,
                     coverage_percent REAL
                 )
-            """)
+            """
+            )
 
             # Create suite metrics table for aggregated suite-level statistics
-            cursor.execute("""
+            cursor.execute(
+                """
                 CREATE TABLE IF NOT EXISTS suite_metrics (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     suite_name TEXT NOT NULL,
@@ -228,17 +234,22 @@ class TestMetricsCollector:
                     timestamp TEXT NOT NULL,
                     coverage_percent REAL
                 )
-            """)
+            """
+            )
 
             # Create indexes for efficient historical queries
             # Timestamp indexes support date range queries for trend analysis
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_test_timestamp ON test_metrics(timestamp)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_suite_timestamp ON suite_metrics(timestamp)")
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_test_timestamp ON test_metrics(timestamp)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_suite_timestamp ON suite_metrics(timestamp)"
+            )
             # Suite name index supports filtering by specific test suite
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_test_suite ON test_metrics(suite_name)")
 
             conn.commit()
-    
+
     def record_test_metrics(self, metrics: TestMetrics):
         """
         Record individual test execution metrics to database.
@@ -252,16 +263,25 @@ class TestMetricsCollector:
         """
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO test_metrics (
                     test_name, suite_name, execution_time, memory_peak_mb,
                     cpu_avg_percent, success, timestamp, error_message, coverage_percent
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                metrics.test_name, metrics.suite_name, metrics.execution_time,
-                metrics.memory_peak_mb, metrics.cpu_avg_percent, metrics.success,
-                metrics.timestamp, metrics.error_message, metrics.coverage_percent
-            ))
+            """,
+                (
+                    metrics.test_name,
+                    metrics.suite_name,
+                    metrics.execution_time,
+                    metrics.memory_peak_mb,
+                    metrics.cpu_avg_percent,
+                    metrics.success,
+                    metrics.timestamp,
+                    metrics.error_message,
+                    metrics.coverage_percent,
+                ),
+            )
             conn.commit()
 
     def record_suite_metrics(self, metrics: SuiteMetrics):
@@ -277,19 +297,28 @@ class TestMetricsCollector:
         """
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO suite_metrics (
                     suite_name, total_tests, passed_tests, failed_tests, skipped_tests,
                     total_duration, avg_execution_time, success_rate, timestamp, coverage_percent
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                metrics.suite_name, metrics.total_tests, metrics.passed_tests,
-                metrics.failed_tests, metrics.skipped_tests, metrics.total_duration,
-                metrics.avg_execution_time, metrics.success_rate, metrics.timestamp,
-                metrics.coverage_percent
-            ))
+            """,
+                (
+                    metrics.suite_name,
+                    metrics.total_tests,
+                    metrics.passed_tests,
+                    metrics.failed_tests,
+                    metrics.skipped_tests,
+                    metrics.total_duration,
+                    metrics.avg_execution_time,
+                    metrics.success_rate,
+                    metrics.timestamp,
+                    metrics.coverage_percent,
+                ),
+            )
             conn.commit()
-    
+
     def get_suite_history(self, suite_name: str, days: int = 30) -> List[SuiteMetrics]:
         """
         Retrieve historical suite metrics for trend analysis.
@@ -313,20 +342,22 @@ class TestMetricsCollector:
 
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT * FROM suite_metrics
                 WHERE suite_name = ? AND timestamp >= ?
                 ORDER BY timestamp DESC
-            """, (suite_name, cutoff_date))
+            """,
+                (suite_name, cutoff_date),
+            )
 
             rows = cursor.fetchall()
             columns = [desc[0] for desc in cursor.description]
 
             return [
-                SuiteMetrics(**dict(zip(columns[1:], row[1:])))  # Skip ID column
-                for row in rows
+                SuiteMetrics(**dict(zip(columns[1:], row[1:]))) for row in rows  # Skip ID column
             ]
-    
+
     def get_performance_trends(self, suite_name: str, days: int = 30) -> Dict[str, TrendData]:
         """
         Analyze performance trends for a test suite over time.
@@ -364,27 +395,27 @@ class TestMetricsCollector:
         execution_times = [h.avg_execution_time for h in history]
         timestamps = [h.timestamp for h in history]
 
-        trends['execution_time'] = self._calculate_trend(
-            'avg_execution_time', timestamps, execution_times
+        trends["execution_time"] = self._calculate_trend(
+            "avg_execution_time", timestamps, execution_times
         )
 
         # Analyze success rate trend
         success_rates = [h.success_rate for h in history]
-        trends['success_rate'] = self._calculate_trend(
-            'success_rate', timestamps, success_rates
-        )
+        trends["success_rate"] = self._calculate_trend("success_rate", timestamps, success_rates)
 
         # Analyze coverage trend (if data available)
         coverage_values = [h.coverage_percent for h in history if h.coverage_percent is not None]
         if coverage_values:
             coverage_timestamps = [h.timestamp for h in history if h.coverage_percent is not None]
-            trends['coverage'] = self._calculate_trend(
-                'coverage', coverage_timestamps, coverage_values
+            trends["coverage"] = self._calculate_trend(
+                "coverage", coverage_timestamps, coverage_values
             )
 
         return trends
-    
-    def _calculate_trend(self, metric_name: str, timestamps: List[str], values: List[float]) -> TrendData:
+
+    def _calculate_trend(
+        self, metric_name: str, timestamps: List[str], values: List[float]
+    ) -> TrendData:
         """
         Calculate trend direction and percentage change for a metric.
 
@@ -416,8 +447,8 @@ class TestMetricsCollector:
             return TrendData(metric_name, timestamps, values, "stable", 0.0)
 
         # Split data in half and compare averages for simple linear trend
-        first_half = values[:len(values)//2]
-        second_half = values[len(values)//2:]
+        first_half = values[: len(values) // 2]
+        second_half = values[len(values) // 2 :]
 
         first_avg = sum(first_half) / len(first_half)
         second_avg = sum(second_half) / len(second_half)
@@ -431,13 +462,13 @@ class TestMetricsCollector:
         elif change_percent > 0:
             # For success rate and coverage, increase is good (improving)
             # For execution time, increase is bad (degrading - tests getting slower)
-            if metric_name in ['success_rate', 'coverage']:
+            if metric_name in ["success_rate", "coverage"]:
                 trend_direction = "improving"
             else:
                 trend_direction = "degrading"
         else:
             # Negative change
-            if metric_name in ['success_rate', 'coverage']:
+            if metric_name in ["success_rate", "coverage"]:
                 trend_direction = "degrading"
             else:
                 trend_direction = "improving"  # Execution time decrease is good
@@ -478,7 +509,7 @@ class ReportGenerator:
         """
         self.metrics_collector = metrics_collector
         self.logger = logging.getLogger(__name__)
-    
+
     def generate_html_report(self, output_path: Path, suite_name: Optional[str] = None):
         """
         Generate an HTML report with charts and metrics visualization.
@@ -499,7 +530,7 @@ class ReportGenerator:
         """
         html_content = self._build_html_report(suite_name)
 
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             f.write(html_content)
 
         self.logger.info(f"HTML report generated: {output_path}")
@@ -526,7 +557,7 @@ class ReportGenerator:
         """
         report_data = self._build_report_data(suite_name)
 
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             json.dump(report_data, f, indent=2)
 
         self.logger.info(f"JSON report generated: {output_path}")
@@ -552,55 +583,57 @@ class ReportGenerator:
         """
         markdown_content = self._build_markdown_report(suite_name)
 
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             f.write(markdown_content)
 
         self.logger.info(f"Markdown report generated: {output_path}")
-    
+
     def _build_report_data(self, suite_name: Optional[str] = None) -> Dict:
         """Build report data structure."""
         if suite_name:
             # Single suite report
             history = self.metrics_collector.get_suite_history(suite_name, days=30)
             trends = self.metrics_collector.get_performance_trends(suite_name, days=30)
-            
+
             return {
                 "suite_name": suite_name,
                 "generated_at": datetime.now().isoformat(),
                 "history": [asdict(h) for h in history],
                 "trends": {k: asdict(v) for k, v in trends.items()},
-                "latest_metrics": asdict(history[0]) if history else None
+                "latest_metrics": asdict(history[0]) if history else None,
             }
         else:
             # All suites report
             with sqlite3.connect(self.metrics_collector.db_path) as conn:
                 cursor = conn.cursor()
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT DISTINCT suite_name FROM suite_metrics
                     ORDER BY suite_name
-                """)
+                """
+                )
                 suite_names = [row[0] for row in cursor.fetchall()]
-            
+
             suites_data = {}
             for name in suite_names:
                 history = self.metrics_collector.get_suite_history(name, days=7)  # Last week
                 trends = self.metrics_collector.get_performance_trends(name, days=7)
-                
+
                 suites_data[name] = {
                     "latest_metrics": asdict(history[0]) if history else None,
-                    "trend_summary": self._summarize_trends(trends)
+                    "trend_summary": self._summarize_trends(trends),
                 }
-            
+
             return {
                 "generated_at": datetime.now().isoformat(),
                 "suites": suites_data,
-                "summary": self._calculate_overall_summary(suites_data)
+                "summary": self._calculate_overall_summary(suites_data),
             }
-    
+
     def _build_html_report(self, suite_name: Optional[str] = None) -> str:
         """Build HTML report content."""
         report_data = self._build_report_data(suite_name)
-        
+
         html_template = """
 <!DOCTYPE html>
 <html lang="en">
@@ -635,50 +668,48 @@ class ReportGenerator:
 </body>
 </html>
         """
-        
+
         if suite_name:
             content = self._build_suite_html_content(report_data)
             title = f"{suite_name} Suite"
         else:
             content = self._build_overview_html_content(report_data)
             title = "Overview"
-        
+
         return html_template.format(
-            title=title,
-            generated_at=report_data["generated_at"],
-            content=content
+            title=title, generated_at=report_data["generated_at"], content=content
         )
-    
+
     def _build_suite_html_content(self, data: Dict) -> str:
         """Build HTML content for single suite report."""
         latest = data.get("latest_metrics")
         if not latest:
             return "<p>No metrics available for this suite.</p>"
-        
+
         trends_html = ""
         for trend_name, trend_data in data.get("trends", {}).items():
             direction_class = f"trend-{trend_data['trend_direction'].replace('degrading', 'down').replace('improving', 'up')}"
             trends_html += f"""
             <div class="metric-card">
-                <h4>{trend_name.replace('_', ' ').title()}</h4>
+                <h4>{trend_name.replace("_", " ").title()}</h4>
                 <p class="{direction_class}">
-                    {trend_data['trend_direction'].title()} 
-                    ({trend_data['change_percent']:+.1f}%)
+                    {trend_data["trend_direction"].title()} 
+                    ({trend_data["change_percent"]:+.1f}%)
                 </p>
             </div>
             """
-        
+
         return f"""
         <h2>Latest Metrics</h2>
-        <div class="metric-card {'success' if latest['success_rate'] > 90 else 'warning' if latest['success_rate'] > 70 else 'danger'}">
-            <h3>Success Rate: {latest['success_rate']:.1f}%</h3>
-            <p>Passed: {latest['passed_tests']}, Failed: {latest['failed_tests']}, Skipped: {latest['skipped_tests']}</p>
+        <div class="metric-card {"success" if latest["success_rate"] > 90 else "warning" if latest["success_rate"] > 70 else "danger"}">
+            <h3>Success Rate: {latest["success_rate"]:.1f}%</h3>
+            <p>Passed: {latest["passed_tests"]}, Failed: {latest["failed_tests"]}, Skipped: {latest["skipped_tests"]}</p>
         </div>
         
         <div class="metric-card">
             <h3>Performance</h3>
-            <p>Average Execution Time: {latest['avg_execution_time']:.2f}s</p>
-            <p>Total Duration: {latest['total_duration']:.2f}s</p>
+            <p>Average Execution Time: {latest["avg_execution_time"]:.2f}s</p>
+            <p>Total Duration: {latest["total_duration"]:.2f}s</p>
         </div>
         
         <h2>Trends (Last 30 Days)</h2>
@@ -689,28 +720,32 @@ class ReportGenerator:
             <br><small>(Chart.js integration would be added for production)</small>
         </div>
         """
-    
+
     def _build_overview_html_content(self, data: Dict) -> str:
         """Build HTML content for overview report."""
         suites_html = ""
-        
+
         for suite_name, suite_data in data.get("suites", {}).items():
             latest = suite_data.get("latest_metrics")
             if not latest:
                 continue
-            
-            status_class = 'success' if latest['success_rate'] > 90 else 'warning' if latest['success_rate'] > 70 else 'danger'
-            
+
+            status_class = (
+                "success"
+                if latest["success_rate"] > 90
+                else "warning" if latest["success_rate"] > 70 else "danger"
+            )
+
             suites_html += f"""
             <tr>
                 <td>{suite_name}</td>
-                <td class="{status_class}">{latest['success_rate']:.1f}%</td>
-                <td>{latest['total_tests']}</td>
-                <td>{latest['avg_execution_time']:.2f}s</td>
-                <td>{latest['timestamp'][:10]}</td>
+                <td class="{status_class}">{latest["success_rate"]:.1f}%</td>
+                <td>{latest["total_tests"]}</td>
+                <td>{latest["avg_execution_time"]:.2f}s</td>
+                <td>{latest["timestamp"][:10]}</td>
             </tr>
             """
-        
+
         return f"""
         <h2>Test Suites Overview</h2>
         <table>
@@ -729,58 +764,62 @@ class ReportGenerator:
         </table>
         
         <h2>Summary</h2>
-        {self._build_summary_html(data.get('summary', {}))}
+        {self._build_summary_html(data.get("summary", {}))}
         """
-    
+
     def _build_summary_html(self, summary: Dict) -> str:
         """Build summary HTML section."""
         if not summary:
             return "<p>No summary data available.</p>"
-        
+
         return f"""
         <div class="metric-card">
             <h3>Overall Health</h3>
-            <p>Average Success Rate: {summary.get('avg_success_rate', 0):.1f}%</p>
-            <p>Total Test Suites: {summary.get('total_suites', 0)}</p>
-            <p>Suites Passing: {summary.get('passing_suites', 0)}</p>
+            <p>Average Success Rate: {summary.get("avg_success_rate", 0):.1f}%</p>
+            <p>Total Test Suites: {summary.get("total_suites", 0)}</p>
+            <p>Suites Passing: {summary.get("passing_suites", 0)}</p>
         </div>
         """
-    
+
     def _build_markdown_report(self, suite_name: Optional[str] = None) -> str:
         """Build Markdown report content."""
         report_data = self._build_report_data(suite_name)
-        
+
         if suite_name:
             return self._build_suite_markdown_content(report_data)
         else:
             return self._build_overview_markdown_content(report_data)
-    
+
     def _build_suite_markdown_content(self, data: Dict) -> str:
         """Build Markdown content for single suite report."""
         latest = data.get("latest_metrics")
         if not latest:
             return "# No Metrics Available\n\nNo metrics data found for this suite.\n"
-        
+
         trends_md = ""
         for trend_name, trend_data in data.get("trends", {}).items():
-            direction_emoji = "📈" if trend_data['trend_direction'] == "improving" else "📉" if trend_data['trend_direction'] == "degrading" else "📊"
+            direction_emoji = (
+                "📈"
+                if trend_data["trend_direction"] == "improving"
+                else "📉" if trend_data["trend_direction"] == "degrading" else "📊"
+            )
             trends_md += f"- **{trend_name.replace('_', ' ').title()}**: {direction_emoji} {trend_data['trend_direction'].title()} ({trend_data['change_percent']:+.1f}%)\n"
-        
-        return f"""# E2E Test Report - {data['suite_name']}
 
-**Generated:** {data['generated_at']}
+        return f"""# E2E Test Report - {data["suite_name"]}
+
+**Generated:** {data["generated_at"]}
 
 ## Latest Metrics
 
-### Success Rate: {latest['success_rate']:.1f}%
-- ✅ Passed: {latest['passed_tests']}
-- ❌ Failed: {latest['failed_tests']}
-- ⏭️ Skipped: {latest['skipped_tests']}
+### Success Rate: {latest["success_rate"]:.1f}%
+- ✅ Passed: {latest["passed_tests"]}
+- ❌ Failed: {latest["failed_tests"]}
+- ⏭️ Skipped: {latest["skipped_tests"]}
 
 ### Performance
-- **Average Execution Time:** {latest['avg_execution_time']:.2f}s
-- **Total Duration:** {latest['total_duration']:.2f}s
-- **Last Run:** {latest['timestamp']}
+- **Average Execution Time:** {latest["avg_execution_time"]:.2f}s
+- **Total Duration:** {latest["total_duration"]:.2f}s
+- **Last Run:** {latest["timestamp"]}
 
 ## Trends (Last 30 Days)
 
@@ -788,27 +827,31 @@ class ReportGenerator:
 
 ## Recommendations
 
-{self._generate_recommendations(latest, data.get('trends', {}))}
+{self._generate_recommendations(latest, data.get("trends", {}))}
 """
-    
+
     def _build_overview_markdown_content(self, data: Dict) -> str:
         """Build Markdown content for overview report."""
         suites_table = "| Suite Name | Success Rate | Total Tests | Avg Duration | Last Run |\n|------------|--------------|-------------|--------------|----------|\n"
-        
+
         for suite_name, suite_data in data.get("suites", {}).items():
             latest = suite_data.get("latest_metrics")
             if not latest:
                 continue
-            
-            status_emoji = "✅" if latest['success_rate'] > 90 else "⚠️" if latest['success_rate'] > 70 else "❌"
-            
+
+            status_emoji = (
+                "✅"
+                if latest["success_rate"] > 90
+                else "⚠️" if latest["success_rate"] > 70 else "❌"
+            )
+
             suites_table += f"| {suite_name} | {status_emoji} {latest['success_rate']:.1f}% | {latest['total_tests']} | {latest['avg_execution_time']:.2f}s | {latest['timestamp'][:10]} |\n"
-        
-        summary = data.get('summary', {})
-        
+
+        summary = data.get("summary", {})
+
         return f"""# E2E Test Report - Overview
 
-**Generated:** {data['generated_at']}
+**Generated:** {data["generated_at"]}
 
 ## Test Suites Status
 
@@ -816,91 +859,101 @@ class ReportGenerator:
 
 ## Summary
 
-- **Total Test Suites:** {summary.get('total_suites', 0)}
-- **Suites Passing (>90%):** {summary.get('passing_suites', 0)}
-- **Average Success Rate:** {summary.get('avg_success_rate', 0):.1f}%
+- **Total Test Suites:** {summary.get("total_suites", 0)}
+- **Suites Passing (>90%):** {summary.get("passing_suites", 0)}
+- **Average Success Rate:** {summary.get("avg_success_rate", 0):.1f}%
 
 ## Overall Health: {self._get_health_status(summary)}
 
-{self._generate_overview_recommendations(data.get('suites', {}))}
+{self._generate_overview_recommendations(data.get("suites", {}))}
 """
-    
+
     def _summarize_trends(self, trends: Dict[str, TrendData]) -> Dict:
         """Summarize trend data for overview."""
         summary = {}
         for trend_name, trend_data in trends.items():
             summary[trend_name] = {
                 "direction": trend_data.trend_direction,
-                "change_percent": trend_data.change_percent
+                "change_percent": trend_data.change_percent,
             }
         return summary
-    
+
     def _calculate_overall_summary(self, suites_data: Dict) -> Dict:
         """Calculate overall summary statistics."""
         total_suites = len(suites_data)
         passing_suites = 0
         success_rates = []
-        
+
         for suite_data in suites_data.values():
             latest = suite_data.get("latest_metrics")
             if latest:
-                success_rates.append(latest['success_rate'])
-                if latest['success_rate'] > 90:
+                success_rates.append(latest["success_rate"])
+                if latest["success_rate"] > 90:
                     passing_suites += 1
-        
+
         avg_success_rate = sum(success_rates) / len(success_rates) if success_rates else 0
-        
+
         return {
             "total_suites": total_suites,
             "passing_suites": passing_suites,
-            "avg_success_rate": avg_success_rate
+            "avg_success_rate": avg_success_rate,
         }
-    
+
     def _generate_recommendations(self, latest_metrics: Dict, trends: Dict) -> str:
         """Generate recommendations based on metrics and trends."""
         recommendations = []
-        
+
         # Success rate recommendations
-        if latest_metrics['success_rate'] < 90:
-            recommendations.append("🚨 Success rate is below 90%. Investigate and fix failing tests.")
-        
+        if latest_metrics["success_rate"] < 90:
+            recommendations.append(
+                "🚨 Success rate is below 90%. Investigate and fix failing tests."
+            )
+
         # Performance recommendations
-        execution_trend = trends.get('execution_time')
-        if execution_trend and execution_trend['trend_direction'] == 'degrading':
-            recommendations.append("⚠️ Execution time is increasing. Consider performance optimization.")
-        
+        execution_trend = trends.get("execution_time")
+        if execution_trend and execution_trend["trend_direction"] == "degrading":
+            recommendations.append(
+                "⚠️ Execution time is increasing. Consider performance optimization."
+            )
+
         # Coverage recommendations
-        if latest_metrics.get('coverage_percent') and latest_metrics['coverage_percent'] < 80:
+        if latest_metrics.get("coverage_percent") and latest_metrics["coverage_percent"] < 80:
             recommendations.append("📝 Code coverage is below 80%. Add more comprehensive tests.")
-        
+
         if not recommendations:
             recommendations.append("✅ All metrics look good! Keep up the excellent work.")
-        
+
         return "\n".join(f"- {rec}" for rec in recommendations)
-    
+
     def _generate_overview_recommendations(self, suites_data: Dict) -> str:
         """Generate overview recommendations."""
         failing_suites = []
-        
+
         for suite_name, suite_data in suites_data.items():
             latest = suite_data.get("latest_metrics")
-            if latest and latest['success_rate'] < 80:
+            if latest and latest["success_rate"] < 80:
                 failing_suites.append(suite_name)
-        
+
         recommendations = []
-        
+
         if failing_suites:
-            recommendations.append(f"🚨 **Critical:** The following suites need immediate attention: {', '.join(failing_suites)}")
-        
-        recommendations.append("📊 Regular monitoring helps maintain test quality and catch regressions early.")
-        recommendations.append("🔄 Consider setting up automated alerts for significant metric changes.")
-        
+            recommendations.append(
+                f"🚨 **Critical:** The following suites need immediate attention: {', '.join(failing_suites)}"
+            )
+
+        recommendations.append(
+            "📊 Regular monitoring helps maintain test quality and catch regressions early."
+        )
+        recommendations.append(
+            "🔄 Consider setting up automated alerts for significant metric changes."
+        )
+
         return "## Recommendations\n\n" + "\n".join(f"- {rec}" for rec in recommendations)
-    
+
     def _get_health_status(self, summary: Dict) -> str:
         """Get overall health status."""
-        avg_success_rate = summary.get('avg_success_rate', 0)
-        
+        avg_success_rate = summary.get("avg_success_rate", 0)
+
         if avg_success_rate >= 95:
             return "🟢 Excellent"
         elif avg_success_rate >= 85:
@@ -972,25 +1025,35 @@ class AlertSystem:
 
         # Success rate threshold checks
         if latest_metrics.success_rate < 80:
-            alerts.append({
-                "level": "critical",
-                "message": f"Success rate dropped to {latest_metrics.success_rate:.1f}% in {suite_name}"
-            })
+            alerts.append(
+                {
+                    "level": "critical",
+                    "message": f"Success rate dropped to {latest_metrics.success_rate:.1f}% in {suite_name}",
+                }
+            )
         elif latest_metrics.success_rate < 95:
-            alerts.append({
-                "level": "warning",
-                "message": f"Success rate is {latest_metrics.success_rate:.1f}% in {suite_name}"
-            })
+            alerts.append(
+                {
+                    "level": "warning",
+                    "message": f"Success rate is {latest_metrics.success_rate:.1f}% in {suite_name}",
+                }
+            )
 
         # Performance degradation check (7-day trend)
         trends = self.metrics_collector.get_performance_trends(suite_name, days=7)
-        execution_trend = trends.get('execution_time')
+        execution_trend = trends.get("execution_time")
 
-        if execution_trend and execution_trend.trend_direction == 'degrading' and execution_trend.change_percent > 20:
-            alerts.append({
-                "level": "warning",
-                "message": f"Execution time increased by {execution_trend.change_percent:.1f}% in {suite_name}"
-            })
+        if (
+            execution_trend
+            and execution_trend.trend_direction == "degrading"
+            and execution_trend.change_percent > 20
+        ):
+            alerts.append(
+                {
+                    "level": "warning",
+                    "message": f"Execution time increased by {execution_trend.change_percent:.1f}% in {suite_name}",
+                }
+            )
 
         # Send all triggered alerts
         for alert in alerts:
@@ -1089,15 +1152,15 @@ def monitor_test_execution(test_results: Dict, output_dir: Path):
         # Convert test framework results to metrics format
         suite_metrics = SuiteMetrics(
             suite_name=suite_name,
-            total_tests=suite_result.get('total', 0),
-            passed_tests=suite_result.get('passed', 0),
-            failed_tests=suite_result.get('failed', 0),
-            skipped_tests=suite_result.get('skipped', 0),
-            total_duration=suite_result.get('duration', 0),
-            avg_execution_time=suite_result.get('avg_time', 0),
-            success_rate=suite_result.get('success_rate', 0),
+            total_tests=suite_result.get("total", 0),
+            passed_tests=suite_result.get("passed", 0),
+            failed_tests=suite_result.get("failed", 0),
+            skipped_tests=suite_result.get("skipped", 0),
+            total_duration=suite_result.get("duration", 0),
+            avg_execution_time=suite_result.get("avg_time", 0),
+            success_rate=suite_result.get("success_rate", 0),
             timestamp=datetime.now().isoformat(),
-            coverage_percent=suite_result.get('coverage', None)
+            coverage_percent=suite_result.get("coverage", None),
         )
 
         # Persist metrics to database

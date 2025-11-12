@@ -24,7 +24,7 @@ def create_test_file(size_mb: int) -> Path:
         Path to created file
     """
     chunk = b"A" * (1024 * 1024)  # 1MB chunk
-    with tempfile.NamedTemporaryFile(mode='wb', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="wb", delete=False) as f:
         for _ in range(size_mb):
             f.write(chunk)
         return Path(f.name)
@@ -57,7 +57,7 @@ def benchmark_hash_performance(file_path: Path, iterations: int = 5) -> tuple[fl
         assert hash1 == hash2, "Hash mismatch!"
 
     cached_time = sum(cached_times) / len(cached_times)
-    speedup = uncached_time / cached_time if cached_time > 0 else float('inf')
+    speedup = uncached_time / cached_time if cached_time > 0 else float("inf")
 
     return uncached_time, cached_time, speedup
 

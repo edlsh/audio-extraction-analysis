@@ -19,11 +19,14 @@ async def test_pipeline_with_progress():
     """Test complete pipeline with progress tracking using JSON mode for stability."""
     console_manager = ConsoleManager(json_output=True)
 
-    with patch("src.services.audio_extraction_async.safe_validate_media_file", return_value=Path("test_input.mp4")), \
-         patch("src.pipeline.simple_pipeline.AsyncAudioExtractor") as mock_extractor_class, \
-         patch("src.pipeline.simple_pipeline.TranscriptionService") as mock_transcriber, \
-         patch("src.pipeline.simple_pipeline.FullAnalyzer") as mock_analyzer:
-
+    with patch(
+        "src.services.audio_extraction_async.safe_validate_media_file",
+        return_value=Path("test_input.mp4"),
+    ), patch("src.pipeline.simple_pipeline.AsyncAudioExtractor") as mock_extractor_class, patch(
+        "src.pipeline.simple_pipeline.TranscriptionService"
+    ) as mock_transcriber, patch(
+        "src.pipeline.simple_pipeline.FullAnalyzer"
+    ) as mock_analyzer:
         # Setup mocks for async extraction
         mock_extractor = AsyncMock()
         mock_extractor_class.return_value = mock_extractor
@@ -66,9 +69,7 @@ async def test_pipeline_extraction_failure():
     """Test pipeline handles audio extraction failures gracefully."""
     console_manager = ConsoleManager(json_output=True)
 
-    with patch(
-        "src.pipeline.simple_pipeline.AsyncAudioExtractor"
-    ) as mock_extractor_class:
+    with patch("src.pipeline.simple_pipeline.AsyncAudioExtractor") as mock_extractor_class:
         # Mock extractor to raise exception
         mock_extractor = AsyncMock()
         mock_extractor_class.return_value = mock_extractor
@@ -97,11 +98,10 @@ async def test_pipeline_transcription_failure():
     """Test pipeline handles transcription failures gracefully."""
     console_manager = ConsoleManager(json_output=True)
 
-    with patch("src.services.audio_extraction_async.safe_validate_media_file", return_value=Path("test_input.mp4")), \
-         patch(
-        "src.pipeline.simple_pipeline.AsyncAudioExtractor"
-    ) as mock_extractor_class, \
-         patch(
+    with patch(
+        "src.services.audio_extraction_async.safe_validate_media_file",
+        return_value=Path("test_input.mp4"),
+    ), patch("src.pipeline.simple_pipeline.AsyncAudioExtractor") as mock_extractor_class, patch(
         "src.pipeline.simple_pipeline.TranscriptionService"
     ) as mock_transcriber_class:
         # Mock successful extraction
@@ -138,14 +138,14 @@ async def test_pipeline_analysis_failure_partial_success():
     """Test that analysis failure doesn't prevent overall success if transcript exists."""
     console_manager = ConsoleManager(json_output=True)
 
-    with patch("src.services.audio_extraction_async.safe_validate_media_file", return_value=Path("test_input.mp4")), \
-         patch(
-        "src.pipeline.simple_pipeline.AsyncAudioExtractor"
-    ) as mock_extractor_class, \
-         patch(
+    with patch(
+        "src.services.audio_extraction_async.safe_validate_media_file",
+        return_value=Path("test_input.mp4"),
+    ), patch("src.pipeline.simple_pipeline.AsyncAudioExtractor") as mock_extractor_class, patch(
         "src.pipeline.simple_pipeline.TranscriptionService"
-    ) as mock_transcriber_class, \
-         patch("src.pipeline.simple_pipeline.FullAnalyzer") as mock_analyzer:
+    ) as mock_transcriber_class, patch(
+        "src.pipeline.simple_pipeline.FullAnalyzer"
+    ) as mock_analyzer:
         # Mock successful extraction and transcription
         mock_extractor = AsyncMock()
         mock_extractor_class.return_value = mock_extractor
@@ -185,14 +185,12 @@ async def test_pipeline_concise_analysis():
     """Test pipeline with concise analysis style."""
     console_manager = ConsoleManager(json_output=True)
 
-    with patch("src.services.audio_extraction_async.safe_validate_media_file", return_value=Path("test_input.mp4")), \
-         patch(
-        "src.pipeline.simple_pipeline.AsyncAudioExtractor"
-    ) as mock_extractor_class, \
-         patch(
+    with patch(
+        "src.services.audio_extraction_async.safe_validate_media_file",
+        return_value=Path("test_input.mp4"),
+    ), patch("src.pipeline.simple_pipeline.AsyncAudioExtractor") as mock_extractor_class, patch(
         "src.pipeline.simple_pipeline.TranscriptionService"
-    ) as mock_transcriber_class, \
-         patch(
+    ) as mock_transcriber_class, patch(
         "src.pipeline.simple_pipeline.ConciseAnalyzer"
     ) as mock_analyzer:
         # Setup mocks
@@ -234,14 +232,14 @@ async def test_pipeline_progress_callbacks():
     extraction_progress_called = []
     transcription_progress_called = []
 
-    with patch("src.services.audio_extraction_async.safe_validate_media_file", return_value=Path("test_input.mp4")), \
-         patch(
-        "src.pipeline.simple_pipeline.AsyncAudioExtractor"
-    ) as mock_extractor_class, \
-         patch(
+    with patch(
+        "src.services.audio_extraction_async.safe_validate_media_file",
+        return_value=Path("test_input.mp4"),
+    ), patch("src.pipeline.simple_pipeline.AsyncAudioExtractor") as mock_extractor_class, patch(
         "src.pipeline.simple_pipeline.TranscriptionService"
-    ) as mock_transcriber_class, \
-         patch("src.pipeline.simple_pipeline.FullAnalyzer") as mock_analyzer:
+    ) as mock_transcriber_class, patch(
+        "src.pipeline.simple_pipeline.FullAnalyzer"
+    ) as mock_analyzer:
         # Mock extraction with progress callback
         mock_extractor = AsyncMock()
         mock_extractor_class.return_value = mock_extractor
@@ -297,14 +295,14 @@ async def test_pipeline_progress_callbacks():
 async def test_pipeline_without_console_manager():
     """Test pipeline creates default ConsoleManager when none provided."""
 
-    with patch("src.services.audio_extraction_async.safe_validate_media_file", return_value=Path("test_input.mp4")), \
-         patch(
-        "src.pipeline.simple_pipeline.AsyncAudioExtractor"
-    ) as mock_extractor_class, \
-         patch(
+    with patch(
+        "src.services.audio_extraction_async.safe_validate_media_file",
+        return_value=Path("test_input.mp4"),
+    ), patch("src.pipeline.simple_pipeline.AsyncAudioExtractor") as mock_extractor_class, patch(
         "src.pipeline.simple_pipeline.TranscriptionService"
-    ) as mock_transcriber_class, \
-         patch("src.pipeline.simple_pipeline.FullAnalyzer") as mock_analyzer:
+    ) as mock_transcriber_class, patch(
+        "src.pipeline.simple_pipeline.FullAnalyzer"
+    ) as mock_analyzer:
         # Setup mocks
         mock_extractor = AsyncMock()
         mock_extractor_class.return_value = mock_extractor
@@ -339,14 +337,14 @@ async def test_pipeline_stage_results_tracking():
     """Test that stage results properly track duration and status."""
     console_manager = ConsoleManager(json_output=True)
 
-    with patch("src.services.audio_extraction_async.safe_validate_media_file", return_value=Path("test_input.mp4")), \
-         patch(
-        "src.pipeline.simple_pipeline.AsyncAudioExtractor"
-    ) as mock_extractor_class, \
-         patch(
+    with patch(
+        "src.services.audio_extraction_async.safe_validate_media_file",
+        return_value=Path("test_input.mp4"),
+    ), patch("src.pipeline.simple_pipeline.AsyncAudioExtractor") as mock_extractor_class, patch(
         "src.pipeline.simple_pipeline.TranscriptionService"
-    ) as mock_transcriber_class, \
-         patch("src.pipeline.simple_pipeline.FullAnalyzer") as mock_analyzer:
+    ) as mock_transcriber_class, patch(
+        "src.pipeline.simple_pipeline.FullAnalyzer"
+    ) as mock_analyzer:
         # Setup mocks
         mock_extractor = AsyncMock()
         mock_extractor_class.return_value = mock_extractor
@@ -412,9 +410,7 @@ async def test_pipeline_debug_dump_on_error():
     try:
         console_manager = ConsoleManager(json_output=True)
 
-        with patch(
-            "src.pipeline.simple_pipeline.AsyncAudioExtractor"
-        ) as mock_extractor_class:
+        with patch("src.pipeline.simple_pipeline.AsyncAudioExtractor") as mock_extractor_class:
             # Mock extraction to fail
             mock_extractor = AsyncMock()
             mock_extractor_class.return_value = mock_extractor
@@ -449,11 +445,10 @@ async def test_pipeline_cleanup_partial_files():
     """Test that partial files are cleaned up on failure."""
     console_manager = ConsoleManager(json_output=True)
 
-    with patch("src.services.audio_extraction_async.safe_validate_media_file", return_value=Path("test_input.mp4")), \
-         patch(
-        "src.pipeline.simple_pipeline.AsyncAudioExtractor"
-    ) as mock_extractor_class, \
-         patch(
+    with patch(
+        "src.services.audio_extraction_async.safe_validate_media_file",
+        return_value=Path("test_input.mp4"),
+    ), patch("src.pipeline.simple_pipeline.AsyncAudioExtractor") as mock_extractor_class, patch(
         "src.pipeline.simple_pipeline.TranscriptionService"
     ) as mock_transcriber_class:
         # Mock successful extraction
@@ -491,14 +486,14 @@ async def test_pipeline_files_created_tracking():
     """Test that all created files are tracked in results."""
     console_manager = ConsoleManager(json_output=True)
 
-    with patch("src.services.audio_extraction_async.safe_validate_media_file", return_value=Path("test_input.mp4")), \
-         patch(
-        "src.pipeline.simple_pipeline.AsyncAudioExtractor"
-    ) as mock_extractor_class, \
-         patch(
+    with patch(
+        "src.services.audio_extraction_async.safe_validate_media_file",
+        return_value=Path("test_input.mp4"),
+    ), patch("src.pipeline.simple_pipeline.AsyncAudioExtractor") as mock_extractor_class, patch(
         "src.pipeline.simple_pipeline.TranscriptionService"
-    ) as mock_transcriber_class, \
-         patch("src.pipeline.simple_pipeline.FullAnalyzer") as mock_analyzer:
+    ) as mock_transcriber_class, patch(
+        "src.pipeline.simple_pipeline.FullAnalyzer"
+    ) as mock_analyzer:
         # Setup mocks
         mock_extractor = AsyncMock()
         mock_extractor_class.return_value = mock_extractor

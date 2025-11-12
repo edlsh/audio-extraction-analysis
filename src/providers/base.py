@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from threading import Lock
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable
 
 from ..models.transcription import TranscriptionResult
 from ..utils.retry import RetryConfig, retry_async
@@ -98,7 +98,7 @@ class CircuitBreakerMixin:
                 return await self.circuit_breaker_call_async(self._do_work)
     """
 
-    def __init__(self, circuit_config: Optional[CircuitBreakerConfig] = None) -> None:
+    def __init__(self, circuit_config: CircuitBreakerConfig | None = None) -> None:
         """Initialize circuit breaker state.
 
         Args:
@@ -208,7 +208,9 @@ class CircuitBreakerMixin:
             self._record_failure(e)
             raise
 
-    async def circuit_breaker_call_async(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+    async def circuit_breaker_call_async(
+        self, func: Callable[..., Any], *args: Any, **kwargs: Any
+    ) -> Any:
         """Execute an async function with circuit breaker protection.
 
         Args:
@@ -233,7 +235,7 @@ class CircuitBreakerMixin:
             self._record_failure(e)
             raise
 
-    def get_circuit_state(self) -> Dict[str, Union[str, int, float]]:
+    def get_circuit_state(self) -> dict[str, str | int | float]:
         """Get current circuit breaker state information.
 
         Returns:
@@ -299,9 +301,9 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        circuit_config: Optional[CircuitBreakerConfig] = None,
-        retry_config: Optional[RetryConfig] = None,
+        api_key: str | None = None,
+        circuit_config: CircuitBreakerConfig | None = None,
+        retry_config: RetryConfig | None = None,
     ):
         """Initialize the transcription provider.
 
@@ -319,7 +321,7 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
     @abstractmethod
     async def _transcribe_impl(
         self, audio_file_path: Path, language: str = "en"
-    ) -> Optional[TranscriptionResult]:
+    ) -> TranscriptionResult | None:
         """Internal implementation of transcription.
 
         This method should contain the actual transcription logic
@@ -336,7 +338,7 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
 
     async def transcribe_async(
         self, audio_file_path: Path, language: str = "en"
-    ) -> Optional[TranscriptionResult]:
+    ) -> TranscriptionResult | None:
         """Transcribe audio file asynchronously with retry and circuit breaker.
 
         This method applies both retry logic and circuit breaker protection,
@@ -365,9 +367,7 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
             logger.error(f"Transcription failed: {e}")
             return None
 
-    def transcribe(
-        self, audio_file_path: Path, language: str = "en"
-    ) -> Optional[TranscriptionResult]:
+    def transcribe(self, audio_file_path: Path, language: str = "en") -> TranscriptionResult | None:
         """Transcribe audio file synchronously with retry and circuit breaker.
 
         This is a convenience wrapper around transcribe_async() for synchronous
@@ -403,7 +403,7 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
         pass
 
     @abstractmethod
-    def get_supported_features(self) -> List[str]:
+    def get_supported_features(self) -> list[str]:
         """Get list of features supported by this provider.
 
         Returns:
@@ -413,7 +413,7 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
         pass
 
     @abstractmethod
-    async def health_check_async(self) -> Dict[str, Any]:
+    async def health_check_async(self) -> dict[str, Any]:
         """Perform asynchronous health check for the provider.
 
         This should verify API connectivity, authentication, and service availability.
@@ -429,7 +429,7 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
         """
         pass
 
-    def health_check(self) -> Dict[str, Any]:
+    def health_check(self) -> dict[str, Any]:
         """Perform synchronous health check for the provider.
 
         This is a convenience wrapper around health_check_async() for synchronous
@@ -468,7 +468,7 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
         self._retry_config = config
 
     # ---------------------- Progress Helper ----------------------
-    def _report_progress(self, callback: Optional[Callable], completed: int, total: int) -> None:
+    def _report_progress(self, callback: Callable | None, completed: int, total: int) -> None:
         """Helper to safely report progress if a callback is provided.
 
         This method wraps the progress callback in exception handling to ensure

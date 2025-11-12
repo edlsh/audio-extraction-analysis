@@ -14,6 +14,7 @@ a unified markdown report containing multiple analytical sections including:
 The analyzer is designed to produce a human-readable, well-structured analysis
 that consolidates all available transcription data into a single document.
 """
+
 from __future__ import annotations
 
 import logging

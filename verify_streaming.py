@@ -26,7 +26,7 @@ Exit Codes:
 import io
 import sys
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, Mock, patch
 
 
 def verify_streaming_implementation() -> None:
@@ -78,23 +78,22 @@ def verify_streaming_implementation() -> None:
     print("=" * 70)
 
     # Import modules here to allow sys.path modifications before imports if needed
-    from src.providers.deepgram import DeepgramTranscriber
     from src.providers.base import CircuitBreakerConfig
+    from src.providers.deepgram import DeepgramTranscriber
     from src.utils.retry import RetryConfig
 
     print("\n1. Testing file handle creation...")
     # Mock the initialization and config to avoid external dependencies (API keys,
     # network calls, etc.) and enable isolated testing of the streaming behavior
-    with patch('src.providers.deepgram.Config') as mock_config:
+    with patch("src.providers.deepgram.Config") as mock_config:
         # Set API key on mock config (matches test pattern in test_transcription_service.py)
-        mock_config.DEEPGRAM_API_KEY = 'test_key'
+        mock_config.DEEPGRAM_API_KEY = "test_key"
 
-        with patch('src.providers.deepgram.ProviderInitializer.initialize_provider_configs') as mock_init:
+        with patch(
+            "src.providers.deepgram.ProviderInitializer.initialize_provider_configs"
+        ) as mock_init:
             # Return proper config objects
-            mock_init.return_value = (
-                Mock(spec=RetryConfig),
-                Mock(spec=CircuitBreakerConfig)
-            )
+            mock_init.return_value = (Mock(spec=RetryConfig), Mock(spec=CircuitBreakerConfig))
             # API key is read from mocked Config
             transcriber = DeepgramTranscriber()
 
@@ -121,7 +120,7 @@ def verify_streaming_implementation() -> None:
             # enabling the streaming implementation.
             sig = inspect.signature(transcriber._submit_transcription_job)
             params = list(sig.parameters.keys())
-            assert 'audio_source' in params, "_submit_transcription_job should accept audio_source"
+            assert "audio_source" in params, "_submit_transcription_job should accept audio_source"
             print("   ✓ _submit_transcription_job accepts audio_source parameter")
 
             print("\n3. Memory efficiency comparison...")
@@ -142,8 +141,8 @@ def verify_streaming_implementation() -> None:
             # if exceptions occur, preventing resource leaks. We inspect the source code
             # directly since this is a structural requirement of the implementation.
             source = inspect.getsource(transcriber._transcribe_impl)
-            assert 'with self._open_audio_file' in source, "Should use context manager"
-            assert 'as audio_source:' in source, "Should bind file handle to variable"
+            assert "with self._open_audio_file" in source, "Should use context manager"
+            assert "as audio_source:" in source, "Should bind file handle to variable"
             print("   ✓ File handle is properly managed with context manager")
 
     print("\n" + "=" * 70)
@@ -178,5 +177,6 @@ if __name__ == "__main__":
         # Unexpected error during verification (import errors, file access, etc.)
         print(f"\n❌ Error during verification: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

@@ -8,7 +8,7 @@ import shlex
 import subprocess
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 from ..utils.file_validation import FileValidator, safe_validate_media_file
 from .ffmpeg_core import build_extract_commands
@@ -31,9 +31,24 @@ class AudioExtractor:
     # Security: Define allowed file extensions and maximum file size
     ALLOWED_EXTENSIONS = {
         # Video formats
-        ".mp4", ".avi", ".mov", ".mkv", ".webm", ".flv", ".wmv", ".m4v", ".3gp",
+        ".mp4",
+        ".avi",
+        ".mov",
+        ".mkv",
+        ".webm",
+        ".flv",
+        ".wmv",
+        ".m4v",
+        ".3gp",
         # Audio formats
-        ".mp3", ".wav", ".flac", ".m4a", ".aac", ".ogg", ".wma", ".opus"
+        ".mp3",
+        ".wav",
+        ".flac",
+        ".m4a",
+        ".aac",
+        ".ogg",
+        ".wma",
+        ".opus",
     }
     MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024  # 2GB limit
 
@@ -54,7 +69,7 @@ class AudioExtractor:
             file_path,
             must_exist=True,
             allowed_extensions=self.ALLOWED_EXTENSIONS,
-            max_size=self.MAX_FILE_SIZE
+            max_size=self.MAX_FILE_SIZE,
         )
 
         # Security: Check for path traversal attempts
@@ -100,7 +115,7 @@ class AudioExtractor:
             logger.error("FFmpeg version check timed out")
             raise RuntimeError("FFmpeg version check timed out") from e
 
-    def get_video_info(self, input_path: Path) -> Dict[str, Any]:
+    def get_video_info(self, input_path: Path) -> dict[str, Any]:
         """Get video/audio file information using ffprobe."""
         try:
             # Security: Validate input path
@@ -109,10 +124,13 @@ class AudioExtractor:
             # Use ffprobe to extract media information
             cmd = [
                 "ffprobe",
-                "-v", "error",
-                "-show_entries", "format=duration",
-                "-of", "default=noprint_wrappers=1:nokey=1",
-                str(input_path)
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                str(input_path),
             ]
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, check=True)
 
@@ -144,9 +162,9 @@ class AudioExtractor:
     def extract_audio(
         self,
         input_path: Path,
-        output_path: Optional[Path] = None,
+        output_path: Path | None = None,
         quality: AudioQuality = AudioQuality.SPEECH,
-    ) -> Optional[Path]:
+    ) -> Path | None:
         """Extract audio from video using specified quality preset.
 
         Args:
@@ -158,10 +176,7 @@ class AudioExtractor:
             Path to extracted audio file, or None if extraction failed
         """
         # Validate input video file (for audio extraction)
-        validated_path = safe_validate_media_file(
-            input_path, 
-            max_file_size=self.MAX_FILE_SIZE
-        )
+        validated_path = safe_validate_media_file(input_path, max_file_size=self.MAX_FILE_SIZE)
         if validated_path is None:
             return None
         input_path = validated_path
@@ -207,7 +222,7 @@ class AudioExtractor:
         finally:
             # Cleanup possible temp file from SPEECH pipeline
             try:
-                if 'temp_path' in locals() and temp_path and temp_path.exists():
+                if "temp_path" in locals() and temp_path and temp_path.exists():
                     temp_path.unlink()
             except Exception:
                 pass
@@ -216,9 +231,9 @@ class AudioExtractor:
 # ---------------------- Legacy shim for backward compatibility ----------------------
 def extract_audio(
     input_path: str | Path,
-    output_path: Optional[str | Path] = None,
+    output_path: str | Path | None = None,
     quality: AudioQuality = AudioQuality.SPEECH,
-) -> Optional[str]:
+) -> str | None:
     """Legacy function wrapper for audio extraction.
 
     This preserves the historical module-level API expected by older code and tests.

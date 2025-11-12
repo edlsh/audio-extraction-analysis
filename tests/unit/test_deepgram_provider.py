@@ -1,20 +1,18 @@
 """Tests for Deepgram Nova 3 transcription provider."""
 
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
 import io
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from src.models.transcription import TranscriptionResult
 from src.providers.deepgram import DeepgramTranscriber
 
-
 # Test constants
-TEST_API_KEY = 'test_api_key'
-TEST_AUDIO_PATH = '/tmp/test_audio.mp3'
-TEST_MIMETYPE = 'audio/mp3'
-TEST_LANGUAGE = 'en'
+TEST_API_KEY = "test_api_key"
+TEST_AUDIO_PATH = "/tmp/test_audio.mp3"
+TEST_MIMETYPE = "audio/mp3"
+TEST_LANGUAGE = "en"
 
 
 class TestDeepgramTranscriber:
@@ -23,7 +21,7 @@ class TestDeepgramTranscriber:
     @pytest.fixture
     def deepgram_transcriber(self):
         """Create a DeepgramTranscriber instance for testing."""
-        with patch.dict('os.environ', {'DEEPGRAM_API_KEY': TEST_API_KEY}):
+        with patch.dict("os.environ", {"DEEPGRAM_API_KEY": TEST_API_KEY}):
             return DeepgramTranscriber(api_key=TEST_API_KEY)
 
     @pytest.fixture
@@ -56,7 +54,7 @@ class TestDeepgramTranscriber:
 
     def test_validate_configuration_without_api_key(self):
         """Test configuration validation when API key is missing."""
-        with patch.dict('os.environ', {}, clear=True):
+        with patch.dict("os.environ", {}, clear=True):
             with pytest.raises(ValueError, match="DEEPGRAM_API_KEY not found"):
                 DeepgramTranscriber(api_key=None)
 
@@ -74,10 +72,11 @@ class TestDeepgramTranscriber:
             "sentiment_analysis",
             "timestamps",
             "summarization",
-            "language_detection"
+            "language_detection",
         }
-        assert expected_features.issubset(features), \
-            f"Missing features: {expected_features - set(features)}"
+        assert expected_features.issubset(
+            features
+        ), f"Missing features: {expected_features - set(features)}"
 
     def test_open_audio_file_returns_file_handle(self, deepgram_transcriber, mock_file_handle):
         """Test that _open_audio_file returns a file handle, not bytes."""
@@ -100,14 +99,21 @@ class TestDeepgramTranscriber:
 
         # Mock Deepgram client
         mock_client = Mock()
-        mock_client.listen.prerecorded.v.return_value.transcribe_file.return_value = mock_deepgram_response
+        mock_client.listen.prerecorded.v.return_value.transcribe_file.return_value = (
+            mock_deepgram_response
+        )
 
-        with patch.object(deepgram_transcriber, '_create_client', return_value=mock_client), \
-             patch.object(deepgram_transcriber, '_open_audio_file', return_value=mock_file_handle), \
-             patch.object(deepgram_transcriber, '_build_options', return_value=Mock()), \
-             patch.object(deepgram_transcriber, '_detect_mimetype', return_value=TEST_MIMETYPE), \
-             patch('src.providers.deepgram.safe_validate_audio_file', return_value=test_file):
-
+        with patch.object(
+            deepgram_transcriber, "_create_client", return_value=mock_client
+        ), patch.object(
+            deepgram_transcriber, "_open_audio_file", return_value=mock_file_handle
+        ), patch.object(
+            deepgram_transcriber, "_build_options", return_value=Mock()
+        ), patch.object(
+            deepgram_transcriber, "_detect_mimetype", return_value=TEST_MIMETYPE
+        ), patch(
+            "src.providers.deepgram.safe_validate_audio_file", return_value=test_file
+        ):
             result = await deepgram_transcriber._transcribe_impl(test_file, TEST_LANGUAGE)
 
             # Verify file handle was passed (not bytes)
@@ -116,9 +122,9 @@ class TestDeepgramTranscriber:
 
             # Verify transcribe_file was called with file handle
             call_args = mock_client.listen.prerecorded.v.return_value.transcribe_file.call_args
-            assert 'source' in call_args[1]
+            assert "source" in call_args[1]
             # The buffer should be the file handle, not bytes
-            assert call_args[1]['source']['buffer'] == mock_file_handle
+            assert call_args[1]["source"]["buffer"] == mock_file_handle
 
     @pytest.mark.asyncio
     async def test_large_file_streaming_memory_efficiency(self, deepgram_transcriber):
@@ -130,6 +136,7 @@ class TestDeepgramTranscriber:
 
         class MockFile:
             """Mock file that tracks read() calls."""
+
             def __enter__(self):
                 return self
 
@@ -158,12 +165,17 @@ class TestDeepgramTranscriber:
 
         mock_client.listen.prerecorded.v.return_value.transcribe_file.return_value = mock_response
 
-        with patch.object(deepgram_transcriber, '_create_client', return_value=mock_client), \
-             patch.object(deepgram_transcriber, '_open_audio_file', return_value=mock_file), \
-             patch.object(deepgram_transcriber, '_build_options', return_value=Mock()), \
-             patch.object(deepgram_transcriber, '_detect_mimetype', return_value=TEST_MIMETYPE), \
-             patch('src.providers.deepgram.safe_validate_audio_file', return_value=test_file):
-
+        with patch.object(
+            deepgram_transcriber, "_create_client", return_value=mock_client
+        ), patch.object(
+            deepgram_transcriber, "_open_audio_file", return_value=mock_file
+        ), patch.object(
+            deepgram_transcriber, "_build_options", return_value=Mock()
+        ), patch.object(
+            deepgram_transcriber, "_detect_mimetype", return_value=TEST_MIMETYPE
+        ), patch(
+            "src.providers.deepgram.safe_validate_audio_file", return_value=test_file
+        ):
             result = await deepgram_transcriber._transcribe_impl(test_file, TEST_LANGUAGE)
 
             assert result is not None
@@ -171,14 +183,12 @@ class TestDeepgramTranscriber:
 
             # Verify file handle was passed to SDK (not bytes read into memory)
             call_args = mock_client.listen.prerecorded.v.return_value.transcribe_file.call_args
-            assert call_args[1]['source']['buffer'] == mock_file
+            assert call_args[1]["source"]["buffer"] == mock_file
             # Our code should NOT call .read() - SDK handles streaming internally
             assert not read_called, "File .read() was called, indicating memory inefficiency"
 
     @pytest.mark.asyncio
-    async def test_normal_file_no_regression(
-        self, deepgram_transcriber, mock_file_handle
-    ):
+    async def test_normal_file_no_regression(self, deepgram_transcriber, mock_file_handle):
         """Test that normal-sized files still work correctly."""
         test_file = Path("/tmp/normal_audio.mp3")
 
@@ -198,12 +208,17 @@ class TestDeepgramTranscriber:
 
         mock_client.listen.prerecorded.v.return_value.transcribe_file.return_value = mock_response
 
-        with patch.object(deepgram_transcriber, '_create_client', return_value=mock_client), \
-             patch.object(deepgram_transcriber, '_open_audio_file', return_value=mock_file_handle), \
-             patch.object(deepgram_transcriber, '_build_options', return_value=Mock()), \
-             patch.object(deepgram_transcriber, '_detect_mimetype', return_value=TEST_MIMETYPE), \
-             patch('src.providers.deepgram.safe_validate_audio_file', return_value=test_file):
-
+        with patch.object(
+            deepgram_transcriber, "_create_client", return_value=mock_client
+        ), patch.object(
+            deepgram_transcriber, "_open_audio_file", return_value=mock_file_handle
+        ), patch.object(
+            deepgram_transcriber, "_build_options", return_value=Mock()
+        ), patch.object(
+            deepgram_transcriber, "_detect_mimetype", return_value=TEST_MIMETYPE
+        ), patch(
+            "src.providers.deepgram.safe_validate_audio_file", return_value=test_file
+        ):
             result = await deepgram_transcriber._transcribe_impl(test_file, TEST_LANGUAGE)
 
             assert result is not None
@@ -217,14 +232,21 @@ class TestDeepgramTranscriber:
 
         # Mock client to raise an error
         mock_client = Mock()
-        mock_client.listen.prerecorded.v.return_value.transcribe_file.side_effect = Exception("API Error")
+        mock_client.listen.prerecorded.v.return_value.transcribe_file.side_effect = Exception(
+            "API Error"
+        )
 
-        with patch.object(deepgram_transcriber, '_create_client', return_value=mock_client), \
-             patch.object(deepgram_transcriber, '_open_audio_file', return_value=mock_file_handle), \
-             patch.object(deepgram_transcriber, '_build_options', return_value=Mock()), \
-             patch.object(deepgram_transcriber, '_detect_mimetype', return_value=TEST_MIMETYPE), \
-             patch('src.providers.deepgram.safe_validate_audio_file', return_value=test_file):
-
+        with patch.object(
+            deepgram_transcriber, "_create_client", return_value=mock_client
+        ), patch.object(
+            deepgram_transcriber, "_open_audio_file", return_value=mock_file_handle
+        ), patch.object(
+            deepgram_transcriber, "_build_options", return_value=Mock()
+        ), patch.object(
+            deepgram_transcriber, "_detect_mimetype", return_value=TEST_MIMETYPE
+        ), patch(
+            "src.providers.deepgram.safe_validate_audio_file", return_value=test_file
+        ):
             with pytest.raises(ConnectionError):
                 deepgram_transcriber.transcribe(test_file, TEST_LANGUAGE)
 

@@ -13,12 +13,11 @@ import ast
 import json
 import sys
 from pathlib import Path
-from typing import Dict, List, Set
 
 import networkx as nx
 
 
-def analyze_module_imports(module_path: Path) -> Set[str]:
+def analyze_module_imports(module_path: Path) -> set[str]:
     """Extract all imports from a Python module.
 
     Args:
@@ -38,10 +37,10 @@ def analyze_module_imports(module_path: Path) -> Set[str]:
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
-                imports.add(alias.name.split('.')[0])
+                imports.add(alias.name.split(".")[0])
         elif isinstance(node, ast.ImportFrom):
             if node.module:
-                imports.add(node.module.split('.')[0])
+                imports.add(node.module.split(".")[0])
 
     return imports
 
@@ -59,13 +58,13 @@ def build_dependency_graph(src_dir: Path) -> nx.DiGraph:
 
     for module_file in src_dir.rglob("*.py"):
         # Skip __pycache__ and test files
-        if '__pycache__' in module_file.parts or 'test' in module_file.name:
+        if "__pycache__" in module_file.parts or "test" in module_file.name:
             continue
 
         # Get module name relative to src
         try:
             module_name = str(module_file.relative_to(src_dir.parent))
-            module_name = module_name.replace('/', '.').replace('.py', '')
+            module_name = module_name.replace("/", ".").replace(".py", "")
         except ValueError:
             continue
 
@@ -79,7 +78,7 @@ def build_dependency_graph(src_dir: Path) -> nx.DiGraph:
     return graph
 
 
-def detect_cycles(graph: nx.DiGraph) -> List[List[str]]:
+def detect_cycles(graph: nx.DiGraph) -> list[list[str]]:
     """Detect circular dependencies in graph.
 
     Args:
@@ -95,7 +94,7 @@ def detect_cycles(graph: nx.DiGraph) -> List[List[str]]:
         return []
 
 
-def generate_architecture_snapshot(src_dir: Path) -> Dict:
+def generate_architecture_snapshot(src_dir: Path) -> dict:
     """Capture current architecture state.
 
     Args:
@@ -114,9 +113,7 @@ def generate_architecture_snapshot(src_dir: Path) -> Dict:
         "cycles": [[str(node) for node in cycle] for cycle in cycles] if cycles else [],
         "is_dag": nx.is_directed_acyclic_graph(graph),
         "max_depth": (
-            nx.dag_longest_path_length(graph)
-            if nx.is_directed_acyclic_graph(graph)
-            else None
+            nx.dag_longest_path_length(graph) if nx.is_directed_acyclic_graph(graph) else None
         ),
     }
 
@@ -140,7 +137,7 @@ def main():
 
     # Save baseline
     baseline_file = project_root / ".architecture_baseline.json"
-    with baseline_file.open('w') as f:
+    with baseline_file.open("w") as f:
         json.dump(snapshot, f, indent=2)
 
     print(f"\nArchitecture baseline saved to {baseline_file}", file=sys.stderr)
@@ -149,7 +146,7 @@ def main():
     if snapshot["circular_dependencies"] > 0:
         print(
             f"\n⚠️  Warning: {snapshot['circular_dependencies']} circular dependencies detected:",
-            file=sys.stderr
+            file=sys.stderr,
         )
         for cycle in snapshot["cycles"]:
             print(f"  - {' -> '.join(cycle)}", file=sys.stderr)

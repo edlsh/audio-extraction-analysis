@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 
 from src.cache.backends import DiskCache
-from src.cache.transcription_cache import CacheKey, CacheEntry
+from src.cache.transcription_cache import CacheEntry, CacheKey
 from src.models.transcription import TranscriptionResult
 
 
@@ -22,41 +22,36 @@ def test_disk_cache_safe_serialization():
     with tempfile.TemporaryDirectory() as temp_dir:
         cache_dir = Path(temp_dir)
         cache = DiskCache(cache_dir=cache_dir)
-        
+
         # Create a test transcription result
         transcription = TranscriptionResult(
             transcript="Test transcript",
             duration=10.0,
             generated_at=datetime.now(),
             audio_file="test.mp3",
-            provider_name="test_provider"
+            provider_name="test_provider",
         )
-        
+
         # Create a cache entry
         cache_key = CacheKey(
-            file_hash="test_hash",
-            provider="test_provider",
-            settings_hash="test_settings"
+            file_hash="test_hash", provider="test_provider", settings_hash="test_settings"
         )
-        
-        entry = CacheEntry(
-            key=cache_key,
-            value=transcription,
-            size=1024,
-            ttl=3600
-        )
-        
+
+        entry = CacheEntry(key=cache_key, value=transcription, size=1024, ttl=3600)
+
         # Store in cache
         key_str = str(cache_key)
         success = cache.put(key_str, entry)
         assert success, "Failed to store entry in cache"
-        
+
         # Retrieve from cache
         retrieved_entry = cache.get(key_str)
         assert retrieved_entry is not None, "Failed to retrieve entry from cache"
-        assert isinstance(retrieved_entry.value, TranscriptionResult), "Retrieved value is not TranscriptionResult"
+        assert isinstance(
+            retrieved_entry.value, TranscriptionResult
+        ), "Retrieved value is not TranscriptionResult"
         assert retrieved_entry.value.transcript == "Test transcript", "Transcript content mismatch"
-        
+
         print("✓ DiskCache safe serialization test passed")
 
 
@@ -64,11 +59,11 @@ def test_no_pickle_imports():
     """Test that pickle is not imported in cache modules."""
     import src.cache.backends as backends_module
     import src.cache.transcription_cache as cache_module
-    
+
     # Check that pickle is not in the module's globals
-    assert 'pickle' not in backends_module.__dict__, "pickle is still imported in backends module"
-    assert 'pickle' not in cache_module.__dict__, "pickle is still imported in cache module"
-    
+    assert "pickle" not in backends_module.__dict__, "pickle is still imported in backends module"
+    assert "pickle" not in cache_module.__dict__, "pickle is still imported in cache module"
+
     print("✓ No pickle imports test passed")
 
 
@@ -80,32 +75,23 @@ def test_serialization_safety():
         duration=10.5,
         generated_at=datetime.now(),
         audio_file="test file.mp3",
-        provider_name="test_provider"
+        provider_name="test_provider",
     )
-    
-    cache_key = CacheKey(
-        file_hash="abc123",
-        provider="test_provider",
-        settings_hash="def456"
-    )
-    
-    entry = CacheEntry(
-        key=cache_key,
-        value=transcription,
-        size=2048,
-        ttl=7200
-    )
-    
+
+    cache_key = CacheKey(file_hash="abc123", provider="test_provider", settings_hash="def456")
+
+    entry = CacheEntry(key=cache_key, value=transcription, size=2048, ttl=7200)
+
     # Test round-trip serialization
     entry_dict = entry.to_dict()
-    
+
     # Verify it's JSON serializable
     json_str = json.dumps(entry_dict)
     loaded_dict = json.loads(json_str)
-    
+
     # Reconstruct from dict
     reconstructed_entry = CacheEntry.from_dict(loaded_dict)
-    
+
     # Verify data integrity
     assert reconstructed_entry.key.file_hash == cache_key.file_hash
     assert reconstructed_entry.key.provider == cache_key.provider
@@ -115,7 +101,7 @@ def test_serialization_safety():
     assert reconstructed_entry.value.duration == transcription.duration
     assert reconstructed_entry.size == entry.size
     assert reconstructed_entry.ttl == entry.ttl
-    
+
     print("✓ Serialization safety test passed")
 
 
@@ -133,21 +119,14 @@ def test_in_memory_cache_safe_serialization():
         audio_file="complex_test.mp3",
         provider_name="test_provider",
         summary="Test summary",
-        metadata={"test_key": "test_value"}
+        metadata={"test_key": "test_value"},
     )
 
     cache_key = CacheKey(
-        file_hash="memory_test_hash",
-        provider="test_provider",
-        settings_hash="memory_settings"
+        file_hash="memory_test_hash", provider="test_provider", settings_hash="memory_settings"
     )
 
-    entry = CacheEntry(
-        key=cache_key,
-        value=transcription,
-        size=2048,
-        ttl=7200
-    )
+    entry = CacheEntry(key=cache_key, value=transcription, size=2048, ttl=7200)
 
     key_str = str(cache_key)
     success = cache.put(key_str, entry)
@@ -164,32 +143,30 @@ def test_in_memory_cache_safe_serialization():
 
 def test_complex_transcription_serialization():
     """Test serialization of TranscriptionResult with all nested features."""
-    from src.models.transcription import TranscriptionChapter, TranscriptionSpeaker, TranscriptionUtterance
+    from src.models.transcription import (
+        TranscriptionChapter,
+        TranscriptionSpeaker,
+        TranscriptionUtterance,
+    )
 
     # Create complex transcription with all features
     chapters = [
         TranscriptionChapter(
-            start_time=0.0,
-            end_time=5.0,
-            topics=["introduction"],
-            confidence_scores=[0.95]
+            start_time=0.0, end_time=5.0, topics=["introduction"], confidence_scores=[0.95]
         ),
         TranscriptionChapter(
-            start_time=5.0,
-            end_time=10.0,
-            topics=["main topic"],
-            confidence_scores=[0.92]
-        )
+            start_time=5.0, end_time=10.0, topics=["main topic"], confidence_scores=[0.92]
+        ),
     ]
 
     speakers = [
         TranscriptionSpeaker(id=1, total_time=8.0, percentage=80.0),
-        TranscriptionSpeaker(id=2, total_time=2.0, percentage=20.0)
+        TranscriptionSpeaker(id=2, total_time=2.0, percentage=20.0),
     ]
 
     utterances = [
         TranscriptionUtterance(speaker=1, start=0.0, end=3.0, text="Hello"),
-        TranscriptionUtterance(speaker=2, start=3.0, end=5.0, text="Hi there")
+        TranscriptionUtterance(speaker=2, start=3.0, end=5.0, text="Hi there"),
     ]
 
     transcription = TranscriptionResult(
@@ -205,13 +182,11 @@ def test_complex_transcription_serialization():
         topics={"technology": 5, "science": 3},
         intents=["informative", "educational"],
         sentiment_distribution={"positive": 70, "neutral": 30},
-        metadata={"quality": "high", "language": "en"}
+        metadata={"quality": "high", "language": "en"},
     )
 
     cache_key = CacheKey(
-        file_hash="complex_hash",
-        provider="advanced_provider",
-        settings_hash="complex_settings"
+        file_hash="complex_hash", provider="advanced_provider", settings_hash="complex_settings"
     )
 
     entry = CacheEntry(
@@ -219,7 +194,7 @@ def test_complex_transcription_serialization():
         value=transcription,
         size=4096,
         ttl=3600,
-        metadata={"cached_by": "test", "priority": "high"}
+        metadata={"cached_by": "test", "priority": "high"},
     )
 
     # Test round-trip serialization
@@ -257,35 +232,28 @@ def test_corrupted_cache_handling():
             duration=5.0,
             generated_at=datetime.now(),
             audio_file="test.mp3",
-            provider_name="test_provider"
+            provider_name="test_provider",
         )
 
         cache_key = CacheKey(
-            file_hash="corruption_test",
-            provider="test_provider",
-            settings_hash="test_settings"
+            file_hash="corruption_test", provider="test_provider", settings_hash="test_settings"
         )
 
-        entry = CacheEntry(
-            key=cache_key,
-            value=transcription,
-            size=1024,
-            ttl=3600
-        )
+        entry = CacheEntry(key=cache_key, value=transcription, size=1024, ttl=3600)
 
         key_str = str(cache_key)
         cache.put(key_str, entry)
 
         # Now corrupt the cache data by inserting invalid JSON
         import sqlite3
+
         conn = sqlite3.connect(str(cache.db_path))
         cursor = conn.cursor()
 
         # Insert corrupted data that's not valid JSON
         corrupted_data = b"not valid json {malicious code}"
         cursor.execute(
-            "UPDATE cache_entries SET value = ? WHERE key = ?",
-            (corrupted_data, key_str)
+            "UPDATE cache_entries SET value = ? WHERE key = ?", (corrupted_data, key_str)
         )
         conn.commit()
         conn.close()
@@ -303,9 +271,7 @@ def test_corrupted_cache_handling():
 def test_cache_metadata_serialization():
     """Test that cache entry metadata is safely serialized."""
     cache_key = CacheKey(
-        file_hash="metadata_test",
-        provider="test_provider",
-        settings_hash="metadata_settings"
+        file_hash="metadata_test", provider="test_provider", settings_hash="metadata_settings"
     )
 
     transcription = TranscriptionResult(
@@ -313,7 +279,7 @@ def test_cache_metadata_serialization():
         duration=5.0,
         generated_at=datetime.now(),
         audio_file="metadata.mp3",
-        provider_name="test_provider"
+        provider_name="test_provider",
     )
 
     # Create entry with complex metadata
@@ -322,16 +288,10 @@ def test_cache_metadata_serialization():
         "version": "2.0",
         "tags": ["important", "verified"],
         "nested": {"level1": {"level2": "value"}},
-        "numbers": [1, 2, 3, 4, 5]
+        "numbers": [1, 2, 3, 4, 5],
     }
 
-    entry = CacheEntry(
-        key=cache_key,
-        value=transcription,
-        size=1024,
-        ttl=3600,
-        metadata=metadata
-    )
+    entry = CacheEntry(key=cache_key, value=transcription, size=1024, ttl=3600, metadata=metadata)
 
     # Test serialization
     entry_dict = entry.to_dict()
@@ -367,6 +327,7 @@ def test_no_code_execution_in_deserialization():
 
             # Manually insert malicious payload into database
             import sqlite3
+
             conn = sqlite3.connect(str(cache.db_path))
             cursor = conn.cursor()
 
@@ -384,8 +345,8 @@ def test_no_code_execution_in_deserialization():
                     datetime.now().timestamp(),
                     0,
                     3600,
-                    json.dumps({})
-                )
+                    json.dumps({}),
+                ),
             )
             conn.commit()
             conn.close()
@@ -415,21 +376,14 @@ def test_special_characters_in_cache():
         duration=10.0,
         generated_at=datetime.now(),
         audio_file="special_chars_file.mp3",
-        provider_name="test_provider"
+        provider_name="test_provider",
     )
 
     cache_key = CacheKey(
-        file_hash="special_hash",
-        provider="test_provider",
-        settings_hash="special_settings"
+        file_hash="special_hash", provider="test_provider", settings_hash="special_settings"
     )
 
-    entry = CacheEntry(
-        key=cache_key,
-        value=transcription,
-        size=2048,
-        ttl=3600
-    )
+    entry = CacheEntry(key=cache_key, value=transcription, size=2048, ttl=3600)
 
     # Test serialization with special characters
     entry_dict = entry.to_dict()

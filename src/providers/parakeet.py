@@ -1,4 +1,5 @@
 """NVIDIA Parakeet STT transcription service."""
+
 from __future__ import annotations
 
 import asyncio
@@ -10,7 +11,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from ..models.transcription import TranscriptionResult, TranscriptionUtterance
 from ..utils.retry import RetryConfig
@@ -146,7 +147,7 @@ class GPUManager:
         return self._device
 
     @property
-    def device_id(self) -> Optional[int]:
+    def device_id(self) -> int | None:
         """Get the CUDA device ID if using GPU."""
         return self._device_id
 
@@ -187,7 +188,7 @@ class GPUManager:
 
         return "cpu"
 
-    def get_available_memory(self) -> Optional[int]:
+    def get_available_memory(self) -> int | None:
         """Get available memory on current device in bytes.
 
         Returns:
@@ -255,7 +256,7 @@ class AudioPreprocessor:
     TARGET_SAMPLE_RATE = 16000
 
     @classmethod
-    def preprocess_audio(cls, audio_path: Path) -> Tuple[Optional[Path], Optional[float]]:
+    def preprocess_audio(cls, audio_path: Path) -> tuple[Path | None, float | None]:
         """Preprocess audio file for Parakeet transcription.
 
         Converts audio to 16kHz mono WAV format if needed.
@@ -363,7 +364,7 @@ class AudioPreprocessor:
             return False
 
     @classmethod
-    def get_audio_duration(cls, audio_path: Path) -> Optional[float]:
+    def get_audio_duration(cls, audio_path: Path) -> float | None:
         """Get duration of audio file in seconds.
 
         Args:
@@ -383,7 +384,7 @@ class AudioPreprocessor:
             return None
 
     @classmethod
-    def cleanup_temp_file(cls, temp_path: Optional[Path]) -> None:
+    def cleanup_temp_file(cls, temp_path: Path | None) -> None:
         """Clean up temporary audio file.
 
         Args:
@@ -440,7 +441,7 @@ class ParakeetModelCache:
         if not hasattr(self, "_initialized") or not self._initialized:
             self._initialize()
 
-    def get_model(self, model_name: str, force_reload: bool = False) -> Optional[Any]:
+    def get_model(self, model_name: str, force_reload: bool = False) -> Any | None:
         """Get a model from cache or load it.
 
         Args:
@@ -506,7 +507,7 @@ class ParakeetModelCache:
                 logger.error(f"Failed to load model {model_name}: {e}")
                 raise ParakeetModelError(f"Failed to load model {model_name}: {e}")
 
-    async def get_model_async(self, model_name: str, force_reload: bool = False) -> Optional[Any]:
+    async def get_model_async(self, model_name: str, force_reload: bool = False) -> Any | None:
         """Async wrapper for get_model.
 
         Args:
@@ -623,7 +624,7 @@ class ParakeetModelCache:
             if hasattr(self, "_gpu_manager"):
                 self._gpu_manager.cleanup_gpu_memory()
 
-    def get_cache_stats(self) -> Dict[str, Any]:
+    def get_cache_stats(self) -> dict[str, Any]:
         """Get cache statistics.
 
         Returns:
@@ -685,9 +686,9 @@ class ParakeetTranscriber(BaseTranscriptionProvider):
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        circuit_config: Optional[CircuitBreakerConfig] = None,
-        retry_config: Optional[RetryConfig] = None,
+        api_key: str | None = None,
+        circuit_config: CircuitBreakerConfig | None = None,
+        retry_config: RetryConfig | None = None,
     ):
         """Initialize the Parakeet transcriber.
 
@@ -814,7 +815,7 @@ class ParakeetTranscriber(BaseTranscriptionProvider):
         model_type = PARAKEET_MODELS.get(self.model_name, {}).get("type", "unknown")
         return f"NVIDIA Parakeet ({model_type})"
 
-    def get_supported_features(self) -> List[str]:
+    def get_supported_features(self) -> list[str]:
         """Get list of features supported by Parakeet.
 
         Returns:
@@ -832,7 +833,7 @@ class ParakeetTranscriber(BaseTranscriptionProvider):
 
     async def _transcribe_impl(
         self, audio_file_path: Path, language: str = "en"
-    ) -> Optional[TranscriptionResult]:
+    ) -> TranscriptionResult | None:
         """Internal implementation of Parakeet transcription.
 
         Args:
@@ -906,8 +907,8 @@ class ParakeetTranscriber(BaseTranscriptionProvider):
             return None
 
     async def _run_transcription(
-        self, model: Any, kwargs: Dict[str, Any], device: str
-    ) -> List[str]:
+        self, model: Any, kwargs: dict[str, Any], device: str
+    ) -> list[str]:
         """Run transcription in thread pool to avoid blocking.
 
         Args:
@@ -937,7 +938,7 @@ class ParakeetTranscriber(BaseTranscriptionProvider):
 
     def _parse_parakeet_result(
         self,
-        parakeet_result: List[str],
+        parakeet_result: list[str],
         audio_file_path: Path,
         processing_time: float,
         audio_duration: float,
@@ -1038,7 +1039,7 @@ class ParakeetTranscriber(BaseTranscriptionProvider):
                 },
             )
 
-    async def health_check_async(self) -> Dict[str, Any]:
+    async def health_check_async(self) -> dict[str, Any]:
         """Perform health check for Parakeet provider.
 
         Returns:

@@ -294,7 +294,7 @@ class FullAnalyzer:
         if sentiments:
             total = sum(sentiments.values()) or 1
             for k, v in sentiments.items():
-                lines.append(f"- {k.title()}: {v} segments ({(v/total)*100:.1f}%)")
+                lines.append(f"- {k.title()}: {v} segments ({(v / total) * 100:.1f}%)")
         else:
             lines.append("_No sentiment analysis available._")
 

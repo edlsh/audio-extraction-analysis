@@ -3,13 +3,13 @@
 This module centralizes command construction and common behaviors to
 reduce duplication between `audio_extraction.py` and `audio_extraction_async.py`.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List, Optional, Tuple
 
 
-def build_base_cmd(input_path: Path) -> List[str]:
+def build_base_cmd(input_path: Path) -> list[str]:
     """Build the base ffmpeg command with input file and overwrite flag.
 
     Args:
@@ -24,7 +24,7 @@ def build_base_cmd(input_path: Path) -> List[str]:
 
 def build_extract_commands(
     input_path: Path, output_path: Path, quality: str
-) -> Tuple[List[List[str]], Optional[Path]]:
+) -> tuple[list[list[str]], Path | None]:
     """Build ffmpeg command(s) for audio extraction based on quality preset.
 
     Args:

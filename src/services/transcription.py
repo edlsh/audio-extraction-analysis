@@ -8,7 +8,7 @@ import logging
 import math
 import time
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Union
+from typing import Any, Callable
 
 from ..models.transcription import TranscriptionResult
 from ..providers.factory import TranscriptionProviderFactory
@@ -28,7 +28,7 @@ class TranscriptionService:
         """Initialize the transcription service."""
         self.factory = TranscriptionProviderFactory
 
-    def get_available_providers(self) -> List[str]:
+    def get_available_providers(self) -> list[str]:
         """Get list of available transcription providers.
 
         Returns:
@@ -36,7 +36,7 @@ class TranscriptionService:
         """
         return self.factory.get_available_providers()
 
-    def get_configured_providers(self) -> List[str]:
+    def get_configured_providers(self) -> list[str]:
         """Get list of configured transcription providers.
 
         Returns:
@@ -45,7 +45,7 @@ class TranscriptionService:
         return self.factory.get_configured_providers()
 
     def auto_select_provider(
-        self, audio_file_path: Optional[Path] = None, preferred_features: Optional[List[str]] = None
+        self, audio_file_path: Path | None = None, preferred_features: list[str] | None = None
     ) -> str:
         """Automatically select the best provider for transcription.
 
@@ -62,8 +62,8 @@ class TranscriptionService:
         return self.factory.auto_select_provider(audio_file_path, preferred_features)
 
     def _prepare_transcription(
-        self, audio_file_path: Path, provider_name: Optional[str] = None
-    ) -> Optional[tuple[Path, str]]:
+        self, audio_file_path: Path, provider_name: str | None = None
+    ) -> tuple[Path, str] | None:
         """Validate audio file and select provider for transcription.
 
         Args:
@@ -95,8 +95,8 @@ class TranscriptionService:
         return validated_path, provider_name
 
     def transcribe(
-        self, audio_file_path: Path, provider_name: Optional[str] = None, language: str = "en"
-    ) -> Optional[TranscriptionResult]:
+        self, audio_file_path: Path, provider_name: str | None = None, language: str = "en"
+    ) -> TranscriptionResult | None:
         """Transcribe an audio file using the specified or auto-selected provider.
 
         Args:
@@ -157,8 +157,8 @@ class TranscriptionService:
             return None
 
     async def transcribe_async(
-        self, audio_file_path: Path, provider_name: Optional[str] = None, language: str = "en"
-    ) -> Optional[TranscriptionResult]:
+        self, audio_file_path: Path, provider_name: str | None = None, language: str = "en"
+    ) -> TranscriptionResult | None:
         """Transcribe an audio file asynchronously.
 
         Args:
@@ -244,12 +244,12 @@ class TranscriptionService:
 
     async def transcribe_with_progress(
         self,
-        audio_file_path: Union[Path, str],
-        provider_name: Optional[str] = None,
+        audio_file_path: Path | str,
+        provider_name: str | None = None,
         language: str = "en",
-        progress_callback: Optional[Callable[[int, int], None]] = None,
+        progress_callback: Callable[[int, int], None] | None = None,
         **kwargs,
-    ) -> Optional[TranscriptionResult]:
+    ) -> TranscriptionResult | None:
         """Transcribe with progress estimation based on file characteristics."""
         path = Path(audio_file_path)
 
@@ -304,7 +304,9 @@ class TranscriptionService:
                 progress_task.cancel()
             raise
 
-    async def _simulate_progress(self, estimated_time: float, progress_callback: Callable[[int, int], None]) -> None:
+    async def _simulate_progress(
+        self, estimated_time: float, progress_callback: Callable[[int, int], None]
+    ) -> None:
         """Simulate progress during transcription."""
         start_time = time.time()
 
@@ -353,7 +355,7 @@ class TranscriptionService:
         }
         return provider_speeds.get(provider_name, 1.5)  # Default 1.5 MB/s
 
-    async def _get_audio_duration(self, audio_path: str) -> Optional[float]:
+    async def _get_audio_duration(self, audio_path: str) -> float | None:
         """Get audio duration in seconds using ffprobe.
 
         Returns:
@@ -398,12 +400,12 @@ class TranscriptionService:
     # Convenience alias for compatibility with progress-enabled pipeline tests
     async def transcribe_file(
         self,
-        audio_file_path: Union[Path, str],
-        provider_name: Optional[str] = None,
+        audio_file_path: Path | str,
+        provider_name: str | None = None,
         language: str = "en",
-        progress_callback: Optional[Callable[[int, int], None]] = None,  # Ignored for now
+        progress_callback: Callable[[int, int], None] | None = None,  # Ignored for now
         **_: Any,
-    ) -> Optional[TranscriptionResult]:
+    ) -> TranscriptionResult | None:
         """Alias to transcribe_async that accepts a progress callback (ignored).
 
         Accepts both Path and string paths and forwards to transcribe_async.
@@ -411,7 +413,7 @@ class TranscriptionService:
         path = Path(audio_file_path)
         return await self.transcribe_async(path, provider_name=provider_name, language=language)
 
-    def get_provider_features(self, provider_name: str) -> List[str]:
+    def get_provider_features(self, provider_name: str) -> list[str]:
         """Get supported features for a specific provider.
 
         Args:
@@ -437,7 +439,7 @@ class TranscriptionService:
             raise ValueError(f"Provider '{provider_name}' not available: {e}") from e
 
     def save_transcription_result(
-        self, result: TranscriptionResult, output_path: Path, provider_name: Optional[str] = None
+        self, result: TranscriptionResult, output_path: Path, provider_name: str | None = None
     ) -> None:
         """Save transcription result to file using provider-specific formatting.
 

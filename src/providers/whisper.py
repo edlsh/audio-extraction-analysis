@@ -36,7 +36,7 @@ import logging
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from ..config import get_config
 from ..models.transcription import TranscriptionResult, TranscriptionUtterance
@@ -78,6 +78,7 @@ def _ensure_whisper_available() -> bool:
     try:
         import torch as _torch  # type: ignore
         import whisper as _whisper  # type: ignore
+
         try:
             # get_writer is optional and may not be available in all Whisper versions
             from whisper.utils import get_writer as _get_writer  # type: ignore
@@ -124,9 +125,9 @@ class WhisperTranscriber(BaseTranscriptionProvider):
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        circuit_config: Optional[CircuitBreakerConfig] = None,
-        retry_config: Optional[RetryConfig] = None,
+        api_key: str | None = None,
+        circuit_config: CircuitBreakerConfig | None = None,
+        retry_config: RetryConfig | None = None,
     ):
         """Initialize the Whisper transcriber.
 
@@ -189,7 +190,7 @@ class WhisperTranscriber(BaseTranscriptionProvider):
         """
         return f"OpenAI Whisper ({self.model_name})"
 
-    def get_supported_features(self) -> List[str]:
+    def get_supported_features(self) -> list[str]:
         """Get list of features supported by Whisper.
 
         Returns:
@@ -235,7 +236,7 @@ class WhisperTranscriber(BaseTranscriptionProvider):
 
     async def _transcribe_impl(
         self, audio_file_path: Path, language: str = "en"
-    ) -> Optional[TranscriptionResult]:
+    ) -> TranscriptionResult | None:
         """Internal implementation of Whisper transcription.
 
         This method performs the core transcription logic, including model loading,
@@ -298,7 +299,7 @@ class WhisperTranscriber(BaseTranscriptionProvider):
             raise
 
     def _parse_whisper_result(
-        self, whisper_result: Dict, audio_file_path: Path, processing_time: float
+        self, whisper_result: dict, audio_file_path: Path, processing_time: float
     ) -> TranscriptionResult:
         """Parse Whisper result into TranscriptionResult format.
 
@@ -363,7 +364,7 @@ class WhisperTranscriber(BaseTranscriptionProvider):
 
         return result
 
-    def _extract_words(self, segment: Dict) -> Optional[List[Dict]]:
+    def _extract_words(self, segment: dict) -> list[dict] | None:
         """Extract word-level timestamps from Whisper segment.
 
         This method processes word-level timing information when available in
@@ -399,7 +400,7 @@ class WhisperTranscriber(BaseTranscriptionProvider):
 
         return words
 
-    def _generate_chapters(self, utterances: List[TranscriptionUtterance]) -> List[Dict]:
+    def _generate_chapters(self, utterances: list[TranscriptionUtterance]) -> list[dict]:
         """Generate simple chapters based on time intervals.
 
         Creates chapter markers at fixed 5-minute (300-second) intervals to help
@@ -433,7 +434,7 @@ class WhisperTranscriber(BaseTranscriptionProvider):
 
         return chapters
 
-    async def health_check_async(self) -> Dict[str, Any]:
+    async def health_check_async(self) -> dict[str, Any]:
         """Perform health check for Whisper provider.
 
         Verifies that dependencies are available and optionally loads the model
@@ -496,7 +497,7 @@ class WhisperTranscriber(BaseTranscriptionProvider):
                 "details": {"provider": "whisper", "error": str(e), "error_type": type(e).__name__},
             }
 
-    def get_model_size_info(self) -> Dict[str, Any]:
+    def get_model_size_info(self) -> dict[str, Any]:
         """Get information about Whisper model sizes and resource requirements.
 
         Provides detailed information about available Whisper models including

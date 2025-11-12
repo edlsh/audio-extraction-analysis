@@ -31,6 +31,7 @@ Example:
         cache.put(Path("audio.mp3"), "whisper", {"model": "base"}, result)
     ```
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -42,11 +43,12 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from threading import RLock
-from typing import Any, ClassVar, Dict, List, Optional, Set, Tuple
+from typing import Any, ClassVar
 
 logger = logging.getLogger(__name__)
 
 # Extracted helpers
+from .compression import compress_value, decompress_value
 from .eviction import (
     select_fifo_victim,
     select_lfu_victim,
@@ -54,7 +56,6 @@ from .eviction import (
     select_size_victim,
     select_ttl_victim,
 )
-from .compression import compress_value, decompress_value
 
 
 class CachePolicy(Enum):
@@ -103,13 +104,13 @@ class CacheKey:
 
     # Class-level file hash cache keyed by (path, mtime, size) to eliminate redundant I/O
     # Shared across all instances to cache file hashes based on file metadata
-    _file_hash_cache: ClassVar[Dict[Tuple[str, float, int], str]] = {}
+    _file_hash_cache: ClassVar[dict[tuple[str, float, int], str]] = {}
 
     def __str__(self) -> str:
         """String representation of cache key."""
         return f"{self.file_hash}:{self.provider}:{self.settings_hash}"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
             "file_hash": self.file_hash,
@@ -118,7 +119,7 @@ class CacheKey:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "CacheKey":
+    def from_dict(cls, data: dict[str, Any]) -> CacheKey:
         """Create from dictionary."""
         return cls(
             file_hash=data["file_hash"],
@@ -127,7 +128,7 @@ class CacheKey:
         )
 
     @classmethod
-    def from_file(cls, file_path: Path, provider: str, settings: Dict[str, Any]) -> "CacheKey":
+    def from_file(cls, file_path: Path, provider: str, settings: dict[str, Any]) -> CacheKey:
         """Generate cache key from file and settings.
 
         Args:
@@ -185,7 +186,7 @@ class CacheKey:
         return file_hash
 
     @classmethod
-    def clear_hash_cache(cls, file_path: Optional[Path] = None) -> int:
+    def clear_hash_cache(cls, file_path: Path | None = None) -> int:
         """Clear file hash cache entries.
 
         Args:
@@ -235,8 +236,8 @@ class CacheEntry:
     created_at: datetime = field(default_factory=datetime.now)
     accessed_at: datetime = field(default_factory=datetime.now)
     access_count: int = 0
-    ttl: Optional[int] = None  # seconds
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    ttl: int | None = None  # seconds
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def is_expired(self) -> bool:
         """Check if entry has expired.
@@ -263,7 +264,7 @@ class CacheEntry:
         """
         return (datetime.now() - self.created_at).total_seconds()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization.
 
         Handles multiple value types with fallback strategy:
@@ -279,19 +280,20 @@ class CacheEntry:
         """
         # Handle different value types safely
         value_dict = None
-        if hasattr(self.value, 'to_dict') and callable(getattr(self.value, 'to_dict')):
+        if hasattr(self.value, "to_dict") and callable(self.value.to_dict):
             # Custom objects with serialization support
             value_dict = self.value.to_dict()
         else:
             # For simple types that are JSON serializable
             try:
                 import json
+
                 json.dumps(self.value)  # Test if serializable
                 value_dict = self.value
             except (TypeError, ValueError):
                 # If not serializable (e.g., bytes, custom objects), store as string
                 value_dict = str(self.value)
-        
+
         return {
             "key": self.key.to_dict(),
             "value": value_dict,
@@ -305,7 +307,7 @@ class CacheEntry:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "CacheEntry":
+    def from_dict(cls, data: dict[str, Any]) -> CacheEntry:
         """Create cache entry from dictionary representation.
 
         Reconstructs a CacheEntry from JSON data with intelligent type restoration:
@@ -347,7 +349,7 @@ class CacheEntry:
             else:
                 value = TranscriptionResult.from_dict(value)
         # For other types, use the value as-is (assuming it's JSON-serializable)
-        
+
         return cls(
             key=cache_key,
             value=value,
@@ -382,7 +384,7 @@ class CacheStats:
             return 0.0
         return (self.hits / total) * 100
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary.
 
         Returns:
@@ -416,7 +418,7 @@ class CacheBackend(ABC):
     """
 
     @abstractmethod
-    def get(self, key: str) -> Optional[CacheEntry]:
+    def get(self, key: str) -> CacheEntry | None:
         """Get entry from cache.
 
         Args:
@@ -471,7 +473,7 @@ class CacheBackend(ABC):
         pass
 
     @abstractmethod
-    def keys(self) -> Set[str]:
+    def keys(self) -> set[str]:
         """Get all cache keys.
 
         Returns:
@@ -512,11 +514,11 @@ class TranscriptionCache:
 
     def __init__(
         self,
-        backends: Optional[List[CacheBackend]] = None,
+        backends: list[CacheBackend] | None = None,
         policy: CachePolicy = CachePolicy.LRU,
         max_size_mb: int = 1000,
         max_entries: int = 10000,
-        default_ttl: Optional[int] = 3600,
+        default_ttl: int | None = 3600,
         enable_compression: bool = True,
         enable_warming: bool = False,
     ):
@@ -534,6 +536,7 @@ class TranscriptionCache:
         if backends is None:
             # Import here to avoid circular import
             from .backends import InMemoryCache
+
             self.backends = [InMemoryCache()]
         else:
             self.backends = backends
@@ -546,14 +549,14 @@ class TranscriptionCache:
 
         self.stats = CacheStats()
         self._lock = RLock()
-        self._warm_keys: Set[str] = set()
+        self._warm_keys: set[str] = set()
 
         logger.info(
             f"Initialized TranscriptionCache with {len(self.backends)} backend(s), "
             f"policy={policy.value}, max_size={max_size_mb}MB"
         )
 
-    def get(self, file_path: Path, provider: str, settings: Dict[str, Any]) -> Optional[Any]:
+    def get(self, file_path: Path, provider: str, settings: dict[str, Any]) -> Any | None:
         """Get transcription from cache.
 
         Args:
@@ -604,10 +607,10 @@ class TranscriptionCache:
         self,
         file_path: Path,
         provider: str,
-        settings: Dict[str, Any],
+        settings: dict[str, Any],
         value: Any,
-        ttl: Optional[int] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        ttl: int | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> bool:
         """Put transcription in cache.
 
@@ -640,7 +643,7 @@ class TranscriptionCache:
         # Store in backend
         return self._store_entry_in_backend(key_str, entry, size)
 
-    def invalidate(self, file_path: Optional[Path] = None, provider: Optional[str] = None) -> int:
+    def invalidate(self, file_path: Path | None = None, provider: str | None = None) -> int:
         """Invalidate cache entries matching the specified criteria.
 
         Removes cached transcriptions based on file path and/or provider filters:
@@ -707,7 +710,7 @@ class TranscriptionCache:
         logger.info(f"Invalidated {count} cache entries")
         return count
 
-    def warm(self, entries: List[Tuple[Path, str, Dict[str, Any], Any]]) -> int:
+    def warm(self, entries: list[tuple[Path, str, dict[str, Any], Any]]) -> int:
         """Pre-populate cache with frequently accessed transcription results.
 
         Cache warming improves performance by pre-loading data before it's requested:
@@ -820,7 +823,7 @@ class TranscriptionCache:
 
         return False
 
-    def _select_lru_victim(self, backend: CacheBackend, keys: Set[str]) -> str:
+    def _select_lru_victim(self, backend: CacheBackend, keys: set[str]) -> str:
         """Select LRU victim.
 
         Args:
@@ -832,7 +835,7 @@ class TranscriptionCache:
         """
         return select_lru_victim(backend, keys)
 
-    def _select_lfu_victim(self, backend: CacheBackend, keys: Set[str]) -> str:
+    def _select_lfu_victim(self, backend: CacheBackend, keys: set[str]) -> str:
         """Select LFU victim.
 
         Args:
@@ -844,7 +847,7 @@ class TranscriptionCache:
         """
         return select_lfu_victim(backend, keys)
 
-    def _select_ttl_victim(self, backend: CacheBackend, keys: Set[str]) -> str:
+    def _select_ttl_victim(self, backend: CacheBackend, keys: set[str]) -> str:
         """Select TTL victim (closest to expiration).
 
         Args:
@@ -856,7 +859,7 @@ class TranscriptionCache:
         """
         return select_ttl_victim(backend, keys)
 
-    def _select_size_victim(self, backend: CacheBackend, keys: Set[str]) -> str:
+    def _select_size_victim(self, backend: CacheBackend, keys: set[str]) -> str:
         """Select largest entry as victim.
 
         Args:
@@ -868,7 +871,7 @@ class TranscriptionCache:
         """
         return select_size_victim(backend, keys)
 
-    def _select_fifo_victim(self, backend: CacheBackend, keys: Set[str]) -> str:
+    def _select_fifo_victim(self, backend: CacheBackend, keys: set[str]) -> str:
         """Select FIFO victim (oldest creation time).
 
         Args:
@@ -965,8 +968,8 @@ class TranscriptionCache:
         cache_key: CacheKey,
         cached_value: Any,
         size: int,
-        ttl: Optional[int],
-        metadata: Optional[Dict[str, Any]],
+        ttl: int | None,
+        metadata: dict[str, Any] | None,
     ) -> CacheEntry:
         """Create cache entry with metadata.
 

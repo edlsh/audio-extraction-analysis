@@ -10,9 +10,9 @@ secure file operations and prevent path traversal attacks:
 
 These utilities are fundamental for secure file handling throughout the application.
 """
+
 import builtins
 import json
-import os
 from pathlib import Path
 
 import pytest
@@ -290,13 +290,7 @@ class TestSafeWriteJson:
             "bool": True,
             "null": None,
             "array": [1, 2, 3],
-            "nested": {
-                "deep": {
-                    "deeper": {
-                        "value": "found"
-                    }
-                }
-            }
+            "nested": {"deep": {"deeper": {"value": "found"}}},
         }
         safe_write_json(out, payload)
 
@@ -312,7 +306,7 @@ class TestSafeWriteJson:
             "chinese": "你好",
             "russian": "привет",
             "emoji": "🚀",
-            "mixed": "Hello 世界 🌍"
+            "mixed": "Hello 世界 🌍",
         }
         safe_write_json(out, payload)
 
@@ -372,7 +366,7 @@ class TestSafeWriteJson:
         payload = [
             {"id": 1, "name": "first"},
             {"id": 2, "name": "second"},
-            {"id": 3, "name": "third"}
+            {"id": 3, "name": "third"},
         ]
         safe_write_json(out, payload)
 
@@ -388,7 +382,7 @@ class TestSafeWriteJson:
             "newlines": "line1\nline2\nline3",
             "tabs": "col1\tcol2\tcol3",
             "backslash": "path\\to\\file",
-            "forward_slash": "path/to/file"
+            "forward_slash": "path/to/file",
         }
         safe_write_json(out, payload)
 

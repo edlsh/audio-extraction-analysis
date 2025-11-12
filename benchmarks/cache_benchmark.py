@@ -7,10 +7,10 @@ with WAL mode instead of creating new connections for each operation.
 """
 
 import sys
-import time
 import tempfile
-from pathlib import Path
+import time
 from datetime import datetime
+from pathlib import Path
 from typing import Callable
 
 # Add src to path
@@ -25,7 +25,7 @@ def create_sample_entry(index: int) -> CacheEntry:
     cache_key = CacheKey(
         file_hash=f"test_hash_{index}",
         provider="benchmark_provider",
-        settings_hash=f"settings_{index}"
+        settings_hash=f"settings_{index}",
     )
     return CacheEntry(
         key=cache_key,
@@ -35,7 +35,7 @@ def create_sample_entry(index: int) -> CacheEntry:
         accessed_at=datetime.now(),
         access_count=0,
         ttl=3600,
-        metadata={"source": "benchmark"}
+        metadata={"source": "benchmark"},
     )
 
 
@@ -140,7 +140,9 @@ def run_benchmarks():
     elapsed = end_time - start_time
     concurrent_read_ops = total_ops / elapsed if elapsed > 0 else 0
 
-    print(f"{'Concurrent reads (10 threads)':30s}: {total_ops:6d} ops in {elapsed:7.3f}s = {concurrent_read_ops:10.2f} ops/sec")
+    print(
+        f"{'Concurrent reads (10 threads)':30s}: {total_ops:6d} ops in {elapsed:7.3f}s = {concurrent_read_ops:10.2f} ops/sec"
+    )
     print()
 
     # Benchmark: exists() operation

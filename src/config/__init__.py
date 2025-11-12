@@ -1,4 +1,5 @@
 """Simplified configuration management using environment variables."""
+
 import os
 import threading
 from dataclasses import dataclass, field
@@ -51,8 +52,7 @@ def _getenv_int(key: str, default: int) -> int:
         return int(value)
     except ValueError as e:
         raise ValueError(
-            f"Invalid integer value for {key}='{value}'. "
-            f"Expected integer, got: {value}"
+            f"Invalid integer value for {key}='{value}'. Expected integer, got: {value}"
         ) from e
 
 
@@ -76,8 +76,7 @@ def _getenv_float(key: str, default: float) -> float:
         return float(value)
     except ValueError as e:
         raise ValueError(
-            f"Invalid float value for {key}='{value}'. "
-            f"Expected float, got: {value}"
+            f"Invalid float value for {key}='{value}'. Expected float, got: {value}"
         ) from e
 
 
@@ -98,19 +97,27 @@ class Config:
     # ========== File Handling ==========
     max_file_size: int = field(default_factory=lambda: _getenv_int("MAX_FILE_SIZE", 100000000))
     allowed_extensions: List[str] = field(
-        default_factory=lambda: _parse_list(_getenv("ALLOWED_EXTENSIONS", ".mp3,.wav,.m4a,.flac,.ogg,.aac"))
+        default_factory=lambda: _parse_list(
+            _getenv("ALLOWED_EXTENSIONS", ".mp3,.wav,.m4a,.flac,.ogg,.aac")
+        )
     )
 
     # ========== Logging ==========
     log_level: str = field(default_factory=lambda: _getenv("LOG_LEVEL", "INFO").upper())
     log_format: str = field(
-        default_factory=lambda: _getenv("LOG_FORMAT", "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        default_factory=lambda: _getenv(
+            "LOG_FORMAT", "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
     )
     log_file: Optional[str] = field(default_factory=lambda: _getenv("LOG_FILE") or None)
-    log_to_console: bool = field(default_factory=lambda: _parse_bool(_getenv("LOG_TO_CONSOLE", "true")))
+    log_to_console: bool = field(
+        default_factory=lambda: _parse_bool(_getenv("LOG_TO_CONSOLE", "true"))
+    )
 
     # ========== Provider Settings ==========
-    default_provider: str = field(default_factory=lambda: _getenv("DEFAULT_TRANSCRIPTION_PROVIDER", "deepgram"))
+    default_provider: str = field(
+        default_factory=lambda: _getenv("DEFAULT_TRANSCRIPTION_PROVIDER", "deepgram")
+    )
     fallback_providers: List[str] = field(
         default_factory=lambda: _parse_list(_getenv("FALLBACK_PROVIDERS", "elevenlabs,whisper"))
     )
@@ -118,34 +125,60 @@ class Config:
     # ========== Language Settings ==========
     default_language: str = field(default_factory=lambda: _getenv("DEFAULT_LANGUAGE", "en"))
     supported_languages: List[str] = field(
-        default_factory=lambda: _parse_list(_getenv("SUPPORTED_LANGUAGES", "en,es,fr,de,it,pt,ru,ja,ko,zh"))
+        default_factory=lambda: _parse_list(
+            _getenv("SUPPORTED_LANGUAGES", "en,es,fr,de,it,pt,ru,ja,ko,zh")
+        )
     )
 
     # ========== Feature Flags ==========
-    enable_caching: bool = field(default_factory=lambda: _parse_bool(_getenv("ENABLE_CACHING", "true")))
-    enable_retries: bool = field(default_factory=lambda: _parse_bool(_getenv("ENABLE_RETRIES", "true")))
-    enable_health_checks: bool = field(default_factory=lambda: _parse_bool(_getenv("ENABLE_HEALTH_CHECKS", "true")))
-    enable_metrics: bool = field(default_factory=lambda: _parse_bool(_getenv("ENABLE_METRICS", "false")))
+    enable_caching: bool = field(
+        default_factory=lambda: _parse_bool(_getenv("ENABLE_CACHING", "true"))
+    )
+    enable_retries: bool = field(
+        default_factory=lambda: _parse_bool(_getenv("ENABLE_RETRIES", "true"))
+    )
+    enable_health_checks: bool = field(
+        default_factory=lambda: _parse_bool(_getenv("ENABLE_HEALTH_CHECKS", "true"))
+    )
+    enable_metrics: bool = field(
+        default_factory=lambda: _parse_bool(_getenv("ENABLE_METRICS", "false"))
+    )
 
     # ========== API Keys ==========
-    DEEPGRAM_API_KEY: Optional[str] = field(default_factory=lambda: _getenv("DEEPGRAM_API_KEY") or None)
-    ELEVENLABS_API_KEY: Optional[str] = field(default_factory=lambda: _getenv("ELEVENLABS_API_KEY") or None)
+    DEEPGRAM_API_KEY: Optional[str] = field(
+        default_factory=lambda: _getenv("DEEPGRAM_API_KEY") or None
+    )
+    ELEVENLABS_API_KEY: Optional[str] = field(
+        default_factory=lambda: _getenv("ELEVENLABS_API_KEY") or None
+    )
     GEMINI_API_KEY: Optional[str] = field(default_factory=lambda: _getenv("GEMINI_API_KEY") or None)
     OPENAI_API_KEY: Optional[str] = field(default_factory=lambda: _getenv("OPENAI_API_KEY") or None)
-    ANTHROPIC_API_KEY: Optional[str] = field(default_factory=lambda: _getenv("ANTHROPIC_API_KEY") or None)
+    ANTHROPIC_API_KEY: Optional[str] = field(
+        default_factory=lambda: _getenv("ANTHROPIC_API_KEY") or None
+    )
 
     # ========== Security Settings ==========
-    enable_api_key_validation: bool = field(default_factory=lambda: _parse_bool(_getenv("ENABLE_API_KEY_VALIDATION", "true")))
-    enable_rate_limiting: bool = field(default_factory=lambda: _parse_bool(_getenv("ENABLE_RATE_LIMITING", "true")))
-    enable_input_sanitization: bool = field(default_factory=lambda: _parse_bool(_getenv("ENABLE_INPUT_SANITIZATION", "true")))
+    enable_api_key_validation: bool = field(
+        default_factory=lambda: _parse_bool(_getenv("ENABLE_API_KEY_VALIDATION", "true"))
+    )
+    enable_rate_limiting: bool = field(
+        default_factory=lambda: _parse_bool(_getenv("ENABLE_RATE_LIMITING", "true"))
+    )
+    enable_input_sanitization: bool = field(
+        default_factory=lambda: _parse_bool(_getenv("ENABLE_INPUT_SANITIZATION", "true"))
+    )
     rate_limit_window: int = field(default_factory=lambda: _getenv_int("RATE_LIMIT_WINDOW", 60))
-    rate_limit_max_requests: int = field(default_factory=lambda: _getenv_int("RATE_LIMIT_MAX_REQUESTS", 100))
+    rate_limit_max_requests: int = field(
+        default_factory=lambda: _getenv_int("RATE_LIMIT_MAX_REQUESTS", 100)
+    )
     ssl_verify: bool = field(default_factory=lambda: _parse_bool(_getenv("SSL_VERIFY", "true")))
     request_timeout: int = field(default_factory=lambda: _getenv_int("REQUEST_TIMEOUT", 30))
 
     # ========== Performance Settings ==========
     max_workers: int = field(default_factory=lambda: _getenv_int("MAX_WORKERS", 4))
-    max_concurrent_requests: int = field(default_factory=lambda: _getenv_int("MAX_CONCURRENT_REQUESTS", 10))
+    max_concurrent_requests: int = field(
+        default_factory=lambda: _getenv_int("MAX_CONCURRENT_REQUESTS", 10)
+    )
     thread_pool_size: int = field(default_factory=lambda: _getenv_int("THREAD_POOL_SIZE", 10))
     process_pool_size: int = field(default_factory=lambda: _getenv_int("PROCESS_POOL_SIZE", 4))
 
@@ -159,13 +192,23 @@ class Config:
     max_retries: int = field(default_factory=lambda: _getenv_int("MAX_API_RETRIES", 3))
     retry_delay: float = field(default_factory=lambda: _getenv_float("API_RETRY_DELAY", 1.0))
     max_retry_delay: float = field(default_factory=lambda: _getenv_float("MAX_RETRY_DELAY", 60.0))
-    retry_exponential_base: float = field(default_factory=lambda: _getenv_float("RETRY_EXPONENTIAL_BASE", 2.0))
-    retry_jitter: bool = field(default_factory=lambda: _parse_bool(_getenv("RETRY_JITTER_ENABLED", "true")))
+    retry_exponential_base: float = field(
+        default_factory=lambda: _getenv_float("RETRY_EXPONENTIAL_BASE", 2.0)
+    )
+    retry_jitter: bool = field(
+        default_factory=lambda: _parse_bool(_getenv("RETRY_JITTER_ENABLED", "true"))
+    )
 
     # ========== Circuit Breaker Settings ==========
-    circuit_breaker_enabled: bool = field(default_factory=lambda: _parse_bool(_getenv("CIRCUIT_BREAKER_ENABLED", "true")))
-    circuit_breaker_failure_threshold: int = field(default_factory=lambda: _getenv_int("CIRCUIT_BREAKER_FAILURE_THRESHOLD", 5))
-    circuit_breaker_recovery_timeout: float = field(default_factory=lambda: _getenv_float("CIRCUIT_BREAKER_RECOVERY_TIMEOUT", 60.0))
+    circuit_breaker_enabled: bool = field(
+        default_factory=lambda: _parse_bool(_getenv("CIRCUIT_BREAKER_ENABLED", "true"))
+    )
+    circuit_breaker_failure_threshold: int = field(
+        default_factory=lambda: _getenv_int("CIRCUIT_BREAKER_FAILURE_THRESHOLD", 5)
+    )
+    circuit_breaker_recovery_timeout: float = field(
+        default_factory=lambda: _getenv_float("CIRCUIT_BREAKER_RECOVERY_TIMEOUT", 60.0)
+    )
 
     # ========== Batch Processing ==========
     batch_size: int = field(default_factory=lambda: _getenv_int("BATCH_SIZE", 5))
@@ -180,39 +223,64 @@ class Config:
     verbose: bool = field(default_factory=lambda: _parse_bool(_getenv("VERBOSE", "false")))
     quiet: bool = field(default_factory=lambda: _parse_bool(_getenv("QUIET", "false")))
     debug: bool = field(default_factory=lambda: _parse_bool(_getenv("DEBUG", "false")))
-    no_color: bool = field(default_factory=lambda: _parse_bool(_getenv("NO_COLOR", "false")) or os.getenv("NO_COLOR") is not None)
-    show_progress: bool = field(default_factory=lambda: _parse_bool(_getenv("SHOW_PROGRESS", "true")))
+    no_color: bool = field(
+        default_factory=lambda: _parse_bool(_getenv("NO_COLOR", "false"))
+        or os.getenv("NO_COLOR") is not None
+    )
+    show_progress: bool = field(
+        default_factory=lambda: _parse_bool(_getenv("SHOW_PROGRESS", "true"))
+    )
     rich_output: bool = field(default_factory=lambda: _parse_bool(_getenv("RICH_OUTPUT", "true")))
 
     # ========== Markdown Settings ==========
-    markdown_include_timestamps: bool = field(default_factory=lambda: _parse_bool(_getenv("MARKDOWN_INCLUDE_TIMESTAMPS", "true")))
-    markdown_include_speakers: bool = field(default_factory=lambda: _parse_bool(_getenv("MARKDOWN_INCLUDE_SPEAKERS", "true")))
-    markdown_include_confidence: bool = field(default_factory=lambda: _parse_bool(_getenv("MARKDOWN_INCLUDE_CONFIDENCE", "false")))
+    markdown_include_timestamps: bool = field(
+        default_factory=lambda: _parse_bool(_getenv("MARKDOWN_INCLUDE_TIMESTAMPS", "true"))
+    )
+    markdown_include_speakers: bool = field(
+        default_factory=lambda: _parse_bool(_getenv("MARKDOWN_INCLUDE_SPEAKERS", "true"))
+    )
+    markdown_include_confidence: bool = field(
+        default_factory=lambda: _parse_bool(_getenv("MARKDOWN_INCLUDE_CONFIDENCE", "false"))
+    )
     markdown_template: str = field(default_factory=lambda: _getenv("MARKDOWN_TEMPLATE", "default"))
 
     # ========== Deepgram Settings ==========
     DEEPGRAM_MODEL: str = field(default_factory=lambda: _getenv("DEEPGRAM_MODEL", "nova-2"))
     DEEPGRAM_LANGUAGE: str = field(default_factory=lambda: _getenv("DEEPGRAM_LANGUAGE", "en"))
     DEEPGRAM_TIMEOUT: int = field(default_factory=lambda: _getenv_int("DEEPGRAM_TIMEOUT", 600))
-    DEEPGRAM_PUNCTUATE: bool = field(default_factory=lambda: _parse_bool(_getenv("DEEPGRAM_PUNCTUATE", "true")))
-    DEEPGRAM_DIARIZE: bool = field(default_factory=lambda: _parse_bool(_getenv("DEEPGRAM_DIARIZE", "false")))
-    DEEPGRAM_SMART_FORMAT: bool = field(default_factory=lambda: _parse_bool(_getenv("DEEPGRAM_SMART_FORMAT", "true")))
+    DEEPGRAM_PUNCTUATE: bool = field(
+        default_factory=lambda: _parse_bool(_getenv("DEEPGRAM_PUNCTUATE", "true"))
+    )
+    DEEPGRAM_DIARIZE: bool = field(
+        default_factory=lambda: _parse_bool(_getenv("DEEPGRAM_DIARIZE", "false"))
+    )
+    DEEPGRAM_SMART_FORMAT: bool = field(
+        default_factory=lambda: _parse_bool(_getenv("DEEPGRAM_SMART_FORMAT", "true"))
+    )
 
     # ========== ElevenLabs Settings ==========
-    ELEVENLABS_MODEL: str = field(default_factory=lambda: _getenv("ELEVENLABS_MODEL", "eleven_multilingual_v2"))
+    ELEVENLABS_MODEL: str = field(
+        default_factory=lambda: _getenv("ELEVENLABS_MODEL", "eleven_multilingual_v2")
+    )
     ELEVENLABS_TIMEOUT: int = field(default_factory=lambda: _getenv_int("ELEVENLABS_TIMEOUT", 600))
 
     # ========== Whisper Settings ==========
     WHISPER_MODEL: str = field(default_factory=lambda: _getenv("WHISPER_MODEL", "base"))
     WHISPER_DEVICE: str = field(default_factory=lambda: _getenv("WHISPER_DEVICE", "cpu"))
-    WHISPER_COMPUTE_TYPE: str = field(default_factory=lambda: _getenv("WHISPER_COMPUTE_TYPE", "int8"))
+    WHISPER_COMPUTE_TYPE: str = field(
+        default_factory=lambda: _getenv("WHISPER_COMPUTE_TYPE", "int8")
+    )
     WHISPER_TIMEOUT: int = field(default_factory=lambda: _getenv_int("WHISPER_TIMEOUT", 600))
 
     # ========== Parakeet Settings ==========
-    PARAKEET_MODEL: str = field(default_factory=lambda: _getenv("PARAKEET_MODEL", "stt_en_conformer_ctc_large"))
+    PARAKEET_MODEL: str = field(
+        default_factory=lambda: _getenv("PARAKEET_MODEL", "stt_en_conformer_ctc_large")
+    )
     PARAKEET_DEVICE: str = field(default_factory=lambda: _getenv("PARAKEET_DEVICE", "cpu"))
     PARAKEET_BATCH_SIZE: int = field(default_factory=lambda: _getenv_int("PARAKEET_BATCH_SIZE", 1))
-    PARAKEET_USE_FP16: bool = field(default_factory=lambda: _parse_bool(_getenv("PARAKEET_USE_FP16", "false")))
+    PARAKEET_USE_FP16: bool = field(
+        default_factory=lambda: _parse_bool(_getenv("PARAKEET_USE_FP16", "false"))
+    )
 
     def __post_init__(self):
         """Validate configuration and ensure required directories exist."""
@@ -221,7 +289,7 @@ class Config:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
         # Validate log level
-        valid_log_levels = {'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'}
+        valid_log_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
         if self.log_level not in valid_log_levels:
             raise ValueError(
                 f"Invalid LOG_LEVEL='{self.log_level}'. "
@@ -229,7 +297,7 @@ class Config:
             )
 
         # Validate output format
-        valid_formats = {'text', 'json', 'markdown', 'csv'}
+        valid_formats = {"text", "json", "markdown", "csv"}
         if self.output_format not in valid_formats:
             raise ValueError(
                 f"Invalid OUTPUT_FORMAT='{self.output_format}'. "
@@ -244,7 +312,9 @@ class Config:
             raise ValueError(f"MAX_WORKERS must be positive, got: {self.max_workers}")
 
         if self.max_concurrent_requests <= 0:
-            raise ValueError(f"MAX_CONCURRENT_REQUESTS must be positive, got: {self.max_concurrent_requests}")
+            raise ValueError(
+                f"MAX_CONCURRENT_REQUESTS must be positive, got: {self.max_concurrent_requests}"
+            )
 
         if self.thread_pool_size <= 0:
             raise ValueError(f"THREAD_POOL_SIZE must be positive, got: {self.thread_pool_size}")
@@ -256,7 +326,9 @@ class Config:
             raise ValueError(f"RATE_LIMIT_WINDOW must be positive, got: {self.rate_limit_window}")
 
         if self.rate_limit_max_requests <= 0:
-            raise ValueError(f"RATE_LIMIT_MAX_REQUESTS must be positive, got: {self.rate_limit_max_requests}")
+            raise ValueError(
+                f"RATE_LIMIT_MAX_REQUESTS must be positive, got: {self.rate_limit_max_requests}"
+            )
 
         if self.cache_ttl <= 0:
             raise ValueError(f"CACHE_TTL must be positive, got: {self.cache_ttl}")
@@ -318,22 +390,26 @@ class Config:
             )
 
         # Validate environment
-        valid_environments = {'development', 'staging', 'production', 'test'}
+        valid_environments = {"development", "staging", "production", "test"}
         if self.environment.lower() not in valid_environments:
             # Warning instead of error for backward compatibility
             import warnings
+
             warnings.warn(
                 f"Environment '{self.environment}' is not standard. "
                 f"Consider using: {', '.join(sorted(valid_environments))}",
                 UserWarning,
-                stacklevel=2
+                stacklevel=2,
             )
 
     def __repr__(self) -> str:
         """Return repr with redacted API keys for security."""
         sensitive_fields = {
-            'DEEPGRAM_API_KEY', 'ELEVENLABS_API_KEY', 'GEMINI_API_KEY',
-            'OPENAI_API_KEY', 'ANTHROPIC_API_KEY'
+            "DEEPGRAM_API_KEY",
+            "ELEVENLABS_API_KEY",
+            "GEMINI_API_KEY",
+            "OPENAI_API_KEY",
+            "ANTHROPIC_API_KEY",
         }
         items = []
         for field_name in self.__dataclass_fields__:
@@ -505,6 +581,7 @@ class Config:
             try:
                 import torch
                 import whisper
+
                 return True
             except ImportError:
                 return False
@@ -512,6 +589,7 @@ class Config:
             try:
                 import nemo
                 import torch
+
                 return True
             except ImportError:
                 return False
@@ -532,6 +610,7 @@ class Config:
         try:
             import torch
             import whisper
+
             available.append("whisper")
         except ImportError:
             pass
@@ -539,6 +618,7 @@ class Config:
         try:
             import nemo
             import torch
+
             available.append("parakeet")
         except ImportError:
             pass
@@ -576,4 +656,4 @@ def _reset_config() -> None:
 
 
 # For backward compatibility with __init__.py exports
-__all__ = ["Config", "get_config", "_reset_config"]
+__all__ = ["Config", "_reset_config", "get_config"]

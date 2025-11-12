@@ -3,21 +3,20 @@
 This module tests all eviction strategies to ensure they correctly identify
 victims for eviction according to their respective algorithms.
 """
+
 from __future__ import annotations
 
-import pytest
 from datetime import datetime, timedelta
-from typing import Set
 
 from src.cache.backends import InMemoryCache
-from src.cache.transcription_cache import CacheEntry, CacheKey
 from src.cache.eviction import (
-    select_lru_victim,
-    select_lfu_victim,
-    select_ttl_victim,
-    select_size_victim,
     select_fifo_victim,
+    select_lfu_victim,
+    select_lru_victim,
+    select_size_victim,
+    select_ttl_victim,
 )
+from src.cache.transcription_cache import CacheEntry, CacheKey
 
 
 class TestLRUEviction:

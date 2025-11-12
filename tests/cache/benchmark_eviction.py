@@ -7,27 +7,27 @@ NOTE: This is a manual performance benchmark script, not a unit test.
 For unit tests covering eviction strategy correctness, see test_eviction.py
 Run this benchmark with: python3 tests/cache/benchmark_eviction.py
 """
+
 from __future__ import annotations
 
-import time
-from collections import OrderedDict
-from datetime import datetime, timedelta
-from typing import Any, Callable, Set
 import random
+import time
+from datetime import datetime, timedelta
+from typing import Any, Callable
 
 from src.cache.backends import InMemoryCache
-from src.cache.transcription_cache import CacheEntry, CacheKey
 from src.cache.eviction import (
-    select_lru_victim,
-    select_lfu_victim,
-    select_ttl_victim,
-    select_size_victim,
     select_fifo_victim,
+    select_lfu_victim,
+    select_lru_victim,
+    select_size_victim,
+    select_ttl_victim,
 )
+from src.cache.transcription_cache import CacheEntry, CacheKey
 
 
 # Old implementations for comparison (O(n) linear scan)
-def select_lru_victim_old(backend: Any, keys: Set[str]) -> str:
+def select_lru_victim_old(backend: Any, keys: set[str]) -> str:
     """Old O(n) implementation - iterates all keys."""
     oldest_key = None
     oldest_time = datetime.now()
@@ -39,7 +39,7 @@ def select_lru_victim_old(backend: Any, keys: Set[str]) -> str:
     return oldest_key or next(iter(keys))
 
 
-def select_lfu_victim_old(backend: Any, keys: Set[str]) -> str:
+def select_lfu_victim_old(backend: Any, keys: set[str]) -> str:
     """Old O(n) implementation - iterates all keys."""
     least_used_key = None
     least_count = float("inf")
@@ -51,7 +51,7 @@ def select_lfu_victim_old(backend: Any, keys: Set[str]) -> str:
     return least_used_key or next(iter(keys))
 
 
-def select_ttl_victim_old(backend: Any, keys: Set[str]) -> str:
+def select_ttl_victim_old(backend: Any, keys: set[str]) -> str:
     """Old O(n) implementation - iterates all keys."""
     soonest_key = None
     soonest_expiry = float("inf")
@@ -65,7 +65,7 @@ def select_ttl_victim_old(backend: Any, keys: Set[str]) -> str:
     return soonest_key or next(iter(keys))
 
 
-def select_size_victim_old(backend: Any, keys: Set[str]) -> str:
+def select_size_victim_old(backend: Any, keys: set[str]) -> str:
     """Old O(n) implementation - iterates all keys."""
     largest_key = None
     largest_size = 0
@@ -77,7 +77,7 @@ def select_size_victim_old(backend: Any, keys: Set[str]) -> str:
     return largest_key or next(iter(keys))
 
 
-def select_fifo_victim_old(backend: Any, keys: Set[str]) -> str:
+def select_fifo_victim_old(backend: Any, keys: set[str]) -> str:
     """Old O(n) implementation - iterates all keys."""
     oldest_key = None
     oldest_time = datetime.now()
@@ -89,7 +89,7 @@ def select_fifo_victim_old(backend: Any, keys: Set[str]) -> str:
     return oldest_key or next(iter(keys))
 
 
-def create_test_cache(num_entries: int) -> tuple[InMemoryCache, Set[str]]:
+def create_test_cache(num_entries: int) -> tuple[InMemoryCache, set[str]]:
     """Create a cache populated with test entries.
 
     Args:
@@ -178,9 +178,7 @@ def benchmark_strategy(
         speedup = old_avg / new_avg if new_avg > 0 else 0
         status = "✓ PASS" if speedup >= 2.0 else "⚠ SLOW"
 
-        print(
-            f"{size:<10} {old_avg:<12.4f} {new_avg:<12.4f} {speedup:<10.2f}x {status}"
-        )
+        print(f"{size:<10} {old_avg:<12.4f} {new_avg:<12.4f} {speedup:<10.2f}x {status}")
 
 
 def main():

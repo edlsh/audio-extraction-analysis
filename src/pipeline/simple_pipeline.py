@@ -6,24 +6,22 @@ linear execution: extract → transcribe → analyze.
 The previous implementation had dual orchestration systems (pipeline/ + orchestration/)
 totaling ~2,700 LOC for what is fundamentally a 3-step sequential process.
 """
+
 from __future__ import annotations
 
 import asyncio
 import logging
 import tempfile
 import time
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 from ..analysis.concise_analyzer import ConciseAnalyzer
 from ..analysis.full_analyzer import FullAnalyzer
-from ..models.transcription import TranscriptionResult
 from ..services.audio_extraction import AudioQuality
 from ..services.audio_extraction_async import AsyncAudioExtractor
 from ..services.transcription import TranscriptionService
 from ..ui.console import ConsoleManager
-from ..utils.paths import ensure_subpath, safe_write_json, sanitize_dirname
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +33,8 @@ async def process_pipeline(
     language: str = "en",
     provider: str = "auto",
     analysis_style: str = "full",
-    console_manager: Optional[ConsoleManager] = None,
-) -> Dict[str, Any]:
+    console_manager: ConsoleManager | None = None,
+) -> dict[str, Any]:
     """Process audio/video file through extraction → transcription → analysis pipeline.
 
     This is a simplified linear pipeline that replaces the complex workflow orchestration
@@ -103,10 +101,7 @@ async def process_pipeline(
 
                 progress.update(10)
                 extracted_path = await extractor.extract_audio_async(
-                    input_path,
-                    audio_path,
-                    quality,
-                    progress_callback=progress_callback
+                    input_path, audio_path, quality, progress_callback=progress_callback
                 )
                 progress.update(100)
 
@@ -256,6 +251,7 @@ async def process_pipeline(
         final_audio_path = output_dir / f"{input_path.stem}.mp3"
         if not final_audio_path.exists() and audio_path.exists():
             import shutil
+
             shutil.copy2(audio_path, final_audio_path)
             logger.info(f"Audio saved to: {final_audio_path}")
 
@@ -297,6 +293,7 @@ async def process_pipeline(
         # Clean up temporary directory
         try:
             import shutil
+
             if temp_dir.exists():
                 shutil.rmtree(temp_dir)
                 logger.debug(f"Cleaned up temporary directory: {temp_dir}")

@@ -14,7 +14,6 @@ Test Coverage:
 """
 
 from datetime import datetime
-from pathlib import Path
 
 from src.analysis.concise_analyzer import ConciseAnalyzer
 from src.models.transcription import (
@@ -342,7 +341,11 @@ def test_highlights_and_quotes_extraction():
 
     assert "## 💡 Key Highlights & Quotes" in highlights
     # Should extract at least one of the long, meaningful sentences (not the short intro)
-    assert "quality standards" in highlights or "operational efficiency" in highlights or "stakeholders" in highlights
+    assert (
+        "quality standards" in highlights
+        or "operational efficiency" in highlights
+        or "stakeholders" in highlights
+    )
 
 
 def test_action_items_with_intents():
@@ -448,7 +451,9 @@ def test_timeline_with_utterances():
     result = _make_basic_result()
     result.chapters = []
     result.utterances = [
-        TranscriptionUtterance(speaker=0, start=5.0, end=15.0, text="This is the opening statement."),
+        TranscriptionUtterance(
+            speaker=0, start=5.0, end=15.0, text="This is the opening statement."
+        ),
         TranscriptionUtterance(speaker=1, start=20.0, end=35.0, text="I agree with that approach."),
     ]
 
@@ -490,7 +495,9 @@ def test_metadata_generation():
     result = _make_basic_result()
     result.speakers = [TranscriptionSpeaker(id=0, total_time=60.0, percentage=50.0)]
     result.chapters = [
-        TranscriptionChapter(start_time=0.0, end_time=60.0, topics=["test"], confidence_scores=[0.8])
+        TranscriptionChapter(
+            start_time=0.0, end_time=60.0, topics=["test"], confidence_scores=[0.8]
+        )
     ]
     result.utterances = [
         TranscriptionUtterance(speaker=0, start=0.0, end=10.0, text="Test utterance")

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ source_name }} · Audio Extraction Analysis</title>
+    <link rel="stylesheet" href="assets/styles.css" />
+  </head>
+  <body>
+    <main class="dashboard">
+      <header>
+        <h1>{{ source_name }}</h1>
+        <div class="badge">Processed {{ processed_at }}</div>
+        <div class="badge">Provider · {{ provider|title }}</div>
+        <div class="badge">Duration · {{ duration }}</div>
+      </header>
+
+      {% if summary %}
+      <section>
+        <h2>Executive Summary</h2>
+        <p>{{ summary }}</p>
+      </section>
+      {% endif %}
+
+      <section>
+        <h2>Key Metrics</h2>
+        <div class="metric-grid">
+          <div class="metric-card">
+            <span>Output directory</span>
+            <strong>{{ output_dir }}</strong>
+          </div>
+          <div class="metric-card">
+            <span>Source file</span>
+            <strong>{{ source_path }}</strong>
+          </div>
+          <div class="metric-card">
+            <span>Topics detected</span>
+            <strong>{{ topics|length }}</strong>
+          </div>
+          <div class="metric-card">
+            <span>Speakers tracked</span>
+            <strong>{{ speakers|length }}</strong>
+          </div>
+        </div>
+      </section>
+
+      {% if topics %}
+      <section>
+        <h2>Top Topics</h2>
+        <ul class="list">
+          {% for topic, count in topics %}
+          <li>{{ topic }} <span class="badge">{{ count }}</span></li>
+          {% endfor %}
+        </ul>
+      </section>
+      {% endif %}
+
+      {% if speakers %}
+      <section>
+        <h2>Speakers</h2>
+        <ul class="list">
+          {% for speaker in speakers %}
+          <li>
+            <strong>{{ speaker.get('name', 'Speaker') }}</strong>
+            {% if speaker.get('duration') %}
+            <span class="badge">{{ speaker.duration|round(1) }}s spoken</span>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </section>
+      {% endif %}
+
+      {% if chapters %}
+      <section>
+        <h2>Chapter Timeline</h2>
+        <ul class="list">
+          {% for chapter in chapters %}
+          <li>
+            <strong>{{ chapter.topics|join(', ') }}</strong>
+            <span class="badge">{{ chapter.start_time|round(1) }}s → {{ chapter.end_time|round(1) }}s</span>
+          </li>
+          {% endfor %}
+        </ul>
+      </section>
+      {% endif %}
+
+      {% if stage_results %}
+      <section>
+        <h2>Pipeline Stages</h2>
+        <div class="stage-grid">
+          {% for stage in stage_results %}
+          <div class="stage-card">
+            <h3>{{ stage.name }}</h3>
+            <p>Status · {{ stage.status|title }}</p>
+            <p>Duration · {{ stage.duration }}</p>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      {% if files %}
+      <section class="files">
+        <h2>Generated Files</h2>
+        {% for file in files %}
+        <a href="../{{ file.path }}" download>{{ file.label }}</a>
+        {% endfor %}
+      </section>
+      {% endif %}
+
+      <section>
+        <h2>Raw Data</h2>
+        <pre>{{ raw_json }}</pre>
+      </section>
+    </main>
+  </body>
+</html>

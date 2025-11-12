@@ -1,4 +1,5 @@
 """Compression helpers for cache value serialization."""
+
 from __future__ import annotations
 
 import json
@@ -13,7 +14,7 @@ def compress_value(value: Any) -> bytes:
     otherwise falls back to JSON or string representation.
     """
     # Convert to dictionary if possible, otherwise to string/JSON
-    if hasattr(value, "to_dict") and callable(getattr(value, "to_dict")):
+    if hasattr(value, "to_dict") and callable(value.to_dict):
         value_dict = {"type": type(value).__name__, "data": value.to_dict()}
     else:
         try:
@@ -51,4 +52,3 @@ def decompress_value(data: bytes) -> Any:
     except Exception:
         # Caller will handle logging
         return None
-

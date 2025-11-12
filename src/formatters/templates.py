@@ -4,6 +4,7 @@ These are simple string templates filled by the MarkdownFormatter.
 Runtime options (timestamps/speakers/confidence) are applied by the
 formatter; the templates contain placeholders that will be populated.
 """
+
 from __future__ import annotations
 
 TEMPLATES: dict[str, dict[str, object]] = {

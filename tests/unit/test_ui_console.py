@@ -3,10 +3,8 @@
 import io
 import json
 import logging
-import math
 import threading
-import time
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 from src.ui.console import (
     ConsoleManager,

@@ -20,11 +20,11 @@ Usage:
     from utils.logging_factory import get_logger
     logger = get_logger(__name__)
 """
+
 from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Optional
 
 
 class LoggingFactory:
@@ -52,9 +52,9 @@ class LoggingFactory:
     @classmethod
     def initialize(
         cls,
-        log_dir: Optional[Path] = None,
+        log_dir: Path | None = None,
         level: int = logging.INFO,
-        format_string: Optional[str] = None,
+        format_string: str | None = None,
     ) -> None:
         """Initialize the logging system once for the entire application.
 

@@ -316,14 +316,17 @@ class TestConfigInitialization:
 
     def test_config_initialization_with_environment_variables(self):
         """Test Config reads from environment variables."""
-        with patch.dict(os.environ, {
-            "APP_NAME": "custom_app",
-            "APP_VERSION": "2.0.0",
-            "ENVIRONMENT": "development",
-            "LOG_LEVEL": "DEBUG",
-            "MAX_FILE_SIZE": "50000000",
-            "DEFAULT_LANGUAGE": "es",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "APP_NAME": "custom_app",
+                "APP_VERSION": "2.0.0",
+                "ENVIRONMENT": "development",
+                "LOG_LEVEL": "DEBUG",
+                "MAX_FILE_SIZE": "50000000",
+                "DEFAULT_LANGUAGE": "es",
+            },
+        ):
             config = Config()
 
             assert config.app_name == "custom_app"
@@ -345,12 +348,15 @@ class TestConfigInitialization:
             data_path = Path(tmpdir) / "data"
             cache_path = Path(tmpdir) / "cache"
 
-            with patch.dict(os.environ, {
-                "DATA_DIR": str(data_path),
-                "CACHE_DIR": str(cache_path),
-            }):
+            with patch.dict(
+                os.environ,
+                {
+                    "DATA_DIR": str(data_path),
+                    "CACHE_DIR": str(cache_path),
+                },
+            ):
                 # Creating Config should automatically create the directories
-                config = Config()
+                Config()
 
                 # Verify directories were created
                 assert data_path.exists()
@@ -360,12 +366,15 @@ class TestConfigInitialization:
 
     def test_config_boolean_fields_parsing(self):
         """Test boolean fields are parsed correctly from environment."""
-        with patch.dict(os.environ, {
-            "LOG_TO_CONSOLE": "false",
-            "ENABLE_CACHING": "0",
-            "ENABLE_RETRIES": "off",
-            "ENABLE_METRICS": "true",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "LOG_TO_CONSOLE": "false",
+                "ENABLE_CACHING": "0",
+                "ENABLE_RETRIES": "off",
+                "ENABLE_METRICS": "true",
+            },
+        ):
             config = Config()
 
             assert config.log_to_console is False
@@ -375,11 +384,14 @@ class TestConfigInitialization:
 
     def test_config_list_fields_parsing(self):
         """Test list fields are parsed correctly from environment."""
-        with patch.dict(os.environ, {
-            "ALLOWED_EXTENSIONS": ".mp3,.wav,.flac",
-            "FALLBACK_PROVIDERS": "whisper,elevenlabs",
-            "SUPPORTED_LANGUAGES": "en,es,fr",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "ALLOWED_EXTENSIONS": ".mp3,.wav,.flac",
+                "FALLBACK_PROVIDERS": "whisper,elevenlabs",
+                "SUPPORTED_LANGUAGES": "en,es,fr",
+            },
+        ):
             config = Config()
 
             assert config.allowed_extensions == [".mp3", ".wav", ".flac"]
@@ -388,12 +400,15 @@ class TestConfigInitialization:
 
     def test_config_integer_fields_parsing(self):
         """Test integer fields are parsed correctly from environment."""
-        with patch.dict(os.environ, {
-            "MAX_FILE_SIZE": "123456",
-            "MAX_WORKERS": "8",
-            "MAX_API_RETRIES": "5",
-            "BATCH_SIZE": "10",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "MAX_FILE_SIZE": "123456",
+                "MAX_WORKERS": "8",
+                "MAX_API_RETRIES": "5",
+                "BATCH_SIZE": "10",
+            },
+        ):
             config = Config()
 
             assert config.max_file_size == 123456
@@ -403,11 +418,14 @@ class TestConfigInitialization:
 
     def test_config_float_fields_parsing(self):
         """Test float fields are parsed correctly from environment."""
-        with patch.dict(os.environ, {
-            "API_RETRY_DELAY": "2.5",
-            "MAX_RETRY_DELAY": "120.0",
-            "RETRY_EXPONENTIAL_BASE": "3.0",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "API_RETRY_DELAY": "2.5",
+                "MAX_RETRY_DELAY": "120.0",
+                "RETRY_EXPONENTIAL_BASE": "3.0",
+            },
+        ):
             config = Config()
 
             assert config.retry_delay == 2.5
@@ -427,11 +445,14 @@ class TestConfigInitialization:
 
     def test_config_api_keys_from_environment(self):
         """Test API keys are read from environment."""
-        with patch.dict(os.environ, {
-            "DEEPGRAM_API_KEY": "dg_key_123",
-            "ELEVENLABS_API_KEY": "el_key_456",
-            "GEMINI_API_KEY": "gem_key_789",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "DEEPGRAM_API_KEY": "dg_key_123",
+                "ELEVENLABS_API_KEY": "el_key_456",
+                "GEMINI_API_KEY": "gem_key_789",
+            },
+        ):
             config = Config()
 
             assert config.DEEPGRAM_API_KEY == "dg_key_123"
@@ -517,13 +538,16 @@ class TestConfigProperties:
 
     def test_retry_properties(self):
         """Test retry-related backward compatibility properties."""
-        with patch.dict(os.environ, {
-            "MAX_API_RETRIES": "5",
-            "API_RETRY_DELAY": "2.0",
-            "MAX_RETRY_DELAY": "120.0",
-            "RETRY_EXPONENTIAL_BASE": "3.0",
-            "RETRY_JITTER_ENABLED": "false",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "MAX_API_RETRIES": "5",
+                "API_RETRY_DELAY": "2.0",
+                "MAX_RETRY_DELAY": "120.0",
+                "RETRY_EXPONENTIAL_BASE": "3.0",
+                "RETRY_JITTER_ENABLED": "false",
+            },
+        ):
             config = Config()
 
             assert config.MAX_API_RETRIES == 5
@@ -534,10 +558,13 @@ class TestConfigProperties:
 
     def test_circuit_breaker_properties(self):
         """Test circuit breaker backward compatibility properties."""
-        with patch.dict(os.environ, {
-            "CIRCUIT_BREAKER_FAILURE_THRESHOLD": "10",
-            "CIRCUIT_BREAKER_RECOVERY_TIMEOUT": "120.0",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "CIRCUIT_BREAKER_FAILURE_THRESHOLD": "10",
+                "CIRCUIT_BREAKER_RECOVERY_TIMEOUT": "120.0",
+            },
+        ):
             config = Config()
 
             assert config.CIRCUIT_BREAKER_FAILURE_THRESHOLD == 10
@@ -545,10 +572,13 @@ class TestConfigProperties:
 
     def test_health_check_properties(self):
         """Test health check backward compatibility properties."""
-        with patch.dict(os.environ, {
-            "ENABLE_HEALTH_CHECKS": "false",
-            "CONNECT_TIMEOUT": "15",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "ENABLE_HEALTH_CHECKS": "false",
+                "CONNECT_TIMEOUT": "15",
+            },
+        ):
             config = Config()
 
             assert config.HEALTH_CHECK_ENABLED is False
@@ -732,6 +762,7 @@ class TestGetConfigSingleton:
         """
         # Reset singleton to ensure clean test state
         import src.config
+
         src.config._config_instance = None
 
         # First call creates instance and modify it
@@ -763,10 +794,13 @@ class TestConfigEdgeCases:
         Note: Some fields like LOG_LEVEL have validation that rejects empty strings.
         This test verifies that fields without validation accept empty strings.
         """
-        with patch.dict(os.environ, {
-            "APP_NAME": "",
-            "DEFAULT_LANGUAGE": "",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "APP_NAME": "",
+                "DEFAULT_LANGUAGE": "",
+            },
+        ):
             config = Config()
 
             assert config.app_name == ""
@@ -797,13 +831,16 @@ class TestConfigEdgeCases:
 
     def test_config_provider_settings_deepgram(self):
         """Test Deepgram-specific settings."""
-        with patch.dict(os.environ, {
-            "DEEPGRAM_MODEL": "nova-3",
-            "DEEPGRAM_LANGUAGE": "es",
-            "DEEPGRAM_TIMEOUT": "300",
-            "DEEPGRAM_PUNCTUATE": "false",
-            "DEEPGRAM_DIARIZE": "true",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "DEEPGRAM_MODEL": "nova-3",
+                "DEEPGRAM_LANGUAGE": "es",
+                "DEEPGRAM_TIMEOUT": "300",
+                "DEEPGRAM_PUNCTUATE": "false",
+                "DEEPGRAM_DIARIZE": "true",
+            },
+        ):
             config = Config()
 
             assert config.DEEPGRAM_MODEL == "nova-3"
@@ -814,11 +851,14 @@ class TestConfigEdgeCases:
 
     def test_config_provider_settings_whisper(self):
         """Test Whisper-specific settings."""
-        with patch.dict(os.environ, {
-            "WHISPER_MODEL": "large",
-            "WHISPER_DEVICE": "cuda",
-            "WHISPER_COMPUTE_TYPE": "float16",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "WHISPER_MODEL": "large",
+                "WHISPER_DEVICE": "cuda",
+                "WHISPER_COMPUTE_TYPE": "float16",
+            },
+        ):
             config = Config()
 
             assert config.WHISPER_MODEL == "large"
@@ -844,13 +884,16 @@ class TestConfigEdgeCases:
 
     def test_config_all_timeouts(self):
         """Test all timeout settings."""
-        with patch.dict(os.environ, {
-            "GLOBAL_TIMEOUT": "1200",
-            "CONNECT_TIMEOUT": "20",
-            "READ_TIMEOUT": "60",
-            "WRITE_TIMEOUT": "60",
-            "REQUEST_TIMEOUT": "45",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "GLOBAL_TIMEOUT": "1200",
+                "CONNECT_TIMEOUT": "20",
+                "READ_TIMEOUT": "60",
+                "WRITE_TIMEOUT": "60",
+                "REQUEST_TIMEOUT": "45",
+            },
+        ):
             config = Config()
 
             assert config.global_timeout == 1200

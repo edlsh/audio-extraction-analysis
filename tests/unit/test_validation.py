@@ -3,9 +3,9 @@
 This module tests the FileValidator class and its methods for validating
 audio/video files, extensions, and file sizes.
 """
-import tempfile
+
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -17,7 +17,17 @@ class TestFileValidator:
 
     def test_video_extensions_constant(self):
         """Test that VIDEO_EXTENSIONS contains expected video formats."""
-        expected_extensions = {".mp4", ".avi", ".mov", ".mkv", ".webm", ".flv", ".wmv", ".m4v", ".3gp"}
+        expected_extensions = {
+            ".mp4",
+            ".avi",
+            ".mov",
+            ".mkv",
+            ".webm",
+            ".flv",
+            ".wmv",
+            ".m4v",
+            ".3gp",
+        }
         assert FileValidator.VIDEO_EXTENSIONS == expected_extensions
 
     def test_audio_extensions_constant(self):
@@ -37,7 +47,9 @@ class TestFileValidator:
         """Test that validate_path_security delegates to PathSanitizer."""
         test_file = tmp_path / "test.mp4"
 
-        with patch("src.utils.file_validation.PathSanitizer.validate_path_security") as mock_validate:
+        with patch(
+            "src.utils.file_validation.PathSanitizer.validate_path_security"
+        ) as mock_validate:
             FileValidator.validate_path_security(test_file)
             mock_validate.assert_called_once_with(test_file)
 

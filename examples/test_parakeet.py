@@ -34,10 +34,11 @@ Expected Output:
 
 import asyncio
 import tempfile
-import os
 from pathlib import Path
-import torchaudio
+
 import torch
+import torchaudio
+
 from src.providers.factory import TranscriptionProviderFactory
 
 
@@ -67,25 +68,25 @@ async def create_test_audio():
     sample_rate = 16000
     duration = 3  # seconds
     frequency = 440  # Hz (A4 note)
-    
+
     # Generate time vector
     t = torch.linspace(0, duration, int(sample_rate * duration))
-    
+
     # Generate sine wave
     waveform = torch.sin(2 * torch.pi * frequency * t)
-    
+
     # Add some noise to make it more interesting
     noise = torch.randn_like(waveform) * 0.1
     waveform = waveform + noise
-    
+
     # Normalize
     waveform = waveform / torch.max(torch.abs(waveform))
-    
+
     # Add channel dimension (mono)
     waveform = waveform.unsqueeze(0)
-    
+
     # Save to temporary file
-    with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp_file:
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
         torchaudio.save(tmp_file.name, waveform, sample_rate)
         return Path(tmp_file.name)
 
@@ -117,7 +118,7 @@ async def main():
     # Create synthetic test audio file (sine wave tone)
     print("Creating test audio file...")
     audio_path = await create_test_audio()
-    
+
     try:
         # Initialize the Parakeet provider using the factory pattern
         print("Creating Parakeet provider...")
@@ -129,12 +130,12 @@ async def main():
         print("Checking provider health...")
         health = await provider.health_check_async()
         print(f"Health status: {health['status']}")
-        if health['healthy']:
+        if health["healthy"]:
             print("Provider is healthy and ready!")
         else:
             print(f"Provider is not healthy: {health['details']}")
             return
-        
+
         # Display test information and limitations
         # Note: This script demonstrates provider initialization and health checking.
         # For actual transcription testing, you would:

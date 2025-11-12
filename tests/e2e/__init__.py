@@ -10,8 +10,8 @@ This module provides comprehensive E2E testing capabilities including:
 """
 
 from .base import (
-    E2ETestBase,
     CLITestMixin,
+    E2ETestBase,
     MockProviderMixin,
     PerformanceTestMixin,
     SecurityTestMixin,
@@ -20,10 +20,10 @@ from .base import (
 )
 
 __all__ = [
-    # Base classes
-    "E2ETestBase",
     # Test mixins
     "CLITestMixin",
+    # Base classes
+    "E2ETestBase",
     "MockProviderMixin",
     "PerformanceTestMixin",
     "SecurityTestMixin",

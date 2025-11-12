@@ -4,10 +4,10 @@ Simple test to verify DiskCache works correctly with WAL mode.
 """
 
 import tempfile
-from pathlib import Path
-from datetime import datetime
 import threading
 import time
+from datetime import datetime
+from pathlib import Path
 
 from src.cache.backends import DiskCache
 from src.cache.transcription_cache import CacheEntry, CacheKey
@@ -21,11 +21,7 @@ def test_basic_operations():
     cache = DiskCache(cache_dir=temp_dir, max_size_mb=10)
 
     # Create test entry
-    key = CacheKey(
-        file_hash="test_hash",
-        provider="test_provider",
-        settings_hash="test_settings"
-    )
+    key = CacheKey(file_hash="test_hash", provider="test_provider", settings_hash="test_settings")
     entry = CacheEntry(
         key=key,
         value={"test": "data"},
@@ -68,11 +64,7 @@ def test_basic_operations():
 def _create_cache_test_entries(cache: DiskCache, count: int = 10) -> None:
     """Create test cache entries for concurrent testing."""
     for i in range(count):
-        key = CacheKey(
-            file_hash=f"hash_{i}",
-            provider="test",
-            settings_hash=f"settings_{i}"
-        )
+        key = CacheKey(file_hash=f"hash_{i}", provider="test", settings_hash=f"settings_{i}")
         entry = CacheEntry(
             key=key,
             value={"index": i},
@@ -83,7 +75,9 @@ def _create_cache_test_entries(cache: DiskCache, count: int = 10) -> None:
         cache.put(f"key_{i}", entry)
 
 
-def _concurrent_worker(cache: DiskCache, worker_id: int, results: list, errors: list, operations: int = 50) -> None:
+def _concurrent_worker(
+    cache: DiskCache, worker_id: int, results: list, errors: list, operations: int = 50
+) -> None:
     """Worker thread for concurrent cache testing."""
     try:
         for i in range(operations):
@@ -98,7 +92,9 @@ def _concurrent_worker(cache: DiskCache, worker_id: int, results: list, errors: 
         errors.append(e)
 
 
-def _run_concurrent_threads(cache: DiskCache, results: list, errors: list, num_threads: int = 5) -> list:
+def _run_concurrent_threads(
+    cache: DiskCache, results: list, errors: list, num_threads: int = 5
+) -> list:
     """Run concurrent worker threads and return the thread list."""
     threads = []
     for i in range(num_threads):
@@ -184,11 +180,7 @@ def test_cache_size_and_keys():
     # Add entries
     total_size = 0
     for i in range(5):
-        key = CacheKey(
-            file_hash=f"hash_{i}",
-            provider="test",
-            settings_hash=f"settings_{i}"
-        )
+        key = CacheKey(file_hash=f"hash_{i}", provider="test", settings_hash=f"settings_{i}")
         entry = CacheEntry(
             key=key,
             value={"index": i},
@@ -223,11 +215,7 @@ def test_cache_clear():
 
     # Add entries
     for i in range(5):
-        key = CacheKey(
-            file_hash=f"hash_{i}",
-            provider="test",
-            settings_hash=f"settings_{i}"
-        )
+        key = CacheKey(file_hash=f"hash_{i}", provider="test", settings_hash=f"settings_{i}")
         entry = CacheEntry(
             key=key,
             value={"index": i},
@@ -262,16 +250,12 @@ def test_cache_eviction():
 
     temp_dir = Path(tempfile.mkdtemp())
     # Small cache: 500 bytes max
-    cache = DiskCache(cache_dir=temp_dir, max_size_mb=500/1024/1024)  # 500 bytes
+    cache = DiskCache(cache_dir=temp_dir, max_size_mb=500 / 1024 / 1024)  # 500 bytes
 
     # Add entries that will fill and overflow the cache
     # Each entry is 200 bytes
     for i in range(6):
-        key = CacheKey(
-            file_hash=f"hash_{i}",
-            provider="test",
-            settings_hash=f"settings_{i}"
-        )
+        key = CacheKey(file_hash=f"hash_{i}", provider="test", settings_hash=f"settings_{i}")
         entry = CacheEntry(
             key=key,
             value={"index": i, "data": "x" * 50},
@@ -308,14 +292,10 @@ def test_entry_too_large():
     print("Testing entry too large...")
 
     temp_dir = Path(tempfile.mkdtemp())
-    cache = DiskCache(cache_dir=temp_dir, max_size_mb=500/1024/1024)  # 500 bytes max
+    cache = DiskCache(cache_dir=temp_dir, max_size_mb=500 / 1024 / 1024)  # 500 bytes max
 
     # Try to add entry larger than max size
-    key = CacheKey(
-        file_hash="huge_hash",
-        provider="test",
-        settings_hash="huge_settings"
-    )
+    key = CacheKey(file_hash="huge_hash", provider="test", settings_hash="huge_settings")
     entry = CacheEntry(
         key=key,
         value={"data": "x" * 200},
@@ -345,11 +325,7 @@ def test_entry_replacement():
     cache = DiskCache(cache_dir=temp_dir, max_size_mb=10)
 
     # Add initial entry
-    key = CacheKey(
-        file_hash="test_hash",
-        provider="test",
-        settings_hash="test_settings"
-    )
+    key = CacheKey(file_hash="test_hash", provider="test", settings_hash="test_settings")
     entry1 = CacheEntry(
         key=key,
         value={"version": 1},
@@ -400,11 +376,7 @@ def test_access_tracking():
     cache = DiskCache(cache_dir=temp_dir, max_size_mb=10)
 
     # Add entry
-    key = CacheKey(
-        file_hash="test_hash",
-        provider="test",
-        settings_hash="test_settings"
-    )
+    key = CacheKey(file_hash="test_hash", provider="test", settings_hash="test_settings")
     entry = CacheEntry(
         key=key,
         value={"test": "data"},
@@ -431,7 +403,9 @@ def test_access_tracking():
     # Check access count increased in database
     cursor.execute("SELECT access_count FROM cache_entries WHERE key = ?", ("test_key",))
     final_count = cursor.fetchone()[0]
-    assert final_count > initial_count, f"Access count should increase: {initial_count} -> {final_count}"
+    assert (
+        final_count > initial_count
+    ), f"Access count should increase: {initial_count} -> {final_count}"
     print(f"  ✓ Access count increased: {initial_count} -> {final_count}")
 
     # Check accessed_at was updated
@@ -461,7 +435,7 @@ def test_concurrent_writes():
                 key = CacheKey(
                     file_hash=f"hash_{thread_id}_{i}",
                     provider="test",
-                    settings_hash=f"settings_{thread_id}_{i}"
+                    settings_hash=f"settings_{thread_id}_{i}",
                 )
                 entry = CacheEntry(
                     key=key,
@@ -512,11 +486,7 @@ def test_close_and_cleanup():
     cache = DiskCache(cache_dir=temp_dir, max_size_mb=10)
 
     # Add some data
-    key = CacheKey(
-        file_hash="test_hash",
-        provider="test",
-        settings_hash="test_settings"
-    )
+    key = CacheKey(file_hash="test_hash", provider="test", settings_hash="test_settings")
     entry = CacheEntry(
         key=key,
         value={"test": "data"},
@@ -532,7 +502,7 @@ def test_close_and_cleanup():
     print("  ✓ Cache closed")
 
     # Verify connection cleanup
-    assert not hasattr(cache._local, 'conn'), "Connection should be cleaned up"
+    assert not hasattr(cache._local, "conn"), "Connection should be cleaned up"
     print("  ✓ Connection cleaned up")
 
     # Can reopen by getting connection

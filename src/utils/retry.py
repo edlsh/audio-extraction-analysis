@@ -1,4 +1,5 @@
 """Retry utilities with exponential backoff for robust API calls."""
+
 from __future__ import annotations
 
 import asyncio
@@ -8,7 +9,7 @@ import random
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar
+from typing import Any, Callable, TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +35,7 @@ class RetryConfig:
     max_delay: float = 60.0
     exponential_base: float = 2.0
     jitter: bool = True
-    retriable_exceptions: Tuple[Type[Exception], ...] = field(
+    retriable_exceptions: tuple[type[Exception], ...] = field(
         default_factory=lambda: (
             ConnectionError,
             TimeoutError,
@@ -126,7 +127,7 @@ def calculate_delay(
 
 
 def is_retriable_exception(
-    exception: Exception, retriable_exceptions: Tuple[Type[Exception], ...]
+    exception: Exception, retriable_exceptions: tuple[type[Exception], ...]
 ) -> bool:
     """Check if an exception should trigger a retry.
 
@@ -153,13 +154,13 @@ def is_retriable_exception(
 
 
 def _create_retry_config_from_params(
-    config: Optional[RetryConfig],
-    max_attempts: Optional[int],
-    base_delay: Optional[float],
-    max_delay: Optional[float],
-    exponential_base: Optional[float],
-    jitter: Optional[bool],
-    retriable_exceptions: Optional[Tuple[Type[Exception], ...]],
+    config: RetryConfig | None,
+    max_attempts: int | None,
+    base_delay: float | None,
+    max_delay: float | None,
+    exponential_base: float | None,
+    jitter: bool | None,
+    retriable_exceptions: tuple[type[Exception], ...] | None,
 ) -> RetryConfig:
     """Create RetryConfig from individual parameters or use provided config.
 
@@ -287,13 +288,13 @@ async def _calculate_and_apply_delay_async(
 
 
 def retry_sync(
-    config: Optional[RetryConfig] = None,
-    max_attempts: Optional[int] = None,
-    base_delay: Optional[float] = None,
-    max_delay: Optional[float] = None,
-    exponential_base: Optional[float] = None,
-    jitter: Optional[bool] = None,
-    retriable_exceptions: Optional[Tuple[Type[Exception], ...]] = None,
+    config: RetryConfig | None = None,
+    max_attempts: int | None = None,
+    base_delay: float | None = None,
+    max_delay: float | None = None,
+    exponential_base: float | None = None,
+    jitter: bool | None = None,
+    retriable_exceptions: tuple[type[Exception], ...] | None = None,
 ) -> Callable[[F], F]:
     """Decorator for synchronous functions with retry logic.
 
@@ -322,7 +323,7 @@ def retry_sync(
     def decorator(func: F) -> F:
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
-            last_exception: Optional[Exception] = None
+            last_exception: Exception | None = None
             total_delay = 0.0
 
             for attempt in range(retry_config.max_attempts):
@@ -359,13 +360,13 @@ def retry_sync(
 
 
 def retry_async(
-    config: Optional[RetryConfig] = None,
-    max_attempts: Optional[int] = None,
-    base_delay: Optional[float] = None,
-    max_delay: Optional[float] = None,
-    exponential_base: Optional[float] = None,
-    jitter: Optional[bool] = None,
-    retriable_exceptions: Optional[Tuple[Type[Exception], ...]] = None,
+    config: RetryConfig | None = None,
+    max_attempts: int | None = None,
+    base_delay: float | None = None,
+    max_delay: float | None = None,
+    exponential_base: float | None = None,
+    jitter: bool | None = None,
+    retriable_exceptions: tuple[type[Exception], ...] | None = None,
 ) -> Callable[[AsyncF], AsyncF]:
     """Decorator for asynchronous functions with retry logic.
 
@@ -394,7 +395,7 @@ def retry_async(
     def decorator(func: AsyncF) -> AsyncF:
         @functools.wraps(func)
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
-            last_exception: Optional[Exception] = None
+            last_exception: Exception | None = None
             total_delay = 0.0
 
             for attempt in range(retry_config.max_attempts):
@@ -501,7 +502,7 @@ class RetryBudget:
         """
         self.max_budget = max_budget
         self.window_seconds = window_seconds
-        self.attempts: List[float] = []
+        self.attempts: list[float] = []
         self._lock = threading.Lock()
 
     def can_retry(self) -> bool:
@@ -520,7 +521,7 @@ class RetryBudget:
                 return True
             return False
 
-    def get_budget_status(self) -> Dict[str, Any]:
+    def get_budget_status(self) -> dict[str, Any]:
         """Get current budget status information.
 
         Returns:

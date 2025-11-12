@@ -9,14 +9,14 @@ import subprocess
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from ..config import get_config
 from ..models.transcription import TranscriptionResult, TranscriptionUtterance
+from ..utils.file_validation import safe_validate_audio_file
 from ..utils.retry import RetryConfig
 from .base import BaseTranscriptionProvider, CircuitBreakerConfig
 from .provider_utils import ProviderInitializer
-from ..utils.file_validation import safe_validate_audio_file
 
 logger = logging.getLogger(__name__)
 
@@ -46,9 +46,9 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        circuit_config: Optional[CircuitBreakerConfig] = None,
-        retry_config: Optional[RetryConfig] = None,
+        api_key: str | None = None,
+        circuit_config: CircuitBreakerConfig | None = None,
+        retry_config: RetryConfig | None = None,
     ):
         """Initialize the ElevenLabs transcriber with API key and configurations.
 
@@ -59,9 +59,7 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
         """
         # Use standardized provider initialization
         retry_config, circuit_config = ProviderInitializer.initialize_provider_configs(
-            provider_name="ElevenLabs",
-            retry_config=retry_config,
-            circuit_config=circuit_config
+            provider_name="ElevenLabs", retry_config=retry_config, circuit_config=circuit_config
         )
 
         super().__init__(api_key, circuit_config, retry_config)
@@ -91,7 +89,7 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
         """
         return "ElevenLabs"
 
-    def get_supported_features(self) -> List[str]:
+    def get_supported_features(self) -> list[str]:
         """Get list of features supported by ElevenLabs.
 
         Returns:
@@ -99,7 +97,7 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
         """
         return ["timestamps", "language_detection", "basic_transcription"]
 
-    async def health_check_async(self) -> Dict[str, Any]:
+    async def health_check_async(self) -> dict[str, Any]:
         """Perform health check for ElevenLabs service.
 
         Returns:
@@ -162,7 +160,7 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
 
     async def _transcribe_impl(
         self, audio_file_path: Path, language: str = "en"
-    ) -> Optional[TranscriptionResult]:
+    ) -> TranscriptionResult | None:
         """Internal transcription implementation without retry/circuit breaker logic.
 
         Args:
@@ -174,9 +172,9 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
         """
         # Validate audio file with ElevenLabs size limits
         validated_path = safe_validate_audio_file(
-            audio_file_path, 
+            audio_file_path,
             max_file_size=self.MAX_FILE_SIZE_MB * 1024 * 1024,
-            provider_name="elevenlabs"
+            provider_name="elevenlabs",
         )
         if validated_path is None:
             return None

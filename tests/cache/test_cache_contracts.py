@@ -1,33 +1,31 @@
 """
 Contract tests for cache backends to ensure BaseCache protocol conformance.
 
-This module contains tests that verify all cache backends implement the 
+This module contains tests that verify all cache backends implement the
 BaseCache protocol consistently and correctly.
 """
 
 from __future__ import annotations
 
-import pytest
 import tempfile
-from pathlib import Path
 from datetime import datetime
-from typing import List, Type
+from pathlib import Path
 
-from src.cache.backends import InMemoryCache, DiskCache
+import pytest
+
+from src.cache.backends import DiskCache, InMemoryCache
 from src.cache.common import BaseCache, CacheUtils
 from src.cache.transcription_cache import CacheEntry, CacheKey
 
 
 class TestCacheContract:
     """Contract tests that all cache backends must pass."""
-    
+
     @pytest.fixture
     def sample_cache_entry(self) -> CacheEntry:
         """Create a sample cache entry for testing."""
         cache_key = CacheKey(
-            file_hash="test_hash_123",
-            provider="test_provider",
-            settings_hash="settings_456"
+            file_hash="test_hash_123", provider="test_provider", settings_hash="settings_456"
         )
         return CacheEntry(
             key=cache_key,
@@ -37,11 +35,11 @@ class TestCacheContract:
             accessed_at=datetime.now(),
             access_count=0,
             ttl=3600,
-            metadata={"source": "test"}
+            metadata={"source": "test"},
         )
-    
+
     @pytest.fixture
-    def cache_backends(self) -> List[BaseCache]:
+    def cache_backends(self) -> list[BaseCache]:
         """Create instances of all cache backends for testing."""
         temp_dir = Path(tempfile.mkdtemp())
 
@@ -49,152 +47,182 @@ class TestCacheContract:
             InMemoryCache(max_size_mb=1),
             DiskCache(cache_dir=temp_dir, max_size_mb=1),
         ]
-    
-    def test_implements_base_cache_protocol(self, cache_backends: List[BaseCache]):
+
+    def test_implements_base_cache_protocol(self, cache_backends: list[BaseCache]):
         """Test that all backends implement BaseCache protocol."""
         for backend in cache_backends:
             assert isinstance(backend, BaseCache), f"{type(backend)} does not implement BaseCache"
-    
-    def test_put_and_get_operations(self, cache_backends: List[BaseCache], sample_cache_entry: CacheEntry):
+
+    def test_put_and_get_operations(
+        self, cache_backends: list[BaseCache], sample_cache_entry: CacheEntry
+    ):
         """Test basic put and get operations work consistently."""
         test_key = "test_key_123"
-        
+
         for backend in cache_backends:
             # Test successful put
-            assert backend.put(test_key, sample_cache_entry), f"{type(backend)} put operation failed"
-            
+            assert backend.put(
+                test_key, sample_cache_entry
+            ), f"{type(backend)} put operation failed"
+
             # Test successful get
             retrieved_entry = backend.get(test_key)
             assert retrieved_entry is not None, f"{type(backend)} get operation returned None"
             assert retrieved_entry.key.file_hash == sample_cache_entry.key.file_hash
             assert retrieved_entry.value == sample_cache_entry.value
             assert retrieved_entry.size == sample_cache_entry.size
-    
-    def test_delete_operations(self, cache_backends: List[BaseCache], sample_cache_entry: CacheEntry):
+
+    def test_delete_operations(
+        self, cache_backends: list[BaseCache], sample_cache_entry: CacheEntry
+    ):
         """Test delete operations work consistently."""
         test_key = "test_delete_key"
-        
+
         for backend in cache_backends:
             # Put entry first
             backend.put(test_key, sample_cache_entry)
-            
+
             # Test delete returns True for existing key
-            assert backend.delete(test_key), f"{type(backend)} delete existing key should return True"
-            
+            assert backend.delete(
+                test_key
+            ), f"{type(backend)} delete existing key should return True"
+
             # Test get returns None after delete
             assert backend.get(test_key) is None, f"{type(backend)} should return None after delete"
-            
+
             # Test delete returns False for non-existing key
-            assert not backend.delete("non_existing_key"), f"{type(backend)} delete non-existing key should return False"
-    
-    def test_exists_operations(self, cache_backends: List[BaseCache], sample_cache_entry: CacheEntry):
+            assert not backend.delete(
+                "non_existing_key"
+            ), f"{type(backend)} delete non-existing key should return False"
+
+    def test_exists_operations(
+        self, cache_backends: list[BaseCache], sample_cache_entry: CacheEntry
+    ):
         """Test exists operations work consistently."""
         test_key = "test_exists_key"
-        
+
         for backend in cache_backends:
             # Test exists returns False for non-existing key
-            assert not backend.exists(test_key), f"{type(backend)} exists should return False for non-existing key"
-            
+            assert not backend.exists(
+                test_key
+            ), f"{type(backend)} exists should return False for non-existing key"
+
             # Put entry
             backend.put(test_key, sample_cache_entry)
-            
+
             # Test exists returns True for existing key
-            assert backend.exists(test_key), f"{type(backend)} exists should return True for existing key"
-            
+            assert backend.exists(
+                test_key
+            ), f"{type(backend)} exists should return True for existing key"
+
             # Delete and test exists returns False
             backend.delete(test_key)
-            assert not backend.exists(test_key), f"{type(backend)} exists should return False after delete"
-    
-    def test_clear_operations(self, cache_backends: List[BaseCache], sample_cache_entry: CacheEntry):
+            assert not backend.exists(
+                test_key
+            ), f"{type(backend)} exists should return False after delete"
+
+    def test_clear_operations(
+        self, cache_backends: list[BaseCache], sample_cache_entry: CacheEntry
+    ):
         """Test clear operations work consistently."""
         for backend in cache_backends:
             # Put multiple entries
             keys = ["clear_test_1", "clear_test_2", "clear_test_3"]
             for key in keys:
                 backend.put(key, sample_cache_entry)
-            
+
             # Test clear returns count > 0
             cleared_count = backend.clear()
             assert cleared_count > 0, f"{type(backend)} clear should return positive count"
-            
+
             # Test all entries are gone
             for key in keys:
-                assert backend.get(key) is None, f"{type(backend)} should have no entries after clear"
-            
+                assert (
+                    backend.get(key) is None
+                ), f"{type(backend)} should have no entries after clear"
+
             # Test size is 0 after clear
             assert backend.size() == 0, f"{type(backend)} size should be 0 after clear"
-    
-    def test_size_operations(self, cache_backends: List[BaseCache], sample_cache_entry: CacheEntry):
+
+    def test_size_operations(self, cache_backends: list[BaseCache], sample_cache_entry: CacheEntry):
         """Test size operations work consistently."""
         for backend in cache_backends:
             # Clear to start fresh
             backend.clear()
-            
+
             # Test initial size is 0
             assert backend.size() == 0, f"{type(backend)} initial size should be 0"
-            
+
             # Add entry and check size increases
             backend.put("size_test", sample_cache_entry)
             size_after_put = backend.size()
             assert size_after_put > 0, f"{type(backend)} size should increase after put"
-            
+
             # Delete entry and check size decreases
             backend.delete("size_test")
             size_after_delete = backend.size()
-            assert size_after_delete < size_after_put, f"{type(backend)} size should decrease after delete"
-    
-    def test_keys_operations(self, cache_backends: List[BaseCache], sample_cache_entry: CacheEntry):
+            assert (
+                size_after_delete < size_after_put
+            ), f"{type(backend)} size should decrease after delete"
+
+    def test_keys_operations(self, cache_backends: list[BaseCache], sample_cache_entry: CacheEntry):
         """Test keys operations work consistently."""
         for backend in cache_backends:
             backend.clear()
-            
+
             # Test keys returns empty set initially
-            assert len(backend.keys()) == 0, f"{type(backend)} keys should return empty set initially"
-            
+            assert (
+                len(backend.keys()) == 0
+            ), f"{type(backend)} keys should return empty set initially"
+
             # Add entries
             test_keys = ["keys_test_1", "keys_test_2", "keys_test_3"]
             for key in test_keys:
                 backend.put(key, sample_cache_entry)
-            
+
             # Test keys returns all added keys
             returned_keys = backend.keys()
             for key in test_keys:
                 assert key in returned_keys, f"{type(backend)} keys should contain {key}"
-            
+
             # Delete one key and verify it's no longer in keys
             backend.delete(test_keys[0])
             updated_keys = backend.keys()
-            assert test_keys[0] not in updated_keys, f"{type(backend)} keys should not contain deleted key"
-            assert test_keys[1] in updated_keys, f"{type(backend)} keys should still contain remaining keys"
-    
-    def test_key_normalization(self, cache_backends: List[BaseCache], sample_cache_entry: CacheEntry):
+            assert (
+                test_keys[0] not in updated_keys
+            ), f"{type(backend)} keys should not contain deleted key"
+            assert (
+                test_keys[1] in updated_keys
+            ), f"{type(backend)} keys should still contain remaining keys"
+
+    def test_key_normalization(
+        self, cache_backends: list[BaseCache], sample_cache_entry: CacheEntry
+    ):
         """Test that key normalization is applied consistently."""
         # Test with different case and whitespace
         original_key = "  TeSt_KeY_123  "
         normalized_key = CacheUtils.normalize_key(original_key)
-        
+
         for backend in cache_backends:
             backend.clear()
-            
+
             # Put with original key
             backend.put(original_key, sample_cache_entry)
-            
+
             # Get with normalized key should work for normalized backends
             retrieved = backend.get(normalized_key)
-            if hasattr(backend, '_cache'):  # InMemoryCache uses normalization
+            if hasattr(backend, "_cache"):  # InMemoryCache uses normalization
                 assert retrieved is not None, f"{type(backend)} should retrieve with normalized key"
-            
+
             # Keys should contain normalized version for normalized backends
             keys = backend.keys()
-            if hasattr(backend, '_cache'):  # InMemoryCache uses normalization
+            if hasattr(backend, "_cache"):  # InMemoryCache uses normalization
                 assert normalized_key in keys, f"{type(backend)} keys should contain normalized key"
-    
-    def test_large_entry_handling(self, cache_backends: List[BaseCache]):
+
+    def test_large_entry_handling(self, cache_backends: list[BaseCache]):
         """Test handling of entries larger than cache size."""
         large_key = CacheKey(
-            file_hash="large_hash",
-            provider="test",
-            settings_hash="large_settings"
+            file_hash="large_hash", provider="test", settings_hash="large_settings"
         )
         # Create entry larger than 1MB cache size
         large_entry = CacheEntry(
@@ -204,18 +232,22 @@ class TestCacheContract:
             created_at=datetime.now(),
             accessed_at=datetime.now(),
         )
-        
+
         for backend in cache_backends:
             backend.clear()
-            
+
             # Should fail to put oversized entry
             result = backend.put("large_key", large_entry)
             assert not result, f"{type(backend)} should reject oversized entries"
-            
+
             # Verify it's not actually stored
-            assert backend.get("large_key") is None, f"{type(backend)} should not store oversized entries"
-    
-    def test_concurrent_operations_safety(self, cache_backends: List[BaseCache], sample_cache_entry: CacheEntry):
+            assert (
+                backend.get("large_key") is None
+            ), f"{type(backend)} should not store oversized entries"
+
+    def test_concurrent_operations_safety(
+        self, cache_backends: list[BaseCache], sample_cache_entry: CacheEntry
+    ):
         """Test basic thread safety of operations."""
         import threading
         import time
@@ -252,7 +284,9 @@ class TestCacheContract:
             # Check that all operations succeeded
             assert all(results), f"{type(backend)} concurrent operations failed"
 
-    def test_concurrent_reads(self, cache_backends: List[BaseCache], sample_cache_entry: CacheEntry):
+    def test_concurrent_reads(
+        self, cache_backends: list[BaseCache], sample_cache_entry: CacheEntry
+    ):
         """Test concurrent read operations with WAL mode benefits."""
         import threading
 
@@ -289,9 +323,13 @@ class TestCacheContract:
             # Check that all reads succeeded
             assert len(errors) == 0, f"{type(backend)} concurrent reads had errors: {errors}"
             assert all(read_results), f"{type(backend)} concurrent reads failed"
-            assert len(read_results) == 100, f"{type(backend)} expected 100 reads, got {len(read_results)}"
+            assert (
+                len(read_results) == 100
+            ), f"{type(backend)} expected 100 reads, got {len(read_results)}"
 
-    def test_concurrent_writes(self, cache_backends: List[BaseCache], sample_cache_entry: CacheEntry):
+    def test_concurrent_writes(
+        self, cache_backends: list[BaseCache], sample_cache_entry: CacheEntry
+    ):
         """Test concurrent write operations."""
         import threading
 
@@ -325,12 +363,16 @@ class TestCacheContract:
             # Check that all writes succeeded
             assert len(errors) == 0, f"{type(backend)} concurrent writes had errors: {errors}"
             assert all(write_results), f"{type(backend)} concurrent writes failed"
-            assert len(write_results) == 50, f"{type(backend)} expected 50 writes, got {len(write_results)}"
+            assert (
+                len(write_results) == 50
+            ), f"{type(backend)} expected 50 writes, got {len(write_results)}"
 
-    def test_concurrent_mixed_operations(self, cache_backends: List[BaseCache], sample_cache_entry: CacheEntry):
+    def test_concurrent_mixed_operations(
+        self, cache_backends: list[BaseCache], sample_cache_entry: CacheEntry
+    ):
         """Test mixed concurrent operations (reads, writes, deletes)."""
-        import threading
         import random
+        import threading
 
         for backend in cache_backends:
             backend.clear()
@@ -345,22 +387,22 @@ class TestCacheContract:
             def mixed_worker(worker_id: int):
                 """Worker with mixed operations."""
                 try:
-                    for i in range(10):
-                        op = random.choice(['read', 'write', 'delete', 'exists'])
+                    for _i in range(10):
+                        op = random.choice(["read", "write", "delete", "exists"])
                         key = f"mixed_{random.randint(0, 19)}"
 
-                        if op == 'read':
+                        if op == "read":
                             result = backend.get(key)
-                            operation_results.append(('read', result is not None or result is None))
-                        elif op == 'write':
+                            operation_results.append(("read", result is not None or result is None))
+                        elif op == "write":
                             result = backend.put(key, sample_cache_entry)
-                            operation_results.append(('write', result))
-                        elif op == 'delete':
+                            operation_results.append(("write", result))
+                        elif op == "delete":
                             result = backend.delete(key)
-                            operation_results.append(('delete', True))
-                        elif op == 'exists':
+                            operation_results.append(("delete", True))
+                        elif op == "exists":
                             result = backend.exists(key)
-                            operation_results.append(('exists', True))
+                            operation_results.append(("exists", True))
                 except Exception as e:
                     errors.append(e)
 
@@ -376,9 +418,13 @@ class TestCacheContract:
                 thread.join()
 
             # Check that no errors occurred
-            assert len(errors) == 0, f"{type(backend)} mixed concurrent operations had errors: {errors}"
+            assert (
+                len(errors) == 0
+            ), f"{type(backend)} mixed concurrent operations had errors: {errors}"
             # All operations should complete successfully
-            assert all(result[1] for result in operation_results), f"{type(backend)} some operations failed"
+            assert all(
+                result[1] for result in operation_results
+            ), f"{type(backend)} some operations failed"
 
 
 class TestCacheUtilities:
@@ -396,7 +442,9 @@ class TestCacheUtilities:
 
         for input_key, expected in test_cases:
             result = CacheUtils.normalize_key(input_key)
-            assert result == expected, f"normalize_key('{input_key}') should return '{expected}', got '{result}'"
+            assert (
+                result == expected
+            ), f"normalize_key('{input_key}') should return '{expected}', got '{result}'"
 
     def test_size_calculation(self):
         """Test size calculation utility."""
@@ -411,7 +459,9 @@ class TestCacheUtilities:
             if expected is None:
                 assert result > 0, f"calculate_size should return positive for {type(value)}"
             else:
-                assert result == expected, f"calculate_size({value!r}) should return {expected}, got {result}"
+                assert (
+                    result == expected
+                ), f"calculate_size({value!r}) should return {expected}, got {result}"
 
     def test_expiry_checking(self):
         """Test expiry checking utility."""
@@ -429,6 +479,7 @@ class TestCacheUtilities:
 
         # Should be expired after TTL
         import time
+
         time.sleep(1.1)  # Wait longer than TTL
         assert CacheUtils.is_expired(expired_entry), "Entry should be expired after TTL"
 
@@ -446,7 +497,7 @@ class TestSerializationHelper:
             value={"test": "data", "nested": {"key": "value"}},
             size=100,
             ttl=3600,
-            metadata={"source": "test"}
+            metadata={"source": "test"},
         )
 
         # Serialize
@@ -529,6 +580,7 @@ class TestTTLManager:
         )
 
         import time
+
         current_time = time.time()
 
         # Should not be expired with current time
@@ -551,8 +603,11 @@ class TestTTLManager:
         )
 
         import time
+
         future_time = time.time() + 999999  # Far in the future
-        assert not TTLManager.is_expired(entry, future_time), "Entry with no TTL should never expire"
+        assert not TTLManager.is_expired(
+            entry, future_time
+        ), "Entry with no TTL should never expire"
 
     def test_time_until_expiry(self):
         """Test time until expiry calculation."""
@@ -691,6 +746,7 @@ class TestCacheEntry:
         original_count = entry.access_count
 
         import time
+
         time.sleep(0.01)  # Small delay to ensure timestamp changes
 
         entry.touch()
@@ -708,6 +764,7 @@ class TestCacheEntry:
         )
 
         import time
+
         time.sleep(0.1)  # Wait 100ms
 
         age = entry.age_seconds()
@@ -722,7 +779,7 @@ class TestCacheEntry:
             value={"test": "data", "number": 123},
             size=100,
             ttl=3600,
-            metadata={"source": "test", "priority": "high"}
+            metadata={"source": "test", "priority": "high"},
         )
 
         # Convert to dict
@@ -749,7 +806,7 @@ class TestCacheKey:
         from pathlib import Path
 
         # Create a temporary file
-        with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
             f.write("test content for cache key")
             temp_path = Path(f.name)
 
@@ -774,7 +831,7 @@ class TestCacheKey:
         from pathlib import Path
 
         # Create a temporary file
-        with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
             f.write("test content")
             temp_path = Path(f.name)
 
@@ -802,7 +859,7 @@ class TestCacheKey:
         import tempfile
         from pathlib import Path
 
-        with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
             f.write("test")
             temp_path = Path(f.name)
 
@@ -861,7 +918,9 @@ class TestBackendSpecificBehaviors:
 
         # key_0 should still exist (was recently accessed)
         # Older keys should have been evicted
-        assert cache.exists("key_0") or not cache.exists("key_1"), "LRU eviction should preserve recently used"
+        assert cache.exists("key_0") or not cache.exists(
+            "key_1"
+        ), "LRU eviction should preserve recently used"
 
     def test_diskcache_close(self):
         """Test DiskCache close method."""

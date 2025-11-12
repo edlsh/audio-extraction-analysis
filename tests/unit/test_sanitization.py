@@ -1,5 +1,5 @@
 """Tests for path sanitization utilities."""
-import re
+
 from pathlib import Path
 
 import pytest

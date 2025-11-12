@@ -1,7 +1,5 @@
 """Test suite for src package initialization."""
 
-import pytest
-
 
 class TestSrcPackage:
     """Test src package module structure."""
@@ -9,11 +7,13 @@ class TestSrcPackage:
     def test_module_import(self):
         """Test that src module can be imported successfully."""
         import src
+
         assert src is not None
 
     def test_module_docstring(self):
         """Test that src module has proper docstring."""
         import src
+
         assert src.__doc__ is not None
         assert isinstance(src.__doc__, str)
         assert len(src.__doc__.strip()) > 0
@@ -32,19 +32,21 @@ class TestSrcPackage:
     def test_docstring_content(self):
         """Test that docstring contains expected content."""
         import src
+
         expected_keywords = ["namespace", "package", "runtime", "modules"]
         docstring_lower = src.__doc__.lower()
 
         # Verify the docstring mentions namespace and package concepts
-        assert any(keyword in docstring_lower for keyword in expected_keywords), \
-            f"Docstring should mention namespace package: {src.__doc__}"
+        assert any(
+            keyword in docstring_lower for keyword in expected_keywords
+        ), f"Docstring should mention namespace package: {src.__doc__}"
 
     def test_no_unexpected_exports(self):
         """Test that module doesn't expose unexpected public attributes."""
         import src
 
         # Get all public attributes (not starting with _)
-        public_attrs = [attr for attr in dir(src) if not attr.startswith('_')]
+        public_attrs = [attr for attr in dir(src) if not attr.startswith("_")]
 
         # Namespace package should have minimal exports
         # This is informational - adjust if the package intentionally exports items

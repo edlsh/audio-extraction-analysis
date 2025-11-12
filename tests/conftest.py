@@ -6,12 +6,12 @@ This module provides shared fixtures for all tests including:
 - Secure configuration for testing
 - API mocking utilities
 """
+
 from __future__ import annotations
 
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Generator
 
 import pytest
 
@@ -47,14 +47,22 @@ def sample_audio_mp3(tmp_path_factory: pytest.TempPathFactory, ffmpeg_binary: Pa
     output = output_dir / "test_audio_5s.mp3"
 
     # Generate 5-second sine wave at 440 Hz (A4 note)
-    result = subprocess.run([
-        str(ffmpeg_binary),
-        "-f", "lavfi",
-        "-i", "sine=frequency=440:duration=5",
-        "-codec:a", "libmp3lame",
-        "-b:a", "128k",
-        str(output)
-    ], capture_output=True, check=False)
+    result = subprocess.run(
+        [
+            str(ffmpeg_binary),
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=5",
+            "-codec:a",
+            "libmp3lame",
+            "-b:a",
+            "128k",
+            str(output),
+        ],
+        capture_output=True,
+        check=False,
+    )
 
     if result.returncode != 0:
         pytest.skip(f"Failed to generate test audio: {result.stderr.decode()}")
@@ -76,14 +84,22 @@ def sample_audio_wav(tmp_path_factory: pytest.TempPathFactory, ffmpeg_binary: Pa
     output_dir = tmp_path_factory.mktemp("fixtures")
     output = output_dir / "test_audio_5s.wav"
 
-    result = subprocess.run([
-        str(ffmpeg_binary),
-        "-f", "lavfi",
-        "-i", "sine=frequency=440:duration=5",
-        "-codec:a", "pcm_s16le",
-        "-ar", "44100",
-        str(output)
-    ], capture_output=True, check=False)
+    result = subprocess.run(
+        [
+            str(ffmpeg_binary),
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=5",
+            "-codec:a",
+            "pcm_s16le",
+            "-ar",
+            "44100",
+            str(output),
+        ],
+        capture_output=True,
+        check=False,
+    )
 
     if result.returncode != 0:
         pytest.skip(f"Failed to generate test WAV: {result.stderr.decode()}")
@@ -103,7 +119,7 @@ def corrupted_audio(tmp_path: Path) -> Path:
     """
     corrupted = tmp_path / "corrupted.mp3"
     # Write truncated MP3 header
-    corrupted.write_bytes(b'\xff\xfb\x90\x00')  # Incomplete MP3 header
+    corrupted.write_bytes(b"\xff\xfb\x90\x00")  # Incomplete MP3 header
     return corrupted
 
 
@@ -120,6 +136,3 @@ def empty_audio(tmp_path: Path) -> Path:
     empty = tmp_path / "empty.mp3"
     empty.touch()
     return empty
-
-
-

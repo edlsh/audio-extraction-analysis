@@ -5,10 +5,10 @@ extraction → transcription → analysis.
 
 CRITICAL: Uses real component instances (not mocks) to test actual error paths.
 """
+
 from __future__ import annotations
 
 import asyncio
-import os
 import tempfile
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
@@ -91,9 +91,9 @@ class TestPipelineErrorHandling:
         # Wait a bit for cleanup to complete
         await asyncio.sleep(0.1)
         current_temp_count = len(list(Path(tempfile.gettempdir()).glob("audio_pipeline_*")))
-        assert current_temp_count == original_temp_count, (
-            f"Temp directories leaked: {current_temp_count} > {original_temp_count}"
-        )
+        assert (
+            current_temp_count == original_temp_count
+        ), f"Temp directories leaked: {current_temp_count} > {original_temp_count}"
 
         # Verify no partial files in output directory
         output_files = list(output_dir.glob("*"))
@@ -103,9 +103,7 @@ class TestPipelineErrorHandling:
     # Test 2: Transcription Failure → Graceful Error
     # ========================================================================
     @pytest.mark.asyncio
-    async def test_transcription_failure_graceful_error(
-        self, temp_dirs, console_manager, tmp_path
-    ):
+    async def test_transcription_failure_graceful_error(self, temp_dirs, console_manager, tmp_path):
         """Test that transcription failure produces graceful error without crashing."""
         output_dir = temp_dirs["output_dir"]
 
@@ -120,7 +118,6 @@ class TestPipelineErrorHandling:
         ) as mock_extractor_class, patch(
             "src.pipeline.simple_pipeline.TranscriptionService"
         ) as mock_transcription_class:
-
             # Setup extraction mock to succeed
             mock_extractor = AsyncMock()
             mock_extractor_class.return_value = mock_extractor
@@ -155,16 +152,16 @@ class TestPipelineErrorHandling:
 
         # Verify cleanup happened
         assert "extraction" in result["stage_results"]
-        temp_files_leaked = [f for f in result.get("files_created", []) if "audio_pipeline_" in str(f)]
+        temp_files_leaked = [
+            f for f in result.get("files_created", []) if "audio_pipeline_" in str(f)
+        ]
         assert len(temp_files_leaked) == 0, f"Temp files leaked: {temp_files_leaked}"
 
     # ========================================================================
     # Test 3: Invalid Video Format → Early Validation
     # ========================================================================
     @pytest.mark.asyncio
-    async def test_invalid_format_early_validation(
-        self, temp_dirs, console_manager
-    ):
+    async def test_invalid_format_early_validation(self, temp_dirs, console_manager):
         """Test that invalid video format is caught early with clear error."""
         output_dir = temp_dirs["output_dir"]
 
@@ -206,10 +203,7 @@ class TestPipelineErrorHandling:
         output_dir = temp_dirs["output_dir"]
 
         # Mock extraction to raise OSError (disk space exhaustion)
-        with patch(
-            "src.pipeline.simple_pipeline.AsyncAudioExtractor"
-        ) as mock_extractor_class:
-
+        with patch("src.pipeline.simple_pipeline.AsyncAudioExtractor") as mock_extractor_class:
             mock_extractor = AsyncMock()
             mock_extractor_class.return_value = mock_extractor
 
@@ -232,8 +226,7 @@ class TestPipelineErrorHandling:
         # Error should be clear about the issue
         error_msg = " ".join(result["errors"]).lower()
         assert any(
-            phrase in error_msg
-            for phrase in ["extraction", "failed", "error"]
+            phrase in error_msg for phrase in ["extraction", "failed", "error"]
         ), f"Error message unclear: {result['errors']}"
 
         # Verify cleanup attempt (even if disk is full)
@@ -243,9 +236,7 @@ class TestPipelineErrorHandling:
     # Test 5: Partial Success → Verify Cleanup
     # ========================================================================
     @pytest.mark.asyncio
-    async def test_partial_success_cleanup(
-        self, temp_dirs, console_manager, tmp_path
-    ):
+    async def test_partial_success_cleanup(self, temp_dirs, console_manager, tmp_path):
         """Test cleanup when pipeline partially succeeds (extraction + transcription but analysis fails)."""
         output_dir = temp_dirs["output_dir"]
 
@@ -261,7 +252,6 @@ class TestPipelineErrorHandling:
         ) as mock_transcription_class, patch(
             "src.pipeline.simple_pipeline.ConciseAnalyzer"
         ) as mock_analyzer_class:
-
             # Extraction succeeds
             mock_extractor = AsyncMock()
             mock_extractor_class.return_value = mock_extractor
@@ -351,17 +341,15 @@ class TestPipelineErrorHandling:
         final_temp_dirs = set(Path(tempfile.gettempdir()).glob("audio_pipeline_*"))
         leaked_dirs = final_temp_dirs - initial_temp_dirs
 
-        assert len(leaked_dirs) == 0, (
-            f"Concurrent failures leaked {len(leaked_dirs)} temp directories: {leaked_dirs}"
-        )
+        assert (
+            len(leaked_dirs) == 0
+        ), f"Concurrent failures leaked {len(leaked_dirs)} temp directories: {leaked_dirs}"
 
     # ========================================================================
     # Test 7: Error Message Clarity
     # ========================================================================
     @pytest.mark.asyncio
-    async def test_error_messages_are_actionable(
-        self, temp_dirs, console_manager, tmp_path
-    ):
+    async def test_error_messages_are_actionable(self, temp_dirs, console_manager, tmp_path):
         """Test that all error messages are clear and actionable."""
         output_dir = temp_dirs["output_dir"]
 
@@ -394,35 +382,28 @@ class TestPipelineErrorHandling:
 
             # Verify error message contains expected keywords
             error_msg = " ".join(result["errors"]).lower()
-            assert any(
-                keyword in error_msg for keyword in test_case["expected_keywords"]
-            ), (
+            assert any(keyword in error_msg for keyword in test_case["expected_keywords"]), (
                 f"{test_case['name']}: Error message should contain one of "
                 f"{test_case['expected_keywords']}, got: {result['errors']}"
             )
 
             # Verify error is actionable (not just a stack trace)
-            assert not error_msg.startswith("traceback"), (
-                f"{test_case['name']}: Error should be user-friendly, not raw traceback"
-            )
+            assert not error_msg.startswith(
+                "traceback"
+            ), f"{test_case['name']}: Error should be user-friendly, not raw traceback"
 
     # ========================================================================
     # Test 8: Cleanup on Keyboard Interrupt
     # ========================================================================
     @pytest.mark.asyncio
-    async def test_cleanup_on_interrupt(
-        self, temp_dirs, console_manager, tmp_path
-    ):
+    async def test_cleanup_on_interrupt(self, temp_dirs, console_manager, tmp_path):
         """Test that cleanup happens even on interruption."""
         output_dir = temp_dirs["output_dir"]
         audio_file = tmp_path / "test.mp3"
         audio_file.write_bytes(b"audio" * 1000)
 
         # Mock extraction to raise KeyboardInterrupt
-        with patch(
-            "src.pipeline.simple_pipeline.AsyncAudioExtractor"
-        ) as mock_extractor_class:
-
+        with patch("src.pipeline.simple_pipeline.AsyncAudioExtractor") as mock_extractor_class:
             mock_extractor = AsyncMock()
             mock_extractor_class.return_value = mock_extractor
             mock_extractor.extract_audio_async.side_effect = KeyboardInterrupt()
@@ -442,7 +423,7 @@ class TestPipelineErrorHandling:
 
         # Verify temp cleanup happened (finally block executed)
         # This is tested indirectly by checking no temp dirs leaked
-        current_temp_dirs = list(Path(tempfile.gettempdir()).glob("audio_pipeline_*"))
+        list(Path(tempfile.gettempdir()).glob("audio_pipeline_*"))
         # Should be cleaned up by finally block
         # Note: This test is best-effort since KeyboardInterrupt handling is tricky
 
@@ -468,8 +449,10 @@ class TestPipelineStageResults:
         assert "stage_results" in result
 
         # Should not have any completed stages
-        assert "extraction" not in result["stage_results"] or \
-               result["stage_results"]["extraction"]["status"] != "complete"
+        assert (
+            "extraction" not in result["stage_results"]
+            or result["stage_results"]["extraction"]["status"] != "complete"
+        )
 
     @pytest.mark.asyncio
     async def test_stage_results_on_partial_success(self, tmp_path):
@@ -485,7 +468,6 @@ class TestPipelineStageResults:
         ) as mock_extractor_class, patch(
             "src.pipeline.simple_pipeline.TranscriptionService"
         ) as mock_transcription_class:
-
             mock_extractor = AsyncMock()
             mock_extractor_class.return_value = mock_extractor
             temp_audio = tmp_path / "extracted.mp3"
@@ -509,10 +491,15 @@ class TestPipelineStageResults:
         assert "duration" in result["stage_results"]["extraction"]
 
         # Transcription should not be in completed stages
-        assert "transcription" not in [
-            r for r in result["stage_results"]
-            if result["stage_results"][r].get("status") == "complete"
-        ] or result["stage_results"].get("transcription", {}).get("status") != "complete"
+        assert (
+            "transcription"
+            not in [
+                r
+                for r in result["stage_results"]
+                if result["stage_results"][r].get("status") == "complete"
+            ]
+            or result["stage_results"].get("transcription", {}).get("status") != "complete"
+        )
 
 
 class TestPipelineFileOperations:
@@ -557,7 +544,6 @@ class TestPipelineFileOperations:
         ) as mock_extractor_class, patch(
             "src.pipeline.simple_pipeline.TranscriptionService"
         ) as mock_transcription_class:
-
             mock_extractor = AsyncMock()
             mock_extractor_class.return_value = mock_extractor
             temp_audio = tmp_path / "extracted.mp3"
@@ -573,9 +559,7 @@ class TestPipelineFileOperations:
             mock_service.transcribe_with_progress.return_value = mock_transcript
 
             # Make save_transcription_result fail
-            mock_service.save_transcription_result.side_effect = OSError(
-                "Permission denied"
-            )
+            mock_service.save_transcription_result.side_effect = OSError("Permission denied")
 
             result = await process_pipeline(
                 input_path=audio_file,
@@ -601,7 +585,6 @@ class TestPipelineFileOperations:
         ) as mock_extractor_class, patch(
             "src.pipeline.simple_pipeline.TranscriptionService"
         ) as mock_transcription_class:
-
             # Extraction succeeds
             mock_extractor = AsyncMock()
             mock_extractor_class.return_value = mock_extractor
@@ -693,7 +676,6 @@ class TestPipelineAnalysisStyles:
         ) as mock_transcription_class, patch(
             "src.pipeline.simple_pipeline.FullAnalyzer"
         ) as mock_analyzer_class:
-
             # Extraction succeeds
             mock_extractor = AsyncMock()
             mock_extractor_class.return_value = mock_extractor
@@ -714,9 +696,7 @@ class TestPipelineAnalysisStyles:
             # Full analysis fails
             mock_analyzer = Mock()
             mock_analyzer_class.return_value = mock_analyzer
-            mock_analyzer.analyze_and_save.side_effect = RuntimeError(
-                "LLM API unavailable"
-            )
+            mock_analyzer.analyze_and_save.side_effect = RuntimeError("LLM API unavailable")
 
             result = await process_pipeline(
                 input_path=audio_file,
@@ -752,7 +732,6 @@ class TestPipelineCleanupResilience:
         ) as mock_extractor_class, patch(
             "src.pipeline.simple_pipeline.TranscriptionService"
         ) as mock_transcription_class:
-
             mock_extractor = AsyncMock()
             mock_extractor_class.return_value = mock_extractor
             temp_audio = tmp_path / "extracted.mp3"
@@ -793,10 +772,7 @@ class TestPipelineCleanupResilience:
         locked_file.chmod(0o000)  # No permissions
 
         try:
-            with patch(
-                "src.pipeline.simple_pipeline.AsyncAudioExtractor"
-            ) as mock_extractor_class:
-
+            with patch("src.pipeline.simple_pipeline.AsyncAudioExtractor") as mock_extractor_class:
                 mock_extractor = AsyncMock()
                 mock_extractor_class.return_value = mock_extractor
                 mock_extractor.extract_audio_async.side_effect = RuntimeError("Fail")
@@ -824,10 +800,7 @@ class TestPipelineCleanupResilience:
 
         with patch(
             "src.pipeline.simple_pipeline.AsyncAudioExtractor"
-        ) as mock_extractor_class, patch(
-            "shutil.rmtree"
-        ) as mock_rmtree:
-
+        ) as mock_extractor_class, patch("shutil.rmtree") as mock_rmtree:
             mock_extractor = AsyncMock()
             mock_extractor_class.return_value = mock_extractor
             mock_extractor.extract_audio_async.side_effect = RuntimeError("Fail")

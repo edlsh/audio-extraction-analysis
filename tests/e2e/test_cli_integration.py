@@ -7,12 +7,12 @@ Tests the complete CLI interface including:
 - Process command end-to-end workflow
 - Error handling and edge cases
 """
-import pytest
-import os
-from pathlib import Path
-from unittest.mock import patch, Mock
 
-from .base import E2ETestBase, CLITestMixin, MockProviderMixin
+from unittest.mock import patch
+
+import pytest
+
+from .base import CLITestMixin, E2ETestBase, MockProviderMixin
 from .test_data_manager import TestDataManager
 
 
@@ -36,7 +36,7 @@ class TestCLIExtractCommand(E2ETestBase, CLITestMixin):
         """
         cls.test_data_manager = TestDataManager()
         cls.test_files = cls.test_data_manager.generate_all_test_files()
-    
+
     def test_extract_high_quality(self):
         """
         Test audio extraction with high quality preset.
@@ -53,16 +53,14 @@ class TestCLIExtractCommand(E2ETestBase, CLITestMixin):
         output_file = self.output_dir / "extracted_high.mp3"
 
         result = self.run_extract_command(
-            input_file=input_file,
-            quality="high",
-            output_file=output_file
+            input_file=input_file, quality="high", output_file=output_file
         )
 
         # Verify successful extraction
         assert result.success, f"Extract command failed: {result.error}"
         assert output_file.exists(), "Output file was not created"
         assert output_file.stat().st_size > 0, "Output file is empty"
-    
+
     def test_extract_speech_quality(self):
         """
         Test audio extraction with speech quality preset.
@@ -80,9 +78,7 @@ class TestCLIExtractCommand(E2ETestBase, CLITestMixin):
         output_file = self.output_dir / "extracted_speech.mp3"
 
         result = self.run_extract_command(
-            input_file=input_file,
-            quality="speech",
-            output_file=output_file
+            input_file=input_file, quality="speech", output_file=output_file
         )
 
         assert result.success, f"Extract command failed: {result.error}"
@@ -92,24 +88,22 @@ class TestCLIExtractCommand(E2ETestBase, CLITestMixin):
         high_quality_file = self.output_dir / "extracted_high.mp3"
         if high_quality_file.exists():
             assert output_file.stat().st_size <= high_quality_file.stat().st_size
-    
+
     def test_extract_compressed_quality(self):
         """Test audio extraction with compressed quality preset."""
         if "short" not in self.test_files:
             pytest.skip("Short test file not available")
-        
+
         input_file = self.test_files["short"]
         output_file = self.output_dir / "extracted_compressed.mp3"
-        
+
         result = self.run_extract_command(
-            input_file=input_file,
-            quality="compressed",
-            output_file=output_file
+            input_file=input_file, quality="compressed", output_file=output_file
         )
-        
+
         assert result.success, f"Extract command failed: {result.error}"
         assert output_file.exists(), "Output file was not created"
-    
+
     def test_extract_nonexistent_file(self):
         """
         Test extract command with nonexistent input file.
@@ -125,40 +119,34 @@ class TestCLIExtractCommand(E2ETestBase, CLITestMixin):
         # Verify failure with clear error message
         assert not result.success, "Extract should fail with nonexistent file"
         assert "not found" in result.error.lower() or "no such file" in result.error.lower()
-    
+
     def test_extract_invalid_quality(self):
         """Test extract command with invalid quality preset."""
         if "short" not in self.test_files:
             pytest.skip("Short test file not available")
-        
+
         input_file = self.test_files["short"]
-        
-        result = self.run_extract_command(
-            input_file=input_file,
-            quality="invalid_quality"
-        )
-        
+
+        result = self.run_extract_command(input_file=input_file, quality="invalid_quality")
+
         assert not result.success, "Extract should fail with invalid quality"
         assert "quality" in result.error.lower() or "invalid" in result.error.lower()
-    
+
     def test_extract_with_output_directory_creation(self):
         """Test that extract command creates output directory if it doesn't exist."""
         if "short" not in self.test_files:
             pytest.skip("Short test file not available")
-        
+
         input_file = self.test_files["short"]
         output_dir = self.temp_dir / "new_output_dir"
         output_file = output_dir / "extracted.mp3"
-        
-        result = self.run_extract_command(
-            input_file=input_file,
-            output_file=output_file
-        )
-        
+
+        result = self.run_extract_command(input_file=input_file, output_file=output_file)
+
         assert result.success, f"Extract command failed: {result.error}"
         assert output_dir.exists(), "Output directory was not created"
         assert output_file.exists(), "Output file was not created"
-    
+
     def test_extract_overwrite_protection(self):
         """
         Test extract command behavior when output file already exists.
@@ -176,10 +164,7 @@ class TestCLIExtractCommand(E2ETestBase, CLITestMixin):
         # Pre-create the output file to test overwrite behavior
         output_file.write_text("existing content")
 
-        result = self.run_extract_command(
-            input_file=input_file,
-            output_file=output_file
-        )
+        result = self.run_extract_command(input_file=input_file, output_file=output_file)
 
         # Verify appropriate handling: either succeeds (overwrites) or fails with clear message
         if not result.success:
@@ -206,7 +191,7 @@ class TestCLITranscribeCommand(E2ETestBase, CLITestMixin, MockProviderMixin):
         """
         cls.test_data_manager = TestDataManager()
         cls.test_files = cls.test_data_manager.generate_all_test_files()
-    
+
     def test_transcribe_with_mock_deepgram(self):
         """
         Test transcription with mocked Deepgram provider.
@@ -228,42 +213,38 @@ class TestCLITranscribeCommand(E2ETestBase, CLITestMixin, MockProviderMixin):
         output_file = self.output_dir / "transcript_deepgram.json"
 
         # Mock the transcription service to avoid actual API calls
-        with patch('src.services.transcription.TranscriptionService') as mock_service:
+        with patch("src.services.transcription.TranscriptionService") as mock_service:
             mock_service.return_value.transcribe.return_value = self.mock_successful_transcription()
 
             result = self.run_transcribe_command(
-                input_file=input_file,
-                provider="deepgram",
-                output_file=output_file
+                input_file=input_file, provider="deepgram", output_file=output_file
             )
 
         assert result.success, f"Transcribe command failed: {result.error}"
         assert output_file.exists(), "Output file was not created"
-    
+
     def test_transcribe_with_mock_elevenlabs(self):
         """Test transcription with mocked ElevenLabs provider."""
         if "audio_only" not in self.test_files:
             pytest.skip("Audio test file not available")
-        
+
         # Set up mock environment
         self.set_test_env(ELEVENLABS_API_KEY="test_key_elevenlabs")
-        
+
         input_file = self.test_files["audio_only"]
         output_file = self.output_dir / "transcript_elevenlabs.json"
-        
+
         # Mock the transcription service
-        with patch('src.services.transcription.TranscriptionService') as mock_service:
+        with patch("src.services.transcription.TranscriptionService") as mock_service:
             mock_service.return_value.transcribe.return_value = self.mock_successful_transcription()
-            
+
             result = self.run_transcribe_command(
-                input_file=input_file,
-                provider="elevenlabs",
-                output_file=output_file
+                input_file=input_file, provider="elevenlabs", output_file=output_file
             )
-        
+
         assert result.success, f"Transcribe command failed: {result.error}"
         assert output_file.exists(), "Output file was not created"
-    
+
     def test_transcribe_auto_provider_selection(self):
         """
         Test automatic provider selection.
@@ -278,82 +259,69 @@ class TestCLITranscribeCommand(E2ETestBase, CLITestMixin, MockProviderMixin):
 
         # Set up mock environment with multiple providers available
         self.set_test_env(
-            DEEPGRAM_API_KEY="test_key_deepgram",
-            ELEVENLABS_API_KEY="test_key_elevenlabs"
+            DEEPGRAM_API_KEY="test_key_deepgram", ELEVENLABS_API_KEY="test_key_elevenlabs"
         )
 
         input_file = self.test_files["audio_only"]
         output_file = self.output_dir / "transcript_auto.json"
 
         # Mock the transcription service
-        with patch('src.services.transcription.TranscriptionService') as mock_service:
+        with patch("src.services.transcription.TranscriptionService") as mock_service:
             mock_service.return_value.transcribe.return_value = self.mock_successful_transcription()
 
             result = self.run_transcribe_command(
-                input_file=input_file,
-                provider="auto",
-                output_file=output_file
+                input_file=input_file, provider="auto", output_file=output_file
             )
 
         assert result.success, f"Transcribe command failed: {result.error}"
         assert output_file.exists(), "Output file was not created"
-    
+
     def test_transcribe_no_api_key(self):
         """Test transcription without API key configured."""
         if "audio_only" not in self.test_files:
             pytest.skip("Audio test file not available")
-        
+
         # Ensure no API keys are set
-        env_vars = {
-            "DEEPGRAM_API_KEY": "",
-            "ELEVENLABS_API_KEY": ""
-        }
-        
+        env_vars = {"DEEPGRAM_API_KEY": "", "ELEVENLABS_API_KEY": ""}
+
         input_file = self.test_files["audio_only"]
-        
+
         result = self.run_transcribe_command(
-            input_file=input_file,
-            provider="deepgram",
-            env_vars=env_vars
+            input_file=input_file, provider="deepgram", env_vars=env_vars
         )
-        
+
         assert not result.success, "Transcribe should fail without API key"
         assert "api key" in result.error.lower() or "not configured" in result.error.lower()
-    
+
     def test_transcribe_invalid_provider(self):
         """Test transcription with invalid provider."""
         if "audio_only" not in self.test_files:
             pytest.skip("Audio test file not available")
-        
+
         input_file = self.test_files["audio_only"]
-        
-        result = self.run_transcribe_command(
-            input_file=input_file,
-            provider="invalid_provider"
-        )
-        
+
+        result = self.run_transcribe_command(input_file=input_file, provider="invalid_provider")
+
         assert not result.success, "Transcribe should fail with invalid provider"
         assert "provider" in result.error.lower() or "invalid" in result.error.lower()
-    
+
     def test_transcribe_unsupported_language(self):
         """Test transcription with unsupported language code."""
         if "audio_only" not in self.test_files:
             pytest.skip("Audio test file not available")
-        
+
         self.set_test_env(DEEPGRAM_API_KEY="test_key")
-        
+
         input_file = self.test_files["audio_only"]
-        
+
         result = self.run_transcribe_command(
-            input_file=input_file,
-            provider="deepgram",
-            language="invalid_lang"
+            input_file=input_file, provider="deepgram", language="invalid_lang"
         )
-        
+
         # Should either succeed (provider handles it) or fail with clear message
         if not result.success:
             assert "language" in result.error.lower()
-    
+
     def test_transcribe_large_file_handling(self):
         """
         Test transcription with large file to check size limits.
@@ -373,14 +341,16 @@ class TestCLITranscribeCommand(E2ETestBase, CLITestMixin, MockProviderMixin):
         result = self.run_transcribe_command(
             input_file=large_file_path,
             provider="deepgram",
-            timeout=600  # Extended timeout (10 minutes) for large file processing
+            timeout=600,  # Extended timeout (10 minutes) for large file processing
         )
 
         # Verify either successful processing or size-related error message
         if not result.success:
             error_msg = result.error.lower()
-            size_related = any(keyword in error_msg for keyword in
-                             ["size", "large", "limit", "exceeded", "too big"])
+            size_related = any(
+                keyword in error_msg
+                for keyword in ["size", "large", "limit", "exceeded", "too big"]
+            )
             assert size_related, f"Unexpected error for large file: {result.error}"
 
 
@@ -405,7 +375,7 @@ class TestCLIProcessCommand(E2ETestBase, CLITestMixin, MockProviderMixin):
         """
         cls.test_data_manager = TestDataManager()
         cls.test_files = cls.test_data_manager.generate_all_test_files()
-    
+
     def test_process_full_pipeline(self):
         """
         Test complete processing pipeline from video to markdown.
@@ -433,26 +403,26 @@ class TestCLIProcessCommand(E2ETestBase, CLITestMixin, MockProviderMixin):
             "chapter_overview.md",
             "topic_analysis.md",
             "full_transcript.md",
-            "key_insights.md"
+            "key_insights.md",
         ]
 
         # Mock the transcription and analysis services to avoid API calls
-        with patch('src.services.transcription.TranscriptionService') as mock_transcription, \
-             patch('src.analysis.full_analyzer.FullAnalyzer') as mock_analyzer:
-
-            mock_transcription.return_value.transcribe.return_value = self.mock_successful_transcription()
+        with patch("src.services.transcription.TranscriptionService") as mock_transcription, patch(
+            "src.analysis.full_analyzer.FullAnalyzer"
+        ) as mock_analyzer:
+            mock_transcription.return_value.transcribe.return_value = (
+                self.mock_successful_transcription()
+            )
             mock_analyzer.return_value.analyze.return_value = {
                 "executive_summary": "Test summary",
                 "chapter_overview": "Test chapters",
                 "topic_analysis": "Test topics",
                 "full_transcript": "Test transcript",
-                "key_insights": "Test insights"
+                "key_insights": "Test insights",
             }
 
             result = self.run_process_command(
-                input_file=input_file,
-                output_dir=self.output_dir,
-                provider="deepgram"
+                input_file=input_file, output_dir=self.output_dir, provider="deepgram"
             )
 
         assert result.success, f"Process command failed: {result.error}"
@@ -466,39 +436,37 @@ class TestCLIProcessCommand(E2ETestBase, CLITestMixin, MockProviderMixin):
             content = file_path.read_text()
             assert len(content) > 0, f"Output file {filename} is empty"
             assert "test" in content.lower(), f"Output file {filename} missing expected content"
-    
+
     def test_process_with_custom_output_dir(self):
         """Test process command with custom output directory."""
         if "short" not in self.test_files:
             pytest.skip("Short test file not available")
-        
+
         self.set_test_env(DEEPGRAM_API_KEY="test_key")
-        
+
         input_file = self.test_files["short"]
         custom_output_dir = self.temp_dir / "custom_output"
-        
+
         # Mock services
-        with patch('src.services.transcription.TranscriptionService') as mock_transcription, \
-             patch('src.analysis.full_analyzer.FullAnalyzer') as mock_analyzer:
-            
-            mock_transcription.return_value.transcribe.return_value = self.mock_successful_transcription()
-            mock_analyzer.return_value.analyze.return_value = {
-                "executive_summary": "Test summary"
-            }
-            
-            result = self.run_process_command(
-                input_file=input_file,
-                output_dir=custom_output_dir,
-                provider="deepgram"
+        with patch("src.services.transcription.TranscriptionService") as mock_transcription, patch(
+            "src.analysis.full_analyzer.FullAnalyzer"
+        ) as mock_analyzer:
+            mock_transcription.return_value.transcribe.return_value = (
+                self.mock_successful_transcription()
             )
-        
+            mock_analyzer.return_value.analyze.return_value = {"executive_summary": "Test summary"}
+
+            result = self.run_process_command(
+                input_file=input_file, output_dir=custom_output_dir, provider="deepgram"
+            )
+
         assert result.success, f"Process command failed: {result.error}"
         assert custom_output_dir.exists(), "Custom output directory was not created"
-        
+
         # Check that at least one output file exists in custom directory
         output_files = list(custom_output_dir.glob("*.md"))
         assert len(output_files) > 0, "No output files found in custom directory"
-    
+
     def test_process_medium_file_performance(self):
         """
         Test process command performance with medium-sized file.
@@ -519,16 +487,18 @@ class TestCLIProcessCommand(E2ETestBase, CLITestMixin, MockProviderMixin):
         input_file = self.test_files["medium"]
 
         # Mock services for faster execution and to avoid API costs
-        with patch('src.services.transcription.TranscriptionService') as mock_transcription, \
-             patch('src.analysis.full_analyzer.FullAnalyzer') as mock_analyzer:
-
-            mock_transcription.return_value.transcribe.return_value = self.mock_successful_transcription()
+        with patch("src.services.transcription.TranscriptionService") as mock_transcription, patch(
+            "src.analysis.full_analyzer.FullAnalyzer"
+        ) as mock_analyzer:
+            mock_transcription.return_value.transcribe.return_value = (
+                self.mock_successful_transcription()
+            )
             mock_analyzer.return_value.analyze.return_value = {"executive_summary": "Test"}
 
-            start_time = result = self.run_process_command(
+            result = self.run_process_command(
                 input_file=input_file,
                 output_dir=self.output_dir,
-                timeout=300  # 5 minute timeout for medium file
+                timeout=300,  # 5 minute timeout for medium file
             )
 
         assert result.success, f"Process command failed: {result.error}"
@@ -536,52 +506,44 @@ class TestCLIProcessCommand(E2ETestBase, CLITestMixin, MockProviderMixin):
         # Performance assertion - should complete within reasonable time
         # Note: This is with mocked services, so should be very fast
         assert result.duration < 60, f"Process took too long: {result.duration}s"
-    
+
     def test_process_error_handling(self):
         """Test process command error handling scenarios."""
         if "edge_corrupted" not in self.test_files:
             pytest.skip("Corrupted test file not available")
-        
+
         self.set_test_env(DEEPGRAM_API_KEY="test_key")
-        
+
         # Test with corrupted file
         corrupted_file = self.test_files["edge_corrupted"]
-        
-        result = self.run_process_command(
-            input_file=corrupted_file,
-            output_dir=self.output_dir
-        )
-        
+
+        result = self.run_process_command(input_file=corrupted_file, output_dir=self.output_dir)
+
         # Should fail gracefully with informative error
         assert not result.success, "Process should fail with corrupted file"
         assert len(result.error) > 0, "Error message should not be empty"
-        
+
         # Error should be informative
         error_keywords = ["corrupt", "invalid", "format", "error", "failed"]
         assert any(keyword in result.error.lower() for keyword in error_keywords)
-    
+
     def test_process_no_providers_configured(self):
         """Test process command when no providers are configured."""
         if "short" not in self.test_files:
             pytest.skip("Short test file not available")
-        
+
         # Clear all API keys
-        env_vars = {
-            "DEEPGRAM_API_KEY": "",
-            "ELEVENLABS_API_KEY": ""
-        }
-        
+        env_vars = {"DEEPGRAM_API_KEY": "", "ELEVENLABS_API_KEY": ""}
+
         input_file = self.test_files["short"]
-        
+
         result = self.run_process_command(
-            input_file=input_file,
-            output_dir=self.output_dir,
-            env_vars=env_vars
+            input_file=input_file, output_dir=self.output_dir, env_vars=env_vars
         )
-        
+
         assert not result.success, "Process should fail without providers"
         assert "provider" in result.error.lower() or "api key" in result.error.lower()
-    
+
     def test_process_with_verbose_output(self):
         """
         Test process command with verbose logging.
@@ -600,16 +562,16 @@ class TestCLIProcessCommand(E2ETestBase, CLITestMixin, MockProviderMixin):
         input_file = self.test_files["short"]
 
         # Mock services
-        with patch('src.services.transcription.TranscriptionService') as mock_transcription, \
-             patch('src.analysis.full_analyzer.FullAnalyzer') as mock_analyzer:
-
-            mock_transcription.return_value.transcribe.return_value = self.mock_successful_transcription()
+        with patch("src.services.transcription.TranscriptionService") as mock_transcription, patch(
+            "src.analysis.full_analyzer.FullAnalyzer"
+        ) as mock_analyzer:
+            mock_transcription.return_value.transcribe.return_value = (
+                self.mock_successful_transcription()
+            )
             mock_analyzer.return_value.analyze.return_value = {"executive_summary": "Test"}
 
             result = self.run_process_command(
-                input_file=input_file,
-                output_dir=self.output_dir,
-                additional_args=["--verbose"]
+                input_file=input_file, output_dir=self.output_dir, additional_args=["--verbose"]
             )
 
         assert result.success, f"Process command failed: {result.error}"
@@ -647,7 +609,7 @@ class TestCLIEdgeCases(E2ETestBase, CLITestMixin):
         """
         cls.test_data_manager = TestDataManager()
         cls.test_files = cls.test_data_manager.generate_all_test_files()
-    
+
     def test_unicode_filename_handling(self):
         """
         Test CLI with unicode filenames.
@@ -663,53 +625,47 @@ class TestCLIEdgeCases(E2ETestBase, CLITestMixin):
         input_file = self.test_files["edge_unicode"]
         output_file = self.output_dir / "unicode_output.mp3"
 
-        result = self.run_extract_command(
-            input_file=input_file,
-            output_file=output_file
-        )
+        result = self.run_extract_command(input_file=input_file, output_file=output_file)
 
         # Verify unicode filenames are handled gracefully
         if not result.success:
             # Ensure error is not due to filename encoding issues
             assert "encoding" not in result.error.lower()
             assert "unicode" not in result.error.lower()
-    
+
     def test_spaces_in_filename_handling(self):
         """Test CLI with filenames containing spaces."""
         if "edge_spaces" not in self.test_files:
             pytest.skip("Spaces test file not available")
-        
+
         input_file = self.test_files["edge_spaces"]
         output_file = self.output_dir / "spaces output.mp3"
-        
-        result = self.run_extract_command(
-            input_file=input_file,
-            output_file=output_file
-        )
-        
+
+        result = self.run_extract_command(input_file=input_file, output_file=output_file)
+
         # Should handle spaces in filenames
         assert result.success or "space" not in result.error.lower()
-    
+
     def test_empty_file_handling(self):
         """Test CLI with empty input file."""
         if "edge_empty" not in self.test_files:
             pytest.skip("Empty test file not available")
-        
+
         input_file = self.test_files["edge_empty"]
-        
+
         result = self.run_extract_command(input_file=input_file)
-        
+
         # Should fail gracefully with empty file
         assert not result.success, "Extract should fail with empty file"
         assert len(result.error) > 0, "Should provide error message for empty file"
-    
+
     def test_invalid_command_arguments(self):
         """Test CLI with invalid command line arguments."""
         result = self.run_cli_command(["audio-extraction-analysis", "invalid_command"])
-        
+
         assert not result.success, "Should fail with invalid command"
         assert "invalid" in result.error.lower() or "unknown" in result.error.lower()
-    
+
     def test_help_command(self):
         """
         Test CLI help command.
@@ -728,7 +684,7 @@ class TestCLIEdgeCases(E2ETestBase, CLITestMixin):
         output = result.output.lower()
         help_keywords = ["usage", "commands", "options", "help"]
         assert any(keyword in output for keyword in help_keywords)
-    
+
     def test_version_command(self):
         """
         Test CLI version command.

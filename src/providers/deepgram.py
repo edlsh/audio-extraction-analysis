@@ -15,7 +15,7 @@ import os
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from ..config import get_config
 from ..models.transcription import (
@@ -24,11 +24,12 @@ from ..models.transcription import (
     TranscriptionSpeaker,
     TranscriptionUtterance,
 )
-from ..utils.retry import RetryConfig
-from .deepgram_utils import detect_mimetype as _dg_detect_mimetype, build_prerecorded_options
-from .base import BaseTranscriptionProvider, CircuitBreakerConfig
-from .provider_utils import ProviderInitializer
 from ..utils.file_validation import safe_validate_audio_file
+from ..utils.retry import RetryConfig
+from .base import BaseTranscriptionProvider, CircuitBreakerConfig
+from .deepgram_utils import build_prerecorded_options
+from .deepgram_utils import detect_mimetype as _dg_detect_mimetype
+from .provider_utils import ProviderInitializer
 
 logger = logging.getLogger(__name__)
 
@@ -208,7 +209,9 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
                     start_time=getattr(topic_segment, "start_time", 0),
                     end_time=getattr(topic_segment, "end_time", duration),
                     topics=[t.topic for t in topic_segment.topics],
-                    confidence_scores=[getattr(t, "confidence_score", 0.0) for t in topic_segment.topics],
+                    confidence_scores=[
+                        getattr(t, "confidence_score", 0.0) for t in topic_segment.topics
+                    ],
                 )
                 result.chapters.append(chapter)
 
@@ -232,7 +235,7 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
 
         # Speaker diarization: Extract speaker-separated utterances and calculate statistics
         if hasattr(response.results, "utterances") and response.results.utterances:
-            speaker_times: Dict[int, float] = {}
+            speaker_times: dict[int, float] = {}
             for utterance in response.results.utterances:
                 speaker_id = utterance.speaker
                 duration_segment = utterance.end - utterance.start
@@ -274,9 +277,9 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        circuit_config: Optional[CircuitBreakerConfig] = None,
-        retry_config: Optional[RetryConfig] = None,
+        api_key: str | None = None,
+        circuit_config: CircuitBreakerConfig | None = None,
+        retry_config: RetryConfig | None = None,
     ):
         """Initialize the transcriber with API key and configurations.
 
@@ -287,10 +290,8 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
         """
         # Use standardized provider initialization
         retry_config, circuit_config = ProviderInitializer.initialize_provider_configs(
-            provider_name="Deepgram",
-            retry_config=retry_config,
-            circuit_config=circuit_config
-            )
+            provider_name="Deepgram", retry_config=retry_config, circuit_config=circuit_config
+        )
 
         if circuit_config is None:
             config = get_config()
@@ -323,7 +324,7 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
         """
         return "Deepgram Nova 3"
 
-    def get_supported_features(self) -> List[str]:
+    def get_supported_features(self) -> list[str]:
         """Get list of features supported by Deepgram Nova 3.
 
         Returns:
@@ -356,7 +357,7 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
         secs = int(seconds % 60)
         return f"{hours:02d}:{minutes:02d}:{secs:02d}"
 
-    async def health_check_async(self) -> Dict[str, Any]:
+    async def health_check_async(self) -> dict[str, Any]:
         """Perform health check for Deepgram service availability and configuration.
 
         Validates the Deepgram provider by checking:
@@ -440,7 +441,7 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
 
     async def _transcribe_impl(
         self, audio_file_path: Path, language: str = "en"
-    ) -> Optional[TranscriptionResult]:
+    ) -> TranscriptionResult | None:
         """Internal transcription implementation without retry/circuit breaker logic.
 
         Args:
@@ -470,7 +471,9 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
             logger.info("Sending to Deepgram Nova 3 with streaming upload...")
             try:
                 with self._open_audio_file(audio_file_path) as audio_source:
-                    response = self._submit_transcription_job(client, audio_source, mimetype, options)
+                    response = self._submit_transcription_job(
+                        client, audio_source, mimetype, options
+                    )
                 logger.info("Transcription completed successfully")
             except (OSError, PermissionError) as e:
                 logger.error(f"Failed to open audio file: {e}")
@@ -504,9 +507,7 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
             logger.error(f"Unexpected transcription error: {e}")
             raise ConnectionError(f"Unexpected error: {e}") from e
 
-    def transcribe(
-        self, audio_file_path: Path, language: str = "en"
-    ) -> Optional[TranscriptionResult]:
+    def transcribe(self, audio_file_path: Path, language: str = "en") -> TranscriptionResult | None:
         """Synchronous transcription method for blocking I/O contexts.
 
         This method provides a synchronous interface to the async transcription implementation.

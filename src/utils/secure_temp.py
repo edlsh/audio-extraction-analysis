@@ -6,23 +6,21 @@ This module provides secure patterns for temporary file creation with:
 - No predictable filenames
 - Proper error handling
 """
+
 from __future__ import annotations
 
 import logging
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Generator, Optional
+from typing import Generator
 
 logger = logging.getLogger(__name__)
 
 
 @contextmanager
 def secure_temp_file(
-    suffix: str = "",
-    prefix: str = "audio-",
-    dir: Optional[Path] = None,
-    permissions: int = 0o600
+    suffix: str = "", prefix: str = "audio-", dir: Path | None = None, permissions: int = 0o600
 ) -> Generator[Path, None, None]:
     """Create secure temporary file with restrictive permissions.
 
@@ -48,14 +46,11 @@ def secure_temp_file(
         ... # File automatically deleted here
     """
     # Create secure temp file
-    fd, path_str = tempfile.mkstemp(
-        suffix=suffix,
-        prefix=prefix,
-        dir=str(dir) if dir else None
-    )
+    fd, path_str = tempfile.mkstemp(suffix=suffix, prefix=prefix, dir=str(dir) if dir else None)
 
     # Close file descriptor immediately (we only need the path)
     import os
+
     os.close(fd)
 
     temp_path = Path(path_str)
@@ -82,9 +77,7 @@ def secure_temp_file(
 
 @contextmanager
 def secure_temp_directory(
-    suffix: str = "",
-    prefix: str = "audio-",
-    permissions: int = 0o700
+    suffix: str = "", prefix: str = "audio-", permissions: int = 0o700
 ) -> Generator[Path, None, None]:
     """Create secure temporary directory with restrictive permissions.
 
@@ -117,6 +110,7 @@ def secure_temp_directory(
         try:
             if temp_dir.exists():
                 import shutil
+
                 shutil.rmtree(temp_dir)
                 logger.debug(f"Cleaned up temporary directory: {temp_dir}")
         except Exception as e:

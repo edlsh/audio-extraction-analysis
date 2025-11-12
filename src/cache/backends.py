@@ -11,6 +11,7 @@ This module provides two cache backend implementations:
 Both backends implement the CacheBackend interface and provide automatic size
 management with configurable limits.
 """
+
 from __future__ import annotations
 
 import json
@@ -20,7 +21,6 @@ import time
 from collections import OrderedDict
 from pathlib import Path
 from threading import Lock, RLock, local
-from typing import Optional, Set, Union
 
 from .common import CacheUtils, SizeLimitManager
 from .transcription_cache import CacheBackend, CacheEntry
@@ -69,7 +69,7 @@ class InMemoryCache(CacheBackend):
 
         logger.info(f"Initialized InMemoryCache with max_size={max_size_mb}MB")
 
-    def get(self, key: str) -> Optional[CacheEntry]:
+    def get(self, key: str) -> CacheEntry | None:
         """Retrieve a cache entry and update its LRU position.
 
         Thread-safe operation that retrieves an entry by key and moves it to
@@ -187,7 +187,7 @@ class InMemoryCache(CacheBackend):
         """
         return self._size_manager.current_size
 
-    def keys(self) -> Set[str]:
+    def keys(self) -> set[str]:
         """Get all cache keys.
 
         Returns:
@@ -259,7 +259,7 @@ class DiskCache(CacheBackend):
         _local (threading.local): Thread-local storage for connections
     """
 
-    def __init__(self, cache_dir: Optional[Union[str, Path]] = None, max_size_mb: int = 1000):
+    def __init__(self, cache_dir: str | Path | None = None, max_size_mb: int = 1000):
         """Initialize disk cache.
 
         Args:
@@ -279,7 +279,9 @@ class DiskCache(CacheBackend):
         self._local = local()
 
         self._init_database()
-        logger.info(f"Initialized DiskCache at {self.cache_dir} with max_size={max_size_mb}MB (WAL mode)")
+        logger.info(
+            f"Initialized DiskCache at {self.cache_dir} with max_size={max_size_mb}MB (WAL mode)"
+        )
 
     def _get_connection(self) -> sqlite3.Connection:
         """Get or create thread-local database connection with optimizations.
@@ -296,7 +298,7 @@ class DiskCache(CacheBackend):
             subsequent calls from the same thread. Not thread-safe to share
             connections across threads.
         """
-        if not hasattr(self._local, 'conn'):
+        if not hasattr(self._local, "conn"):
             self._local.conn = sqlite3.connect(str(self.db_path))
             # Enable WAL (Write-Ahead Logging) mode for concurrent reads
             # WAL allows multiple readers while a writer is active
@@ -353,7 +355,7 @@ class DiskCache(CacheBackend):
 
         conn.commit()
 
-    def get(self, key: str) -> Optional[CacheEntry]:
+    def get(self, key: str) -> CacheEntry | None:
         """Retrieve a cache entry from disk and update access statistics.
 
         Thread-safe operation that reads an entry from SQLite database,
@@ -387,7 +389,7 @@ class DiskCache(CacheBackend):
                 logger.error(f"Failed to get from disk cache: {e}")
                 return None
 
-    def _query_entry(self, key: str) -> Optional[tuple]:
+    def _query_entry(self, key: str) -> tuple | None:
         """Query cache entry from database.
 
         Args:
@@ -430,7 +432,7 @@ class DiskCache(CacheBackend):
         )
         conn.commit()
 
-    def _deserialize_entry(self, row: tuple, key: str) -> Optional[CacheEntry]:
+    def _deserialize_entry(self, row: tuple, key: str) -> CacheEntry | None:
         """Deserialize cache entry from database row with error recovery.
 
         Attempts to decode and deserialize JSON-encoded cache entry from
@@ -453,7 +455,7 @@ class DiskCache(CacheBackend):
             and logs the error for debugging.
         """
         try:
-            entry_dict = json.loads(row[0].decode('utf-8'))
+            entry_dict = json.loads(row[0].decode("utf-8"))
             # Handle potential circular import when importing CacheEntry
             # at runtime (already imported at module level, but using explicit
             # import here for clarity and to handle edge cases)
@@ -461,7 +463,7 @@ class DiskCache(CacheBackend):
                 from .transcription_cache import CacheEntry
             except ImportError:
                 # Fallback: use the already imported class from module globals
-                CacheEntry = globals().get('CacheEntry')
+                CacheEntry = globals().get("CacheEntry")
                 if not CacheEntry:
                     raise ImportError("CacheEntry not available")
             entry_data = CacheEntry.from_dict(entry_dict)
@@ -523,7 +525,7 @@ class DiskCache(CacheBackend):
                 # Serialize entry to JSON and encode as UTF-8 bytes for BLOB storage
                 # Metadata is stored separately in TEXT column for easier querying
                 entry_dict = entry.to_dict()
-                entry_data = json.dumps(entry_dict).encode('utf-8')
+                entry_data = json.dumps(entry_dict).encode("utf-8")
 
                 cursor.execute(
                     """
@@ -629,7 +631,7 @@ class DiskCache(CacheBackend):
             logger.error(f"Failed to get disk cache size: {e}")
             return 0
 
-    def keys(self) -> Set[str]:
+    def keys(self) -> set[str]:
         """Get all cache keys.
 
         Returns:
@@ -705,9 +707,9 @@ class DiskCache(CacheBackend):
             Call this method in cleanup code, thread exit handlers, or
             application shutdown sequences to ensure proper resource disposal.
         """
-        if hasattr(self._local, 'conn'):
+        if hasattr(self._local, "conn"):
             try:
                 self._local.conn.close()
-                delattr(self._local, 'conn')
+                delattr(self._local, "conn")
             except Exception as e:
                 logger.error(f"Failed to close database connection: {e}")

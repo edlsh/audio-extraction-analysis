@@ -1,4 +1,5 @@
 """Utilities for Deepgram provider: options, mimetypes, and client helpers."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -38,4 +39,3 @@ def build_prerecorded_options(language: str) -> Any:
         detect_language=True,
         alternatives=1,
     )
-

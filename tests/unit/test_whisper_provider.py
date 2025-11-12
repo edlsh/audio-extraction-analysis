@@ -196,10 +196,16 @@ class TestWhisperTranscriber:
 
         utterances = [
             TranscriptionUtterance(
-                speaker=1, start=0.0, end=300.0, text="Chapter 1 content"  # 5 minutes
+                speaker=1,
+                start=0.0,
+                end=300.0,
+                text="Chapter 1 content",  # 5 minutes
             ),
             TranscriptionUtterance(
-                speaker=1, start=300.0, end=600.0, text="Chapter 2 content"  # 10 minutes
+                speaker=1,
+                start=300.0,
+                end=600.0,
+                text="Chapter 2 content",  # 10 minutes
             ),
         ]
 
@@ -544,9 +550,7 @@ class TestGenerateChaptersEdgeCases:
         from src.models.transcription import TranscriptionUtterance
 
         transcriber = WhisperTranscriber()
-        utterances = [
-            TranscriptionUtterance(speaker=1, start=0.0, end=120.0, text="Short audio")
-        ]
+        utterances = [TranscriptionUtterance(speaker=1, start=0.0, end=120.0, text="Short audio")]
 
         chapters = transcriber._generate_chapters(utterances)
 
@@ -559,9 +563,7 @@ class TestGenerateChaptersEdgeCases:
         from src.models.transcription import TranscriptionUtterance
 
         transcriber = WhisperTranscriber()
-        utterances = [
-            TranscriptionUtterance(speaker=1, start=0.0, end=3600.0, text="Long audio")
-        ]
+        utterances = [TranscriptionUtterance(speaker=1, start=0.0, end=3600.0, text="Long audio")]
 
         chapters = transcriber._generate_chapters(utterances)
 

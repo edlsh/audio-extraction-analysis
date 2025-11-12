@@ -1,7 +1,6 @@
 """Tests for common validation utilities."""
-import tempfile
+
 from pathlib import Path
-from unittest.mock import Mock, patch
 
 import pytest
 
@@ -37,21 +36,21 @@ class TestFileValidatorBasicChecks:
         test_file = tmp_path / "test.mp3"
 
         # Should not raise
-        FileValidator._check_file_extension(test_file, {'.mp3', '.wav'})
+        FileValidator._check_file_extension(test_file, {".mp3", ".wav"})
 
     def test_check_file_extension_invalid(self, tmp_path):
         """Test that invalid extension raises ValueError."""
         test_file = tmp_path / "test.xyz"
 
         with pytest.raises(ValueError, match="Unsupported file extension"):
-            FileValidator._check_file_extension(test_file, {'.mp3', '.wav'})
+            FileValidator._check_file_extension(test_file, {".mp3", ".wav"})
 
     def test_check_file_extension_case_insensitive(self, tmp_path):
         """Test that extension check is case-insensitive."""
         test_file = tmp_path / "test.MP3"
 
         # Should not raise (case-insensitive)
-        FileValidator._check_file_extension(test_file, {'.mp3', '.wav'})
+        FileValidator._check_file_extension(test_file, {".mp3", ".wav"})
 
     def test_check_file_size_valid(self, tmp_path):
         """Test that file within size limit passes check."""
@@ -138,10 +137,7 @@ class TestFileValidatorValidateFilePath:
         test_file.write_text("content")
 
         # Should not raise
-        FileValidator.validate_file_path(
-            test_file,
-            allowed_extensions={'.mp3', '.wav'}
-        )
+        FileValidator.validate_file_path(test_file, allowed_extensions={".mp3", ".wav"})
 
     def test_validate_with_disallowed_extension(self, tmp_path):
         """Test that disallowed extension raises ValueError."""
@@ -149,10 +145,7 @@ class TestFileValidatorValidateFilePath:
         test_file.write_text("content")
 
         with pytest.raises(ValueError, match="Unsupported file extension"):
-            FileValidator.validate_file_path(
-                test_file,
-                allowed_extensions={'.mp3', '.wav'}
-            )
+            FileValidator.validate_file_path(test_file, allowed_extensions={".mp3", ".wav"})
 
     def test_validate_with_max_size(self, tmp_path):
         """Test validation with file size limit."""
@@ -175,11 +168,7 @@ class TestFileValidatorValidateFilePath:
         test_file = tmp_path / "missing.txt"
 
         # Should not raise (size check requires file to exist)
-        FileValidator.validate_file_path(
-            test_file,
-            must_exist=False,
-            max_size=100
-        )
+        FileValidator.validate_file_path(test_file, must_exist=False, max_size=100)
 
     def test_validate_directory_fails(self, tmp_path):
         """Test that directory path raises ValueError."""
@@ -193,10 +182,7 @@ class TestFileValidatorValidateFilePath:
         """Test that path security validation is performed."""
         # Create a path with dangerous characters
         with pytest.raises(ValueError, match="Invalid characters"):
-            FileValidator.validate_file_path(
-                Path("/path/with;semicolon"),
-                must_exist=False
-            )
+            FileValidator.validate_file_path(Path("/path/with;semicolon"), must_exist=False)
 
     def test_validate_string_path_converted(self, tmp_path):
         """Test that string paths are converted to Path objects."""
@@ -497,62 +483,62 @@ class TestConfigValidatorEnum:
 
     def test_validate_value_in_set(self):
         """Test validation of value in allowed set."""
-        allowed = {'option1', 'option2', 'option3'}
+        allowed = {"option1", "option2", "option3"}
 
         # Should not raise
-        ConfigValidator.validate_enum('option1', allowed)
+        ConfigValidator.validate_enum("option1", allowed)
 
     def test_validate_value_not_in_set(self):
         """Test that value not in set raises ValueError."""
-        allowed = {'option1', 'option2', 'option3'}
+        allowed = {"option1", "option2", "option3"}
 
         with pytest.raises(ValueError, match="must be one of"):
-            ConfigValidator.validate_enum('invalid', allowed)
+            ConfigValidator.validate_enum("invalid", allowed)
 
     def test_validate_case_sensitive(self):
         """Test that validation is case-sensitive."""
-        allowed = {'option1', 'option2'}
+        allowed = {"option1", "option2"}
 
         # Should raise (case matters)
         with pytest.raises(ValueError, match="must be one of"):
-            ConfigValidator.validate_enum('OPTION1', allowed)
+            ConfigValidator.validate_enum("OPTION1", allowed)
 
     def test_validate_empty_allowed_set(self):
         """Test validation with empty allowed set."""
         with pytest.raises(ValueError, match="must be one of"):
-            ConfigValidator.validate_enum('anything', set())
+            ConfigValidator.validate_enum("anything", set())
 
     def test_validate_single_allowed_value(self):
         """Test validation with single allowed value."""
-        allowed = {'only_option'}
+        allowed = {"only_option"}
 
         # Should not raise
-        ConfigValidator.validate_enum('only_option', allowed)
+        ConfigValidator.validate_enum("only_option", allowed)
 
         # Should raise
         with pytest.raises(ValueError):
-            ConfigValidator.validate_enum('other', allowed)
+            ConfigValidator.validate_enum("other", allowed)
 
     def test_error_message_includes_allowed_values(self):
         """Test that error message shows allowed values."""
-        allowed = {'a', 'b', 'c'}
+        allowed = {"a", "b", "c"}
 
         with pytest.raises(ValueError, match=r"\['a', 'b', 'c'\]"):
-            ConfigValidator.validate_enum('d', allowed)
+            ConfigValidator.validate_enum("d", allowed)
 
     def test_error_message_includes_custom_name(self):
         """Test that error message includes custom parameter name."""
-        allowed = {'valid'}
+        allowed = {"valid"}
 
         with pytest.raises(ValueError, match="custom_param must be one of"):
-            ConfigValidator.validate_enum('invalid', allowed, name="custom_param")
+            ConfigValidator.validate_enum("invalid", allowed, name="custom_param")
 
     def test_error_message_shows_received_value(self):
         """Test that error message shows the received value."""
-        allowed = {'valid'}
+        allowed = {"valid"}
 
         with pytest.raises(ValueError, match="got 'invalid'"):
-            ConfigValidator.validate_enum('invalid', allowed)
+            ConfigValidator.validate_enum("invalid", allowed)
 
 
 class TestConvenienceFunctions:
@@ -572,7 +558,7 @@ class TestConvenienceFunctions:
         test_file.write_text("content")
 
         # Should pass kwargs to FileValidator
-        validate_file_path(test_file, allowed_extensions={'.mp3'})
+        validate_file_path(test_file, allowed_extensions={".mp3"})
 
     def test_validate_media_file_function(self, tmp_path):
         """Test validate_media_file convenience function."""
@@ -612,16 +598,16 @@ class TestFileValidatorConstants:
     def test_audio_extensions_defined(self):
         """Test that audio extensions are properly defined."""
         assert len(FileValidator.AUDIO_EXTENSIONS) > 0
-        assert '.mp3' in FileValidator.AUDIO_EXTENSIONS
-        assert '.wav' in FileValidator.AUDIO_EXTENSIONS
-        assert '.flac' in FileValidator.AUDIO_EXTENSIONS
+        assert ".mp3" in FileValidator.AUDIO_EXTENSIONS
+        assert ".wav" in FileValidator.AUDIO_EXTENSIONS
+        assert ".flac" in FileValidator.AUDIO_EXTENSIONS
 
     def test_video_extensions_defined(self):
         """Test that video extensions are properly defined."""
         assert len(FileValidator.VIDEO_EXTENSIONS) > 0
-        assert '.mp4' in FileValidator.VIDEO_EXTENSIONS
-        assert '.avi' in FileValidator.VIDEO_EXTENSIONS
-        assert '.mkv' in FileValidator.VIDEO_EXTENSIONS
+        assert ".mp4" in FileValidator.VIDEO_EXTENSIONS
+        assert ".avi" in FileValidator.VIDEO_EXTENSIONS
+        assert ".mkv" in FileValidator.VIDEO_EXTENSIONS
 
     def test_media_extensions_is_union(self):
         """Test that MEDIA_EXTENSIONS is union of audio and video."""
@@ -637,7 +623,7 @@ class TestFileValidatorConstants:
     def test_all_extensions_lowercase(self):
         """Test that all extensions are lowercase with dot."""
         for ext in FileValidator.MEDIA_EXTENSIONS:
-            assert ext.startswith('.')
+            assert ext.startswith(".")
             assert ext == ext.lower()
 
 

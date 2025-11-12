@@ -1,17 +1,17 @@
 """Path sanitization utilities for safe subprocess and file operations."""
+
 from __future__ import annotations
 
 import re
 import shlex
 from pathlib import Path
-from typing import Optional, Union
 
 
 class PathSanitizer:
     """Utilities for sanitizing file paths for safe usage."""
 
     @staticmethod
-    def sanitize_for_subprocess(file_path: Union[Path, str]) -> str:
+    def sanitize_for_subprocess(file_path: Path | str) -> str:
         """Sanitize file path for safe subprocess usage.
 
         Uses shlex.quote to properly escape special characters for shell commands.
@@ -169,7 +169,7 @@ class PathSanitizer:
 
     @staticmethod
     def get_safe_output_path(
-        input_path: Path, output_dir: Optional[Path] = None, suffix: str = ".output"
+        input_path: Path, output_dir: Path | None = None, suffix: str = ".output"
     ) -> Path:
         """Generate a safe output path based on input path.
 
@@ -198,7 +198,7 @@ class PathSanitizer:
 
 
 # Convenience functions for backward compatibility
-def sanitize_path(file_path: Union[Path, str]) -> str:
+def sanitize_path(file_path: Path | str) -> str:
     """Sanitize file path for safe subprocess usage.
 
     Args:

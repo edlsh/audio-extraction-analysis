@@ -2,7 +2,7 @@
 
 Tests cover mimetype detection and options building with edge cases.
 """
-import sys
+
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -27,9 +27,7 @@ class TestDetectMimetype:
             (".webm", "audio/webm"),
         ],
     )
-    def test_detect_mimetype_known_formats(
-        self, extension: str, expected_mimetype: str
-    ) -> None:
+    def test_detect_mimetype_known_formats(self, extension: str, expected_mimetype: str) -> None:
         """Test mimetype detection for all known audio formats."""
         path = Path(f"test_file{extension}")
         assert detect_mimetype(path) == expected_mimetype
@@ -171,9 +169,7 @@ class TestBuildPrerecordedOptions:
             "ru-RU",
         ],
     )
-    def test_build_prerecorded_options_with_different_languages(
-        self, language: str
-    ) -> None:
+    def test_build_prerecorded_options_with_different_languages(self, language: str) -> None:
         """Test that options are built correctly for various language codes."""
         mock_deepgram = MagicMock()
         mock_options_class = MagicMock()

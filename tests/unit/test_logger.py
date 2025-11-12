@@ -68,7 +68,7 @@ class TestConfigureLogger:
         root.setLevel(logging.WARNING)
         # Clear the internal flag that prevents basicConfig from running
         # This is necessary because basicConfig only configures once per process
-        if hasattr(logging, '_handlerList'):
+        if hasattr(logging, "_handlerList"):
             logging._handlerList[:] = []
 
     def test_configure_logger_default_settings(self):
@@ -131,7 +131,7 @@ class TestConfigureLogger:
 
     def test_configure_logger_file_handler_without_path(self):
         """Test that file handler is not added without file_path."""
-        initial_handlers_count = len(logging.getLogger().handlers)
+        len(logging.getLogger().handlers)
         configure_logger(add_file_handler=True, file_path=None)
 
         root = logging.getLogger()
@@ -170,7 +170,7 @@ class TestConfigureLogger:
             level="DEBUG",
             format_string=custom_format,
             add_file_handler=True,
-            file_path=str(log_file)
+            file_path=str(log_file),
         )
 
         test_logger = logging.getLogger("test.formatted")

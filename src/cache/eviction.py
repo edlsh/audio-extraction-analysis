@@ -23,15 +23,14 @@ with the following attributes (depending on the eviction strategy):
 - size: int (for Size-based)
 - created_at: datetime (for FIFO)
 """
+
 from __future__ import annotations
 
-import heapq
 from collections import OrderedDict
-from datetime import datetime
-from typing import Optional, Set, Any
+from typing import Any
 
 
-def select_lru_victim(backend: Any, keys: Set[str]) -> str:
+def select_lru_victim(backend: Any, keys: set[str]) -> str:
     """Select the least recently used (LRU) cache entry as eviction victim.
 
     Chooses the cache entry with the oldest accessed_at timestamp. For
@@ -54,7 +53,7 @@ def select_lru_victim(backend: Any, keys: Set[str]) -> str:
         O(1) for OrderedDict backends, O(n) for generic backends.
     """
     # O(1) optimization for OrderedDict-based backends
-    if hasattr(backend, '_cache') and isinstance(backend._cache, OrderedDict):
+    if hasattr(backend, "_cache") and isinstance(backend._cache, OrderedDict):
         if len(backend._cache) > 0:
             return next(iter(backend._cache.keys()))
 
@@ -73,7 +72,7 @@ def select_lru_victim(backend: Any, keys: Set[str]) -> str:
     return min(entries_with_time)[1]
 
 
-def select_lfu_victim(backend: Any, keys: Set[str]) -> str:
+def select_lfu_victim(backend: Any, keys: set[str]) -> str:
     """Select the least frequently used (LFU) cache entry as eviction victim.
 
     Chooses the cache entry with the lowest access_count. Uses a single-pass
@@ -108,7 +107,7 @@ def select_lfu_victim(backend: Any, keys: Set[str]) -> str:
     return min_key if min_key is not None else next(iter(keys))
 
 
-def select_ttl_victim(backend: Any, keys: Set[str]) -> str:
+def select_ttl_victim(backend: Any, keys: set[str]) -> str:
     """Select the cache entry closest to expiration (TTL) as eviction victim.
 
     Chooses the cache entry with the least remaining time-to-live (TTL). This
@@ -147,7 +146,7 @@ def select_ttl_victim(backend: Any, keys: Set[str]) -> str:
     return min_key if min_key is not None else next(iter(keys))
 
 
-def select_size_victim(backend: Any, keys: Set[str]) -> str:
+def select_size_victim(backend: Any, keys: set[str]) -> str:
     """Select the largest cache entry (by size) as eviction victim.
 
     Chooses the cache entry with the largest size attribute. This strategy is
@@ -183,7 +182,7 @@ def select_size_victim(backend: Any, keys: Set[str]) -> str:
     return max_key if max_key is not None else next(iter(keys))
 
 
-def select_fifo_victim(backend: Any, keys: Set[str]) -> str:
+def select_fifo_victim(backend: Any, keys: set[str]) -> str:
     """Select the oldest cache entry (FIFO) as eviction victim.
 
     Chooses the cache entry with the oldest created_at timestamp. This implements
@@ -207,7 +206,7 @@ def select_fifo_victim(backend: Any, keys: Set[str]) -> str:
         O(1) for OrderedDict backends, O(n) for generic backends.
     """
     # O(1) optimization for OrderedDict-based backends
-    if hasattr(backend, '_cache') and isinstance(backend._cache, OrderedDict):
+    if hasattr(backend, "_cache") and isinstance(backend._cache, OrderedDict):
         if len(backend._cache) > 0:
             return next(iter(backend._cache.keys()))
 

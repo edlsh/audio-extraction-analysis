@@ -19,7 +19,8 @@ import pytest
 # Add benchmarks to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "benchmarks"))
 
-from cache_benchmark import create_sample_entry, benchmark_operation, run_benchmarks
+from cache_benchmark import benchmark_operation, create_sample_entry, run_benchmarks
+
 from src.cache.backends import DiskCache
 from src.cache.transcription_cache import CacheEntry, CacheKey
 
@@ -147,6 +148,7 @@ class TestBenchmarkOperation:
 
     def test_handles_slow_operations(self):
         """Test benchmark with slow operations."""
+
         def slow_op():
             time.sleep(0.01)  # 10ms sleep
 
@@ -158,6 +160,7 @@ class TestBenchmarkOperation:
 
     def test_handles_fast_operations(self):
         """Test benchmark with very fast operations."""
+
         def fast_op():
             pass  # Essentially no-op
 
@@ -169,6 +172,7 @@ class TestBenchmarkOperation:
 
     def test_operation_name_in_output(self, capsys):
         """Test that operation name appears in printed output."""
+
         def simple_op():
             pass
 
@@ -179,6 +183,7 @@ class TestBenchmarkOperation:
 
     def test_iteration_count_in_output(self, capsys):
         """Test that iteration count appears in output."""
+
         def simple_op():
             pass
 
@@ -189,6 +194,7 @@ class TestBenchmarkOperation:
 
     def test_handles_operation_with_exception(self):
         """Test that exceptions in operations are propagated."""
+
         def failing_op():
             raise ValueError("Test error")
 

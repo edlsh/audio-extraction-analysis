@@ -15,6 +15,7 @@ Typical usage:
             result = self.run_extract_command("input.mp4")
             assert result.success
 """
+
 import os
 import subprocess
 import tempfile
@@ -37,12 +38,13 @@ class TestResult:
         duration: Execution time in seconds (as a float)
         exit_code: Process exit code (-1 for timeout/exception, 0 for success)
     """
+
     success: bool
     output: str
     error: str
     duration: float
     exit_code: int
-    
+
     @property
     def failed(self) -> bool:
         """Convenience property to check if the test result indicates failure."""
@@ -62,6 +64,7 @@ class TestFile:
         format: Optional media format (e.g., 'mp4', 'wav', 'mp3')
         description: Optional human-readable description of what the file tests
     """
+
     name: str
     path: Path
     duration: Optional[float] = None
@@ -108,7 +111,7 @@ class E2ETestBase:
             self.test_data_manager = TestDataManager()
         if not hasattr(self, "test_files"):
             self.test_files = self.test_data_manager.generate_all_test_files()
-        
+
     def teardown_method(self):
         """
         Cleanup after each test method.
@@ -119,10 +122,10 @@ class E2ETestBase:
         # Restore original environment
         os.environ.clear()
         os.environ.update(self.original_env)
-        
+
         # Cleanup temporary files
         self._cleanup_temp_files()
-    
+
     def _cleanup_temp_files(self):
         """
         Remove temporary test files and directories.
@@ -131,33 +134,31 @@ class E2ETestBase:
         ignoring any errors that occur during deletion.
         """
         import shutil
+
         if self.temp_dir.exists():
             shutil.rmtree(self.temp_dir, ignore_errors=True)
-    
+
     def run_cli_command(
-        self, 
-        command: List[str], 
-        timeout: int = 300,
-        env_vars: Optional[Dict[str, str]] = None
+        self, command: List[str], timeout: int = 300, env_vars: Optional[Dict[str, str]] = None
     ) -> TestResult:
         """
         Execute CLI command and return results.
-        
+
         Args:
             command: CLI command as list of strings
             timeout: Maximum execution time in seconds
             env_vars: Additional environment variables
-            
+
         Returns:
             TestResult with execution details
         """
         start_time = time.time()
-        
+
         # Prepare environment
         test_env = os.environ.copy()
         if env_vars:
             test_env.update(env_vars)
-        
+
         try:
             result = subprocess.run(
                 command,
@@ -165,19 +166,19 @@ class E2ETestBase:
                 text=True,
                 timeout=timeout,
                 env=test_env,
-                cwd=self.temp_dir
+                cwd=self.temp_dir,
             )
-            
+
             duration = time.time() - start_time
-            
+
             return TestResult(
                 success=result.returncode == 0,
                 output=result.stdout,
                 error=result.stderr,
                 duration=duration,
-                exit_code=result.returncode
+                exit_code=result.returncode,
             )
-            
+
         except subprocess.TimeoutExpired:
             duration = time.time() - start_time
             return TestResult(
@@ -185,25 +186,21 @@ class E2ETestBase:
                 output="",
                 error=f"Command timed out after {timeout} seconds",
                 duration=duration,
-                exit_code=-1
+                exit_code=-1,
             )
         except Exception as e:
             duration = time.time() - start_time
             return TestResult(
-                success=False,
-                output="",
-                error=str(e),
-                duration=duration,
-                exit_code=-1
+                success=False, output="", error=str(e), duration=duration, exit_code=-1
             )
-    
+
     def validate_output_files(self, expected_files: List[str]) -> Dict[str, bool]:
         """
         Validate that expected output files exist and are non-empty.
-        
+
         Args:
             expected_files: List of expected output file names
-            
+
         Returns:
             Dictionary mapping file names to existence status
         """
@@ -214,7 +211,7 @@ class E2ETestBase:
             non_empty = exists and file_path.stat().st_size > 0
             results[filename] = exists and non_empty
         return results
-    
+
     def assert_files_exist(self, expected_files: List[str]):
         """
         Assert that all expected files exist and are non-empty.
@@ -228,7 +225,7 @@ class E2ETestBase:
         validation_results = self.validate_output_files(expected_files)
         for filename, exists in validation_results.items():
             assert exists, f"Expected output file '{filename}' does not exist or is empty"
-    
+
     def set_test_env(self, **env_vars):
         """
         Set environment variables for testing.
@@ -239,7 +236,7 @@ class E2ETestBase:
         """
         for key, value in env_vars.items():
             os.environ[key] = value
-    
+
     def get_test_data_path(self) -> Path:
         """
         Get path to test data directory.
@@ -279,7 +276,7 @@ class CLITestMixin:
         input_file: Union[str, Path],
         quality: str = "high",
         output_file: Optional[Union[str, Path]] = None,
-        additional_args: Optional[List[str]] = None
+        additional_args: Optional[List[str]] = None,
     ) -> TestResult:
         """
         Run audio extraction command.
@@ -294,22 +291,22 @@ class CLITestMixin:
             TestResult containing command execution results
         """
         cmd = ["audio-extraction-analysis", "extract", str(input_file), "--quality", quality]
-        
+
         if output_file:
             cmd.extend(["--output", str(output_file)])
-        
+
         if additional_args:
             cmd.extend(additional_args)
-        
+
         return self.run_cli_command(cmd)
-    
+
     def run_transcribe_command(
         self,
         input_file: Union[str, Path],
         provider: str = "auto",
         language: str = "en",
         output_file: Optional[Union[str, Path]] = None,
-        additional_args: Optional[List[str]] = None
+        additional_args: Optional[List[str]] = None,
     ) -> TestResult:
         """
         Run transcription command.
@@ -325,26 +322,30 @@ class CLITestMixin:
             TestResult containing command execution results
         """
         cmd = [
-            "audio-extraction-analysis", "transcribe", str(input_file),
-            "--provider", provider,
-            "--language", language
+            "audio-extraction-analysis",
+            "transcribe",
+            str(input_file),
+            "--provider",
+            provider,
+            "--language",
+            language,
         ]
-        
+
         if output_file:
             cmd.extend(["--output", str(output_file)])
-        
+
         if additional_args:
             cmd.extend(additional_args)
-        
+
         return self.run_cli_command(cmd)
-    
+
     def run_process_command(
         self,
         input_file: Union[str, Path],
         output_dir: Optional[Union[str, Path]] = None,
         provider: str = "auto",
         quality: str = "high",
-        additional_args: Optional[List[str]] = None
+        additional_args: Optional[List[str]] = None,
     ) -> TestResult:
         """
         Run full processing pipeline command (extraction + transcription).
@@ -360,17 +361,21 @@ class CLITestMixin:
             TestResult containing command execution results
         """
         cmd = [
-            "audio-extraction-analysis", "process", str(input_file),
-            "--provider", provider,
-            "--quality", quality
+            "audio-extraction-analysis",
+            "process",
+            str(input_file),
+            "--provider",
+            provider,
+            "--quality",
+            quality,
         ]
-        
+
         if output_dir:
             cmd.extend(["--output-dir", str(output_dir)])
-        
+
         if additional_args:
             cmd.extend(additional_args)
-        
+
         return self.run_cli_command(cmd)
 
 
@@ -398,7 +403,7 @@ class PerformanceTestMixin:
         result = func(*args, **kwargs)
         duration = time.time() - start_time
         return result, duration
-    
+
     def assert_performance_target(self, duration: float, target: float, operation: str):
         """
         Assert that operation meets performance target.
@@ -412,7 +417,7 @@ class PerformanceTestMixin:
             AssertionError: If duration exceeds target
         """
         assert duration <= target, f"{operation} took {duration:.2f}s, expected <= {target}s"
-    
+
     def monitor_memory_usage(self):
         """
         Context manager for monitoring memory usage during test execution.
@@ -439,18 +444,19 @@ class PerformanceTestMixin:
                 peak_memory: Peak memory usage in bytes
                 initial_memory: Initial memory usage in bytes at context entry
             """
+
             def __init__(self):
                 self.process = psutil.Process(os.getpid())
                 self.peak_memory = 0
                 self.initial_memory = 0
-            
+
             def __enter__(self):
                 self.initial_memory = self.process.memory_info().rss
                 return self
-            
+
             def __exit__(self, exc_type, exc_val, exc_tb):
                 pass
-            
+
             def update_peak(self):
                 """Update peak memory usage with current reading."""
                 current_memory = self.process.memory_info().rss
@@ -464,7 +470,7 @@ class PerformanceTestMixin:
                     Memory increase from initial to peak in MB
                 """
                 return (self.peak_memory - self.initial_memory) / 1024 / 1024
-        
+
         return MemoryMonitor()
 
 
@@ -493,10 +499,10 @@ class SecurityTestMixin:
             "unicode": "test_unicode_名前.mp4",
             "spaces": "test file with spaces.mp4",
             "special_chars": "test@#$%^&*()file.mp4",
-            "long_name": "a" * 300 + ".mp4"
+            "long_name": "a" * 300 + ".mp4",
         }
         return attacks.get(attack_type, "safe_test.mp4")
-    
+
     def validate_output_sanitization(self, output: str) -> Dict[str, bool]:
         """
         Validate that output is properly sanitized against common vulnerabilities.
@@ -515,13 +521,13 @@ class SecurityTestMixin:
             - reasonable_length: Output length under 1MB
         """
         checks = {
-            "no_control_chars": not any(ord(c) < 32 for c in output if c not in '\n\r\t'),
+            "no_control_chars": not any(ord(c) < 32 for c in output if c not in "\n\r\t"),
             "no_script_tags": "<script>" not in output.lower(),
             "no_api_keys": not self._contains_api_key_pattern(output),
-            "reasonable_length": len(output) < 1000000  # 1MB max
+            "reasonable_length": len(output) < 1000000,  # 1MB max
         }
         return checks
-    
+
     def _contains_api_key_pattern(self, text: str) -> bool:
         """
         Check if text contains potential API key patterns.
@@ -536,13 +542,14 @@ class SecurityTestMixin:
             True if potential API key pattern detected, False otherwise
         """
         import re
+
         # Common API key patterns
         patterns = [
-            r'[A-Za-z0-9]{32,}',  # Long alphanumeric strings
-            r'sk-[A-Za-z0-9]{48}',  # OpenAI-style keys
-            r'[A-Za-z0-9+/]{40,}={0,2}',  # Base64-encoded keys
+            r"[A-Za-z0-9]{32,}",  # Long alphanumeric strings
+            r"sk-[A-Za-z0-9]{48}",  # OpenAI-style keys
+            r"[A-Za-z0-9+/]{40,}={0,2}",  # Base64-encoded keys
         ]
-        
+
         for pattern in patterns:
             if re.search(pattern, text):
                 return True
@@ -570,12 +577,12 @@ class MockProviderMixin:
             "transcript": "This is a test transcription.",
             "speakers": [
                 {"speaker": 0, "text": "Hello, this is speaker one."},
-                {"speaker": 1, "text": "And this is speaker two responding."}
+                {"speaker": 1, "text": "And this is speaker two responding."},
             ],
             "duration": 30.0,
-            "confidence": 0.95
+            "confidence": 0.95,
         }
-    
+
     def mock_provider_failure(self, error_type: str = "api_error"):
         """
         Mock various provider failure scenarios.
@@ -592,6 +599,6 @@ class MockProviderMixin:
             "auth_error": "Invalid API key",
             "file_too_large": "File exceeds maximum size limit",
             "unsupported_format": "Audio format not supported",
-            "rate_limit": "Rate limit exceeded"
+            "rate_limit": "Rate limit exceeded",
         }
         return {"error": errors.get(error_type, "Unknown error")}

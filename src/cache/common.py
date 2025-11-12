@@ -21,8 +21,7 @@ import json
 import logging
 import sys
 import zlib
-from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional, Protocol, Set, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from .transcription_cache import CacheEntry
 
@@ -42,8 +41,8 @@ class BaseCache(Protocol):
         All methods should handle errors gracefully and return appropriate
         success/failure indicators rather than raising exceptions.
     """
-    
-    def get(self, key: str) -> Optional[CacheEntry]:
+
+    def get(self, key: str) -> CacheEntry | None:
         """Retrieve a cache entry by key.
 
         Args:
@@ -54,7 +53,7 @@ class BaseCache(Protocol):
             Returns None for missing keys, expired entries, or deserialization errors.
         """
         ...
-    
+
     def put(self, key: str, entry: CacheEntry) -> bool:
         """Store a cache entry.
 
@@ -68,7 +67,7 @@ class BaseCache(Protocol):
             or backend storage issues.
         """
         ...
-    
+
     def delete(self, key: str) -> bool:
         """Remove an entry from the cache.
 
@@ -79,7 +78,7 @@ class BaseCache(Protocol):
             True if the entry existed and was deleted, False if key not found.
         """
         ...
-    
+
     def exists(self, key: str) -> bool:
         """Check if a key exists in the cache.
 
@@ -107,7 +106,7 @@ class BaseCache(Protocol):
         """
         ...
 
-    def keys(self) -> Set[str]:
+    def keys(self) -> set[str]:
         """Retrieve all valid cache keys.
 
         Returns:
@@ -144,7 +143,7 @@ class CacheUtils:
         """
         # Simple normalization - could be extended with SHA256 hashing for very long keys
         return key.strip().lower()
-    
+
     @staticmethod
     def calculate_size(value: Any) -> int:
         """Calculate the approximate size of a value in bytes.
@@ -168,11 +167,11 @@ class CacheUtils:
         if isinstance(value, (bytes, bytearray)):
             return len(value)
         elif isinstance(value, str):
-            return len(value.encode('utf-8'))
+            return len(value.encode("utf-8"))
 
         # For complex objects, use sys.getsizeof as approximate estimate
         return sys.getsizeof(value)
-    
+
     @staticmethod
     def is_expired(entry: CacheEntry) -> bool:
         """Check if a cache entry has expired based on its TTL.
@@ -221,21 +220,21 @@ class SerializationHelper:
         try:
             # Convert entry to dict
             entry_dict = entry.to_dict()
-            
+
             # Convert to JSON bytes
-            json_bytes = json.dumps(entry_dict, ensure_ascii=False).encode('utf-8')
-            
+            json_bytes = json.dumps(entry_dict, ensure_ascii=False).encode("utf-8")
+
             if use_compression:
                 # Compress with zlib
                 json_bytes = zlib.compress(json_bytes, level=6)
-            
+
             return json_bytes
-            
+
         except (TypeError, ValueError, zlib.error) as e:
             raise ValueError(f"Failed to serialize cache entry: {e}") from e
-    
+
     @staticmethod
-    def deserialize_entry(data: bytes, is_compressed: bool = False) -> Optional[CacheEntry]:
+    def deserialize_entry(data: bytes, is_compressed: bool = False) -> CacheEntry | None:
         """Deserialize bytes back into a CacheEntry instance.
 
         Reverses the serialization process: decompresses if needed, decodes
@@ -258,17 +257,17 @@ class SerializationHelper:
             # Decompress if needed
             if is_compressed:
                 data = zlib.decompress(data)
-            
+
             # Parse JSON
-            entry_dict = json.loads(data.decode('utf-8'))
-            
+            entry_dict = json.loads(data.decode("utf-8"))
+
             # Reconstruct entry
             return CacheEntry.from_dict(entry_dict)
-            
+
         except (json.JSONDecodeError, UnicodeDecodeError, KeyError, zlib.error, ValueError) as e:
             logger.error(f"Failed to deserialize cache entry: {e}")
             return None
-    
+
     @staticmethod
     def serialize_value(value: Any, use_compression: bool = False) -> bytes:
         """Serialize an arbitrary value to bytes with type preservation.
@@ -294,37 +293,28 @@ class SerializationHelper:
         """
         try:
             # Handle different value types
-            if hasattr(value, 'to_dict') and callable(getattr(value, 'to_dict')):
+            if hasattr(value, "to_dict") and callable(value.to_dict):
                 # Object with to_dict method
-                value_dict = {
-                    "type": type(value).__name__,
-                    "data": value.to_dict()
-                }
+                value_dict = {"type": type(value).__name__, "data": value.to_dict()}
             else:
                 # Try direct JSON serialization
                 try:
                     json.dumps(value)  # Test serializable
-                    value_dict = {
-                        "type": type(value).__name__, 
-                        "data": value
-                    }
+                    value_dict = {"type": type(value).__name__, "data": value}
                 except (TypeError, ValueError):
                     # Fallback to string representation
-                    value_dict = {
-                        "type": "str",
-                        "data": str(value)
-                    }
-            
-            json_bytes = json.dumps(value_dict).encode('utf-8')
-            
+                    value_dict = {"type": "str", "data": str(value)}
+
+            json_bytes = json.dumps(value_dict).encode("utf-8")
+
             if use_compression:
                 json_bytes = zlib.compress(json_bytes, level=6)
-                
+
             return json_bytes
-            
+
         except Exception as e:
             raise ValueError(f"Failed to serialize value: {e}") from e
-    
+
     @staticmethod
     def deserialize_value(data: bytes, is_compressed: bool = False) -> Any:
         """Deserialize bytes back into the original value type.
@@ -348,15 +338,16 @@ class SerializationHelper:
         try:
             if is_compressed:
                 data = zlib.decompress(data)
-                
-            value_dict = json.loads(data.decode('utf-8'))
+
+            value_dict = json.loads(data.decode("utf-8"))
             value_type = value_dict.get("type", "dict")
             value_data = value_dict.get("data")
-            
+
             # Reconstruct based on type
             if value_type == "TranscriptionResult" and isinstance(value_data, dict):
                 try:
                     from ..models.transcription import TranscriptionResult
+
                     return TranscriptionResult.from_dict(value_data)
                 except ImportError:
                     # If model not available, return raw dict
@@ -365,7 +356,7 @@ class SerializationHelper:
                 return str(value_data)
             else:
                 return value_data
-                
+
         except Exception as e:
             logger.error(f"Failed to deserialize value: {e}")
             return None
@@ -379,7 +370,7 @@ class TTLManager:
     """
 
     @staticmethod
-    def is_expired(entry: CacheEntry, current_time: Optional[float] = None) -> bool:
+    def is_expired(entry: CacheEntry, current_time: float | None = None) -> bool:
         """Determine if a cache entry has exceeded its TTL.
 
         Compares the entry's age (time since creation) against its TTL value.
@@ -396,15 +387,16 @@ class TTLManager:
         """
         if entry.ttl is None:
             return False
-            
+
         import time
+
         now = current_time or time.time()
         created_timestamp = entry.created_at.timestamp()
-        
+
         return (now - created_timestamp) > entry.ttl
-    
+
     @staticmethod
-    def time_until_expiry(entry: CacheEntry) -> Optional[float]:
+    def time_until_expiry(entry: CacheEntry) -> float | None:
         """Calculate remaining lifetime for a cache entry.
 
         Computes how many seconds remain until the entry expires based on
@@ -426,12 +418,13 @@ class TTLManager:
         """
         if entry.ttl is None:
             return None
-            
+
         import time
+
         now = time.time()
         created_timestamp = entry.created_at.timestamp()
         elapsed = now - created_timestamp
-        
+
         return max(0, entry.ttl - elapsed)
 
 
@@ -457,7 +450,7 @@ class SizeLimitManager:
         """
         self.max_size_bytes = max_size_bytes
         self._current_size = 0
-    
+
     def can_fit(self, entry_size: int) -> bool:
         """Check if an entry size is within absolute size limits.
 
@@ -512,7 +505,7 @@ class SizeLimitManager:
             return 0
 
         return (self._current_size + entry_size) - self.max_size_bytes
-    
+
     def add_entry(self, entry_size: int) -> None:
         """Increment the current size counter when adding an entry.
 
@@ -549,7 +542,7 @@ class SizeLimitManager:
         Does not modify max_size_bytes.
         """
         self._current_size = 0
-    
+
     @property
     def current_size(self) -> int:
         """Current total size of all cached entries in bytes.

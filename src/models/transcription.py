@@ -1,9 +1,10 @@
 """Data models for transcription results."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 @dataclass
@@ -14,7 +15,7 @@ class TranscriptionSpeaker:
     total_time: float
     percentage: float
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
             "id": self.id,
@@ -23,7 +24,7 @@ class TranscriptionSpeaker:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "TranscriptionSpeaker":
+    def from_dict(cls, data: dict[str, Any]) -> TranscriptionSpeaker:
         """Create from dictionary."""
         return cls(
             id=data["id"],
@@ -38,10 +39,10 @@ class TranscriptionChapter:
 
     start_time: float
     end_time: float
-    topics: List[str]
-    confidence_scores: List[float]
+    topics: list[str]
+    confidence_scores: list[float]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
             "start_time": self.start_time,
@@ -51,7 +52,7 @@ class TranscriptionChapter:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "TranscriptionChapter":
+    def from_dict(cls, data: dict[str, Any]) -> TranscriptionChapter:
         """Create from dictionary."""
         return cls(
             start_time=data["start_time"],
@@ -70,7 +71,7 @@ class TranscriptionUtterance:
     end: float
     text: str
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
             "speaker": self.speaker,
@@ -80,7 +81,7 @@ class TranscriptionUtterance:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "TranscriptionUtterance":
+    def from_dict(cls, data: dict[str, Any]) -> TranscriptionUtterance:
         """Create from dictionary."""
         return cls(
             speaker=data["speaker"],
@@ -104,19 +105,19 @@ class TranscriptionResult:
 
     # Provider information
     provider_name: str = "unknown"
-    provider_features: Optional[List[str]] = None
+    provider_features: list[str] | None = None
 
     # Advanced features
-    summary: Optional[str] = None
-    chapters: Optional[List[TranscriptionChapter]] = None
-    speakers: Optional[List[TranscriptionSpeaker]] = None
-    utterances: Optional[List[TranscriptionUtterance]] = None
-    topics: Optional[Dict[str, int]] = None
-    intents: Optional[List[str]] = None
-    sentiment_distribution: Optional[Dict[str, int]] = None
+    summary: str | None = None
+    chapters: list[TranscriptionChapter] | None = None
+    speakers: list[TranscriptionSpeaker] | None = None
+    utterances: list[TranscriptionUtterance] | None = None
+    topics: dict[str, int] | None = None
+    intents: list[str] | None = None
+    sentiment_distribution: dict[str, int] | None = None
 
     # Generic metadata storage
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: dict[str, Any] | None = None
 
     def __post_init__(self):
         """Initialize empty collections if None."""
@@ -137,7 +138,7 @@ class TranscriptionResult:
         if self.metadata is None:
             self.metadata = {}
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
             "transcript": self.transcript,
@@ -149,7 +150,9 @@ class TranscriptionResult:
             "summary": self.summary,
             "chapters": [chapter.to_dict() for chapter in self.chapters] if self.chapters else [],
             "speakers": [speaker.to_dict() for speaker in self.speakers] if self.speakers else [],
-            "utterances": [utterance.to_dict() for utterance in self.utterances] if self.utterances else [],
+            "utterances": (
+                [utterance.to_dict() for utterance in self.utterances] if self.utterances else []
+            ),
             "topics": self.topics,
             "intents": self.intents,
             "sentiment_distribution": self.sentiment_distribution,
@@ -157,7 +160,7 @@ class TranscriptionResult:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "TranscriptionResult":
+    def from_dict(cls, data: dict[str, Any]) -> TranscriptionResult:
         """Create from dictionary."""
         return cls(
             transcript=data["transcript"],
@@ -167,18 +170,30 @@ class TranscriptionResult:
             provider_name=data.get("provider_name", "unknown"),
             provider_features=data.get("provider_features"),
             summary=data.get("summary"),
-            chapters=[
-                TranscriptionChapter.from_dict(chapter_data) 
-                for chapter_data in data.get("chapters", [])
-            ] if data.get("chapters") else None,
-            speakers=[
-                TranscriptionSpeaker.from_dict(speaker_data) 
-                for speaker_data in data.get("speakers", [])
-            ] if data.get("speakers") else None,
-            utterances=[
-                TranscriptionUtterance.from_dict(utterance_data) 
-                for utterance_data in data.get("utterances", [])
-            ] if data.get("utterances") else None,
+            chapters=(
+                [
+                    TranscriptionChapter.from_dict(chapter_data)
+                    for chapter_data in data.get("chapters", [])
+                ]
+                if data.get("chapters")
+                else None
+            ),
+            speakers=(
+                [
+                    TranscriptionSpeaker.from_dict(speaker_data)
+                    for speaker_data in data.get("speakers", [])
+                ]
+                if data.get("speakers")
+                else None
+            ),
+            utterances=(
+                [
+                    TranscriptionUtterance.from_dict(utterance_data)
+                    for utterance_data in data.get("utterances", [])
+                ]
+                if data.get("utterances")
+                else None
+            ),
             topics=data.get("topics"),
             intents=data.get("intents"),
             sentiment_distribution=data.get("sentiment_distribution"),

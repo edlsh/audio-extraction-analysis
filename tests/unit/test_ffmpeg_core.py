@@ -8,9 +8,8 @@ Tests cover:
 - Command injection prevention
 - -y flag presence to prevent hangs
 """
-from pathlib import Path
 
-import pytest
+from pathlib import Path
 
 from src.services.ffmpeg_core import build_base_cmd, build_extract_commands
 
@@ -156,12 +155,14 @@ class TestBuildExtractCommands:
 
         # Test with various invalid quality strings
         for invalid_quality in ["unknown", "UNKNOWN", "", "ultra", None]:
-            commands, temp_path = build_extract_commands(
-                input_path, output_path, invalid_quality
-            )
+            commands, temp_path = build_extract_commands(input_path, output_path, invalid_quality)
 
-            assert len(commands) == 2, f"Quality '{invalid_quality}' should default to SPEECH (two-step)"
-            assert temp_path is not None, f"Quality '{invalid_quality}' should use temp file like SPEECH"
+            assert (
+                len(commands) == 2
+            ), f"Quality '{invalid_quality}' should default to SPEECH (two-step)"
+            assert (
+                temp_path is not None
+            ), f"Quality '{invalid_quality}' should use temp file like SPEECH"
 
     def test_speech_temp_path_naming(self):
         """Verify SPEECH preset creates correctly named temp file."""
@@ -183,7 +184,9 @@ class TestBuildExtractCommands:
             commands, _ = build_extract_commands(input_path, output_path, quality)
 
             for cmd in commands:
-                assert "-y" in cmd, f"Missing -y flag in {quality} preset - could hang on overwrites"
+                assert (
+                    "-y" in cmd
+                ), f"Missing -y flag in {quality} preset - could hang on overwrites"
 
     def test_path_with_spaces_in_commands(self):
         """Test that paths with spaces are properly handled in commands."""
@@ -228,15 +231,11 @@ class TestBuildExtractCommands:
         output_path = Path("/test/output.mp3")
 
         # Uppercase should default to SPEECH (two-step)
-        commands_upper, temp_upper = build_extract_commands(
-            input_path, output_path, "HIGH"
-        )
+        commands_upper, temp_upper = build_extract_commands(input_path, output_path, "HIGH")
         assert len(commands_upper) == 2, "Uppercase 'HIGH' should default to SPEECH"
 
         # Lowercase should use specific preset (single-step)
-        commands_lower, temp_lower = build_extract_commands(
-            input_path, output_path, "high"
-        )
+        commands_lower, temp_lower = build_extract_commands(input_path, output_path, "high")
         assert len(commands_lower) == 1, "Lowercase 'high' should use HIGH preset"
 
     def test_audio_map_parameter_in_all_presets(self):

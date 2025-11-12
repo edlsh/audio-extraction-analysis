@@ -3,6 +3,7 @@
 This module serves as the main entry point for the CLI with all commands
 consolidated in a single file.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -13,7 +14,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 # Backwards compatibility imports for tests
 try:
@@ -28,9 +29,7 @@ try:
     from .utils.paths import ensure_subpath, safe_write_json, sanitize_dirname
     from .utils.sanitization import PathSanitizer
 except ImportError:  # pragma: no cover - fallback for installed package layout
-    from config import Config
     from formatters.markdown_formatter import MarkdownFormatter
-    from pipeline.audio_pipeline import AudioProcessingPipeline
     from pipeline.simple_pipeline import process_pipeline
     from services.audio_extraction import AudioExtractor, AudioQuality
     from services.transcription import TranscriptionService
@@ -362,7 +361,7 @@ def _validate_extract_input(input_path: Path) -> None:
         raise ValueError(f"File not found: {input_path}")
 
 
-def _determine_extract_output_path(input_path: Path, output_arg: Optional[str]) -> Path:
+def _determine_extract_output_path(input_path: Path, output_arg: str | None) -> Path:
     """Determine output path for extracted audio.
 
     Args:
@@ -382,8 +381,8 @@ def _execute_audio_extraction(
     input_path: Path,
     output_path: Path,
     quality: AudioQuality,
-    console_manager: Optional[ConsoleManager],
-) -> Optional[Path]:
+    console_manager: ConsoleManager | None,
+) -> Path | None:
     """Execute audio extraction with optional progress tracking.
 
     Args:
@@ -407,7 +406,7 @@ def _execute_audio_extraction(
     return result_path
 
 
-def extract_command(args: argparse.Namespace, console_manager: Optional[ConsoleManager] = None) -> int:
+def extract_command(args: argparse.Namespace, console_manager: ConsoleManager | None = None) -> int:
     """Handle the extract subcommand.
 
     Args:
@@ -459,7 +458,7 @@ def extract_command(args: argparse.Namespace, console_manager: Optional[ConsoleM
             logger.error("Audio extraction failed")
             return 1
 
-    except (IOError, OSError, ValueError, RuntimeError) as e:
+    except (OSError, ValueError, RuntimeError) as e:
         logger.error("Extract command failed: %s", e)
         return 1
     except Exception as e:
@@ -535,7 +534,7 @@ def export_markdown_transcript(args: argparse.Namespace, input_path: Path, resul
         logger.error(f"Markdown export failed: {e}")
 
 
-def _resolve_provider_name(provider: str) -> Optional[str]:
+def _resolve_provider_name(provider: str) -> str | None:
     """Convert 'auto' provider to None for auto-selection.
 
     Args:
@@ -547,7 +546,7 @@ def _resolve_provider_name(provider: str) -> Optional[str]:
     return None if provider == "auto" else provider
 
 
-def _determine_transcribe_output_path(input_path: Path, output_arg: Optional[str]) -> Path:
+def _determine_transcribe_output_path(input_path: Path, output_arg: str | None) -> Path:
     """Determine output path for transcription.
 
     Args:
@@ -598,7 +597,7 @@ def _handle_transcribe_success(
     result: Any,
     transcription_service: TranscriptionService,
     output_path: Path,
-    console_manager: Optional[ConsoleManager],
+    console_manager: ConsoleManager | None,
     args: argparse.Namespace,
     input_path: Path,
 ) -> None:
@@ -632,7 +631,9 @@ def _handle_transcribe_success(
         export_markdown_transcript(args, input_path, result)
 
 
-def transcribe_command(args: argparse.Namespace, console_manager: Optional[ConsoleManager] = None) -> int:
+def transcribe_command(
+    args: argparse.Namespace, console_manager: ConsoleManager | None = None
+) -> int:
     """Handle the transcribe subcommand.
 
     Args:
@@ -674,7 +675,7 @@ def transcribe_command(args: argparse.Namespace, console_manager: Optional[Conso
             logger.error("Transcription failed")
             return 1
 
-    except (IOError, OSError, ValueError, RuntimeError, ValidationError) as e:
+    except (OSError, ValueError, RuntimeError, ValidationError) as e:
         logger.error("Transcribe command failed: %s", e)
         return 1
     except Exception as e:
@@ -729,7 +730,7 @@ def _execute_processing_pipeline(
     output_dir: Path,
     quality: AudioQuality,
     args: argparse.Namespace,
-    console_manager: Optional[ConsoleManager],
+    console_manager: ConsoleManager | None,
 ) -> tuple[dict[str, Any], Any]:
     """Execute the audio processing pipeline.
 
@@ -805,7 +806,7 @@ def _handle_process_success(
         export_markdown_transcript(args, input_path, result)
 
 
-def process_command(args: argparse.Namespace, console_manager: Optional[ConsoleManager] = None) -> int:
+def process_command(args: argparse.Namespace, console_manager: ConsoleManager | None = None) -> int:
     """Handle the process subcommand (extract + transcribe).
 
     Args:
@@ -849,7 +850,7 @@ def process_command(args: argparse.Namespace, console_manager: Optional[ConsoleM
             logger.error("Processing failed")
             return 1
 
-    except (IOError, OSError, ValueError, RuntimeError) as e:
+    except (OSError, ValueError, RuntimeError) as e:
         logger.error("Process command failed: %s", e)
         return 1
     except Exception as e:
@@ -1004,7 +1005,7 @@ def _save_segments(result: Any, base_dir: Path) -> None:
         logger.error(f"Failed writing segments.json: {e}")
 
 
-def export_markdown_command(args, console_manager: Optional[ConsoleManager] = None) -> int:
+def export_markdown_command(args, console_manager: ConsoleManager | None = None) -> int:
     """Handle the export-markdown subcommand.
 
     This command transcribes an audio file and emits a formatted Markdown transcript,
@@ -1043,11 +1044,13 @@ def export_markdown_command(args, console_manager: Optional[ConsoleManager] = No
         logger.info("Export completed successfully!")
         return 0
 
-    except (IOError, OSError, ValueError, RuntimeError, ValidationError) as e:
+    except (OSError, ValueError, RuntimeError, ValidationError) as e:
         logger.error("Export markdown command failed: %s", e)
         return 1
     except Exception as e:
-        logger.critical("An unexpected error occurred in export_markdown_command: %s", e, exc_info=True)
+        logger.critical(
+            "An unexpected error occurred in export_markdown_command: %s", e, exc_info=True
+        )
         return 1
 
 
@@ -1083,7 +1086,6 @@ def main() -> int:
     except KeyboardInterrupt:
         logger.error("Operation cancelled by user")
         return 1
-
 
 
 if __name__ == "__main__":

@@ -18,7 +18,7 @@ Usage:
 """
 
 import asyncio
-from pathlib import Path
+
 from src.providers.factory import TranscriptionProviderFactory
 
 
@@ -50,7 +50,7 @@ async def main() -> None:
     try:
         health = await provider.health_check_async()
         print(f"Provider health: {health['status']}")
-        if not health['healthy']:
+        if not health["healthy"]:
             print("Provider is not healthy, exiting")
             print(f"Health details: {health}")
             return

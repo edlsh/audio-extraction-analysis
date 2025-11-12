@@ -24,7 +24,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Type
+from typing import Any
 
 from ..config import get_config
 from ..utils.retry import RetryConfig
@@ -51,10 +51,10 @@ class TranscriptionProviderFactory:
     """
 
     # Registry of available providers: maps provider names to their implementation classes
-    _providers: Dict[str, Type[BaseTranscriptionProvider]] = {}
+    _providers: dict[str, type[BaseTranscriptionProvider]] = {}
 
     @classmethod
-    def register_provider(cls, name: str, provider_class: Type[BaseTranscriptionProvider]) -> None:
+    def register_provider(cls, name: str, provider_class: type[BaseTranscriptionProvider]) -> None:
         """Register a transcription provider.
 
         Args:
@@ -65,7 +65,7 @@ class TranscriptionProviderFactory:
         logger.debug(f"Registered transcription provider: {name}")
 
     @classmethod
-    def get_available_providers(cls) -> List[str]:
+    def get_available_providers(cls) -> list[str]:
         """Get list of registered provider names.
 
         Returns:
@@ -74,7 +74,7 @@ class TranscriptionProviderFactory:
         return list(cls._providers.keys())
 
     @classmethod
-    def get_configured_providers(cls) -> List[str]:
+    def get_configured_providers(cls) -> list[str]:
         """Get list of providers that have valid API keys or dependencies configured.
 
         This method checks both API-based providers (requiring API keys) and
@@ -126,8 +126,8 @@ class TranscriptionProviderFactory:
     def _get_default_configs(
         cls,
         provider_name: str,
-        circuit_config: Optional[CircuitBreakerConfig],
-        retry_config: Optional[RetryConfig],
+        circuit_config: CircuitBreakerConfig | None,
+        retry_config: RetryConfig | None,
     ) -> tuple[CircuitBreakerConfig, RetryConfig]:
         """Get default circuit breaker and retry configurations (internal helper).
 
@@ -216,9 +216,9 @@ class TranscriptionProviderFactory:
     @classmethod
     def _create_provider_instance(
         cls,
-        provider_class: Type[BaseTranscriptionProvider],
+        provider_class: type[BaseTranscriptionProvider],
         provider_name: str,
-        api_key: Optional[str],
+        api_key: str | None,
         circuit_config: CircuitBreakerConfig,
         retry_config: RetryConfig,
     ) -> BaseTranscriptionProvider:
@@ -259,9 +259,9 @@ class TranscriptionProviderFactory:
     def create_provider(
         cls,
         provider_name: str,
-        api_key: Optional[str] = None,
-        circuit_config: Optional[CircuitBreakerConfig] = None,
-        retry_config: Optional[RetryConfig] = None,
+        api_key: str | None = None,
+        circuit_config: CircuitBreakerConfig | None = None,
+        retry_config: RetryConfig | None = None,
         run_health_check: bool = True,
     ) -> BaseTranscriptionProvider:
         """Create a transcription provider instance with validation and health checking.
@@ -344,8 +344,8 @@ class TranscriptionProviderFactory:
     @classmethod
     def auto_select_provider(
         cls,
-        audio_file_path: Optional[Path] = None,
-        preferred_features: Optional[List[str]] = None,
+        audio_file_path: Path | None = None,
+        preferred_features: list[str] | None = None,
         include_health_check: bool = True,
     ) -> str:
         """Automatically select the best available provider using intelligent heuristics.
@@ -530,8 +530,8 @@ class TranscriptionProviderFactory:
 
     @classmethod
     async def check_provider_health(
-        cls, provider_name: str, api_key: Optional[str] = None
-    ) -> Dict[str, Any]:
+        cls, provider_name: str, api_key: str | None = None
+    ) -> dict[str, Any]:
         """Asynchronously check health of a specific provider.
 
         This method creates a minimal provider instance and performs a health check
@@ -589,8 +589,8 @@ class TranscriptionProviderFactory:
 
     @classmethod
     def check_provider_health_sync(
-        cls, provider_name: str, api_key: Optional[str] = None
-    ) -> Dict[str, Any]:
+        cls, provider_name: str, api_key: str | None = None
+    ) -> dict[str, Any]:
         """Synchronous wrapper for async provider health check.
 
         This method handles event loop management for synchronous contexts,
@@ -630,7 +630,7 @@ class TranscriptionProviderFactory:
                 loop.close()
 
     @classmethod
-    def get_provider_status(cls) -> Dict[str, Any]:
+    def get_provider_status(cls) -> dict[str, Any]:
         """Get comprehensive status of all transcription providers.
 
         This method provides a complete overview of provider availability, configuration,

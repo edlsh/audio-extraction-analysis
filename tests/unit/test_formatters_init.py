@@ -9,11 +9,13 @@ class TestFormattersPackage:
     def test_module_import(self):
         """Test that src.formatters module can be imported successfully."""
         import src.formatters
+
         assert src.formatters is not None
 
     def test_module_docstring(self):
         """Test that src.formatters module has proper docstring."""
         import src.formatters
+
         assert src.formatters.__doc__ is not None
         assert isinstance(src.formatters.__doc__, str)
         assert len(src.formatters.__doc__.strip()) > 0
@@ -21,61 +23,73 @@ class TestFormattersPackage:
     def test_docstring_content(self):
         """Test that docstring describes the module purpose."""
         import src.formatters
+
         docstring_lower = src.formatters.__doc__.lower()
 
         # Verify the docstring mentions formatting or markdown
         expected_keywords = ["format", "export", "transcript", "markdown"]
-        assert any(keyword in docstring_lower for keyword in expected_keywords), \
-            f"Docstring should describe formatting functionality: {src.formatters.__doc__}"
+        assert any(
+            keyword in docstring_lower for keyword in expected_keywords
+        ), f"Docstring should describe formatting functionality: {src.formatters.__doc__}"
 
     def test_all_attribute_exists(self):
         """Test that __all__ attribute is defined."""
         import src.formatters
+
         assert hasattr(src.formatters, "__all__")
         assert isinstance(src.formatters.__all__, list)
 
     def test_all_attribute_content(self):
         """Test that __all__ contains expected exports."""
         import src.formatters
+
         expected_exports = [
             "MarkdownFormatter",
             "MarkdownFormattingError",
             "TemplateNotFoundError",
         ]
 
-        assert set(src.formatters.__all__) == set(expected_exports), \
-            f"__all__ should contain {expected_exports}, got {src.formatters.__all__}"
+        assert set(src.formatters.__all__) == set(
+            expected_exports
+        ), f"__all__ should contain {expected_exports}, got {src.formatters.__all__}"
 
     def test_markdown_formatter_exported(self):
         """Test that MarkdownFormatter is properly exported."""
         import src.formatters
+
         assert hasattr(src.formatters, "MarkdownFormatter")
 
         # Verify it's the correct class
         from src.formatters.markdown_formatter import MarkdownFormatter
+
         assert src.formatters.MarkdownFormatter is MarkdownFormatter
 
     def test_markdown_formatting_error_exported(self):
         """Test that MarkdownFormattingError is properly exported."""
         import src.formatters
+
         assert hasattr(src.formatters, "MarkdownFormattingError")
 
         # Verify it's the correct exception class
         from src.formatters.markdown_formatter import MarkdownFormattingError
+
         assert src.formatters.MarkdownFormattingError is MarkdownFormattingError
 
     def test_template_not_found_error_exported(self):
         """Test that TemplateNotFoundError is properly exported."""
         import src.formatters
+
         assert hasattr(src.formatters, "TemplateNotFoundError")
 
         # Verify it's the correct exception class
         from src.formatters.markdown_formatter import TemplateNotFoundError
+
         assert src.formatters.TemplateNotFoundError is TemplateNotFoundError
 
     def test_direct_import_markdown_formatter(self):
         """Test that MarkdownFormatter can be imported directly from src.formatters."""
         from src.formatters import MarkdownFormatter
+
         assert MarkdownFormatter is not None
         assert hasattr(MarkdownFormatter, "__name__")
         assert MarkdownFormatter.__name__ == "MarkdownFormatter"
@@ -83,6 +97,7 @@ class TestFormattersPackage:
     def test_direct_import_markdown_formatting_error(self):
         """Test that MarkdownFormattingError can be imported directly from src.formatters."""
         from src.formatters import MarkdownFormattingError
+
         assert MarkdownFormattingError is not None
         assert hasattr(MarkdownFormattingError, "__name__")
         assert MarkdownFormattingError.__name__ == "MarkdownFormattingError"
@@ -90,6 +105,7 @@ class TestFormattersPackage:
     def test_direct_import_template_not_found_error(self):
         """Test that TemplateNotFoundError can be imported directly from src.formatters."""
         from src.formatters import TemplateNotFoundError
+
         assert TemplateNotFoundError is not None
         assert hasattr(TemplateNotFoundError, "__name__")
         assert TemplateNotFoundError.__name__ == "TemplateNotFoundError"
@@ -108,15 +124,16 @@ class TestFormattersPackage:
             "TemplateNotFoundError",
         ]
 
-        assert set(imported_names) == set(expected_names), \
-            f"Wildcard import should only import {expected_names}, got {imported_names}"
+        assert set(imported_names) == set(
+            expected_names
+        ), f"Wildcard import should only import {expected_names}, got {imported_names}"
 
     def test_no_unexpected_public_exports(self):
         """Test that module doesn't expose unexpected public attributes."""
         import src.formatters
 
         # Get all public attributes (not starting with _)
-        public_attrs = [attr for attr in dir(src.formatters) if not attr.startswith('_')]
+        public_attrs = [attr for attr in dir(src.formatters) if not attr.startswith("_")]
 
         # Should have the documented exports plus the submodules
         expected_attrs = [
@@ -126,27 +143,35 @@ class TestFormattersPackage:
             "markdown_formatter",
             "templates",
         ]
-        assert set(public_attrs) == set(expected_attrs), \
-            f"Module should export {expected_attrs}, got {public_attrs}"
+        assert set(public_attrs) == set(
+            expected_attrs
+        ), f"Module should export {expected_attrs}, got {public_attrs}"
 
     def test_markdown_formatter_is_class(self):
         """Test that MarkdownFormatter is actually a class."""
         from src.formatters import MarkdownFormatter
+
         assert isinstance(MarkdownFormatter, type), "MarkdownFormatter should be a class"
 
     def test_markdown_formatting_error_is_exception(self):
         """Test that MarkdownFormattingError is actually an exception class."""
         from src.formatters import MarkdownFormattingError
-        assert isinstance(MarkdownFormattingError, type), "MarkdownFormattingError should be a class"
-        assert issubclass(MarkdownFormattingError, Exception), \
-            "MarkdownFormattingError should be an Exception subclass"
+
+        assert isinstance(
+            MarkdownFormattingError, type
+        ), "MarkdownFormattingError should be a class"
+        assert issubclass(
+            MarkdownFormattingError, Exception
+        ), "MarkdownFormattingError should be an Exception subclass"
 
     def test_template_not_found_error_is_exception(self):
         """Test that TemplateNotFoundError is actually an exception class."""
         from src.formatters import TemplateNotFoundError
+
         assert isinstance(TemplateNotFoundError, type), "TemplateNotFoundError should be a class"
-        assert issubclass(TemplateNotFoundError, Exception), \
-            "TemplateNotFoundError should be an Exception subclass"
+        assert issubclass(
+            TemplateNotFoundError, Exception
+        ), "TemplateNotFoundError should be an Exception subclass"
 
     def test_exception_inheritance_chain(self):
         """Test that formatter exceptions have proper exception inheritance."""
@@ -174,12 +199,7 @@ class TestFormattersPackage:
     def test_import_does_not_raise(self):
         """Test that importing the module does not raise any exceptions."""
         try:
-            import src.formatters
-            from src.formatters import (
-                MarkdownFormatter,
-                MarkdownFormattingError,
-                TemplateNotFoundError,
-            )
+            pass
         except Exception as e:
             pytest.fail(f"Importing src.formatters should not raise exceptions: {e}")
 
@@ -187,8 +207,8 @@ class TestFormattersPackage:
         """Test that multiple imports don't cause issues."""
         # Import multiple times
         import src.formatters
-        from src.formatters import MarkdownFormatter
         import src.formatters as formatters_alias
+        from src.formatters import MarkdownFormatter
         from src.formatters import MarkdownFormatter as MF
 
         # All should reference the same objects
@@ -211,6 +231,7 @@ class TestFormattersPackage:
         # The markdown_formatter submodule should still be accessible
         assert hasattr(src.formatters, "markdown_formatter")
         from src.formatters import markdown_formatter
+
         assert markdown_formatter is not None
         assert hasattr(markdown_formatter, "MarkdownFormatter")
         assert hasattr(markdown_formatter, "MarkdownFormattingError")
@@ -253,8 +274,9 @@ class TestFormattersPackage:
         import src.formatters
 
         for export_name in src.formatters.__all__:
-            assert hasattr(src.formatters, export_name), \
-                f"Export '{export_name}' in __all__ should be defined in module"
+            assert hasattr(
+                src.formatters, export_name
+            ), f"Export '{export_name}' in __all__ should be defined in module"
 
     def test_exports_match_source_module(self):
         """Test that exported items match their source module counterparts."""

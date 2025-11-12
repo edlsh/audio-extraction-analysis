@@ -11,6 +11,7 @@ Key Fixtures:
     - api_key_set: Mock API key configuration
 """
 
+import subprocess
 import tempfile
 from pathlib import Path
 from unittest.mock import Mock
@@ -263,12 +264,16 @@ def temp_audio_file():
         temp_path.unlink()
 
 
-@pytest.fixture
-def temp_video_file():
-    """Create a temporary video file for testing video processing functions.
+@pytest.fixture(scope="session")
+def temp_video_file(tmp_path_factory, ffmpeg_binary):
+    """Generate a minimal valid MP4 test video file (session-scoped for performance).
 
-    Creates a temporary .mp4 file with dummy byte content (not actual video data).
-    The file is automatically cleaned up after the test completes.
+    Creates a real video file using FFmpeg with minimal duration (2 seconds) for testing.
+    This ensures the video file is valid and can be processed by FFmpeg-based tools.
+
+    Args:
+        tmp_path_factory: pytest temp path factory
+        ffmpeg_binary: FFmpeg binary path
 
     Yields:
         Path: Path object pointing to the temporary video file.
@@ -278,16 +283,36 @@ def temp_video_file():
             audio_path = extract_audio(temp_video_file)
             assert audio_path.exists()
     """
-    with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as temp_file:
-        # Write dummy byte content (larger than audio to simulate typical video file sizes)
-        temp_file.write(b"fake_video_data" * 2000)
-        temp_path = Path(temp_file.name)
+    output_dir = tmp_path_factory.mktemp("video_fixtures")
+    output = output_dir / "test_video_2s.mp4"
 
-    yield temp_path
+    # Generate 2-second test video with both video and audio streams
+    result = subprocess.run(
+        [
+            str(ffmpeg_binary),
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=2:size=320x240:rate=1",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=2",
+            "-c:v",
+            "libx264",
+            "-c:a",
+            "aac",
+            "-shortest",
+            str(output),
+        ],
+        capture_output=True,
+        check=False,
+    )
 
-    # Cleanup: Remove the temporary video file after test completion
-    if temp_path.exists():
-        temp_path.unlink()
+    if result.returncode != 0:
+        pytest.skip(f"Failed to generate test video: {result.stderr.decode()}")
+
+    return output
 
 
 @pytest.fixture

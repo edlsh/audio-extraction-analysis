@@ -16,16 +16,17 @@ Migration example:
 Enhanced with optional progress tracking via a ConsoleManager for
 interactive runs, while preserving the original synchronous API.
 """
+
 from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import tempfile
 import time
 from datetime import datetime
-import os
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 from ..analysis.concise_analyzer import ConciseAnalyzer
 from ..analysis.full_analyzer import FullAnalyzer
@@ -49,9 +50,7 @@ class AudioProcessingPipeline:
     is supplied.
     """
 
-    def __init__(
-        self, temp_dir: Optional[Path] = None, console_manager: Optional[ConsoleManager] = None
-    ):
+    def __init__(self, temp_dir: Path | None = None, console_manager: ConsoleManager | None = None):
         """Initialize pipeline with optional temporary directory.
 
         DEPRECATED: Use `process_pipeline()` instead.
@@ -61,11 +60,12 @@ class AudioProcessingPipeline:
             console_manager: Optional ConsoleManager for rich/progress output
         """
         import warnings
+
         warnings.warn(
             "AudioProcessingPipeline is deprecated as of v1.2.0 and will be removed in v2.0.0. "
             "Use src.pipeline.simple_pipeline.process_pipeline() instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         if temp_dir:
             self.temp_dir = Path(temp_dir)
@@ -78,7 +78,7 @@ class AudioProcessingPipeline:
 
         logger.info(f"Pipeline initialized with temp dir: {self.temp_dir}")
         self.console_manager = console_manager
-        self.stage_results: Dict[str, Any] = {}
+        self.stage_results: dict[str, Any] = {}
 
     def process_video(
         self,
@@ -88,7 +88,7 @@ class AudioProcessingPipeline:
         language: str = "en",
         provider: str = "auto",
         analysis_style: str = "concise",
-    ) -> Optional[TranscriptionResult]:
+    ) -> TranscriptionResult | None:
         """Process video file through complete extraction and transcription pipeline.
 
         Args:
@@ -117,7 +117,9 @@ class AudioProcessingPipeline:
                 return None
 
             # Step 3: Generate analysis
-            self._generate_analysis(transcription_result, output_dir, video_file.stem, analysis_style)
+            self._generate_analysis(
+                transcription_result, output_dir, video_file.stem, analysis_style
+            )
 
             # Step 4: Save results
             self._save_pipeline_results(
@@ -136,9 +138,7 @@ class AudioProcessingPipeline:
         finally:
             self._cleanup_temp_files()
 
-    def _extract_audio_from_video(
-        self, video_file: Path, quality: AudioQuality
-    ) -> Optional[Path]:
+    def _extract_audio_from_video(self, video_file: Path, quality: AudioQuality) -> Path | None:
         """Extract audio from video file.
 
         Args:
@@ -164,7 +164,7 @@ class AudioProcessingPipeline:
 
     def _transcribe_audio_file(
         self, audio_path: Path, provider: str, language: str
-    ) -> Optional[TranscriptionResult]:
+    ) -> TranscriptionResult | None:
         """Transcribe audio file to text.
 
         Args:
@@ -252,7 +252,7 @@ class AudioProcessingPipeline:
             logger.info(f"Audio saved to: {final_audio_path}")
 
     # ---------------------- Async Progress-Enabled API ----------------------
-    async def process_file(self, input_path: str, output_dir: str, **kwargs) -> Dict[str, Any]:
+    async def process_file(self, input_path: str, output_dir: str, **kwargs) -> dict[str, Any]:
         """Async processing with rich progress.
 
         This method performs extraction → transcription → analysis while emitting
@@ -368,7 +368,9 @@ class AudioProcessingPipeline:
 
             # Persist a debug dump for post-mortem analysis
             try:
-                import json, traceback as _tb
+                import json
+                import traceback as _tb
+
                 debug_dump = {
                     "error": str(e),
                     "traceback": _tb.format_exc(),
@@ -517,7 +519,7 @@ class AudioProcessingPipeline:
         self,
         audio_source: str,
         output_dir: Path,
-        markdown_options: Dict[str, Any],
+        markdown_options: dict[str, Any],
     ) -> Path:
         """Process audio and export as markdown transcript.
 
@@ -536,7 +538,7 @@ class AudioProcessingPipeline:
         service = TranscriptionService()
         provider_opt = markdown_options.get("provider")
         provider_name = None if (not provider_opt or provider_opt == "auto") else provider_opt
-        transcript: Optional[TranscriptionResult] = await service.transcribe_async(
+        transcript: TranscriptionResult | None = await service.transcribe_async(
             Path(audio_source),
             provider_name=provider_name,
             language=markdown_options.get("language", "en"),

@@ -7,11 +7,11 @@ import json
 import logging
 import subprocess
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable
 
+from ..utils.file_validation import safe_validate_media_file
 from .audio_extraction import AudioExtractor, AudioQuality
 from .ffmpeg_core import build_extract_commands
-from ..utils.file_validation import safe_validate_media_file
 
 logger = logging.getLogger(__name__)
 
@@ -22,10 +22,10 @@ class AsyncAudioExtractor(AudioExtractor):
     async def extract_audio_async(
         self,
         input_path: Path,
-        output_path: Optional[Path] = None,
+        output_path: Path | None = None,
         quality: AudioQuality = AudioQuality.SPEECH,
-        progress_callback: Optional[Callable[[int, int], None]] = None,
-    ) -> Optional[Path]:
+        progress_callback: Callable[[int, int], None] | None = None,
+    ) -> Path | None:
         """Extract audio from video using specified quality preset with async progress tracking.
 
         Args:
@@ -38,10 +38,7 @@ class AsyncAudioExtractor(AudioExtractor):
             Path to extracted audio file, or None if extraction failed
         """
         # Validate input video file (for audio extraction)
-        validated_path = safe_validate_media_file(
-            input_path, 
-            max_file_size=self.MAX_FILE_SIZE
-        )
+        validated_path = safe_validate_media_file(input_path, max_file_size=self.MAX_FILE_SIZE)
         if validated_path is None:
             return None
         input_path = validated_path
@@ -88,8 +85,14 @@ class AsyncAudioExtractor(AudioExtractor):
                 logger.error("Audio extraction completed but output file not found")
                 return None
 
-        except (subprocess.CalledProcessError, subprocess.TimeoutExpired,
-                FileNotFoundError, PermissionError, OSError, ValueError) as e:
+        except (
+            subprocess.CalledProcessError,
+            subprocess.TimeoutExpired,
+            FileNotFoundError,
+            PermissionError,
+            OSError,
+            ValueError,
+        ) as e:
             # Error already logged by individual operations
             logger.error(f"Async audio extraction failed: {e}")
             return None
@@ -97,12 +100,12 @@ class AsyncAudioExtractor(AudioExtractor):
         finally:
             # Cleanup possible temp file from SPEECH pipeline
             try:
-                if 'temp_path' in locals() and temp_path and temp_path.exists():
+                if "temp_path" in locals() and temp_path and temp_path.exists():
                     temp_path.unlink()
             except Exception:
                 pass
 
-    async def _get_video_duration(self, video_path: str) -> Optional[float]:
+    async def _get_video_duration(self, video_path: str) -> float | None:
         """Get video duration in seconds using ffprobe."""
         try:
             cmd = [
@@ -136,7 +139,7 @@ class AsyncAudioExtractor(AudioExtractor):
         self,
         ffmpeg_args: list,
         total_duration: float,
-        progress_callback: Optional[Callable[[int, int], None]],
+        progress_callback: Callable[[int, int], None] | None,
         stage: str = "Processing",
     ):
         """Run FFmpeg and parse progress output."""

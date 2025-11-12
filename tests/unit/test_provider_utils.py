@@ -2,7 +2,7 @@
 
 Tests cover initialization, configuration, and availability checking with edge cases.
 """
-import importlib
+
 import logging
 from unittest.mock import MagicMock, Mock, patch
 
@@ -107,9 +107,7 @@ class TestProviderInitializerGetCircuitBreakerConfig:
             expected_exception_types=(ValueError, RuntimeError),
         )
 
-        result = ProviderInitializer.get_circuit_breaker_config(
-            custom_config, "test_provider"
-        )
+        result = ProviderInitializer.get_circuit_breaker_config(custom_config, "test_provider")
 
         assert result is custom_config
         assert result.failure_threshold == 10
@@ -161,9 +159,7 @@ class TestProviderInitializerInitializeProviderConfigs:
 
     def test_initialize_provider_configs_with_custom_circuit_config(self) -> None:
         """Test initialization with custom circuit breaker config."""
-        custom_circuit = CircuitBreakerConfig(
-            failure_threshold=8, recovery_timeout=90.0
-        )
+        custom_circuit = CircuitBreakerConfig(failure_threshold=8, recovery_timeout=90.0)
 
         retry_config, circuit_config = ProviderInitializer.initialize_provider_configs(
             "test_provider", circuit_config=custom_circuit
@@ -224,10 +220,7 @@ class TestProviderAvailabilityCheckerCheckImport:
             "test_provider dependencies not installed" in record.message
             for record in caplog.records
         )
-        assert any(
-            "pip install nonexistent-package" in record.message
-            for record in caplog.records
-        )
+        assert any("pip install nonexistent-package" in record.message for record in caplog.records)
 
     def test_check_import_module_exists_but_class_not_found(self) -> None:
         """Test when module exists but expected class doesn't match."""
@@ -243,13 +236,10 @@ class TestProviderAvailabilityCheckerCheckImport:
     def test_check_import_logs_success(self, caplog) -> None:
         """Test that successful import logs debug message."""
         with caplog.at_level(logging.DEBUG):
-            ProviderAvailabilityChecker.check_import(
-                "json", "json", "test_provider"
-            )
+            ProviderAvailabilityChecker.check_import("json", "json", "test_provider")
 
         assert any(
-            "test_provider dependencies available" in record.message
-            for record in caplog.records
+            "test_provider dependencies available" in record.message for record in caplog.records
         )
 
     def test_check_import_includes_error_in_warning(self, caplog) -> None:
@@ -267,10 +257,7 @@ class TestProviderAvailabilityCheckerCheckImport:
             assert is_available is False
 
             # Verify error message is in logs
-            assert any(
-                "Specific import error" in record.message
-                for record in caplog.records
-            )
+            assert any("Specific import error" in record.message for record in caplog.records)
 
     def test_check_import_successful_with_class(self) -> None:
         """Test successful import when class exists in module."""
@@ -284,9 +271,7 @@ class TestProviderAvailabilityCheckerCheckImport:
             mock_import.return_value = mock_module
 
             is_available, imported_class = ProviderAvailabilityChecker.check_import(
-                "src.utils.retry.RetryConfig",
-                "retry-package",
-                "test_provider"
+                "src.utils.retry.RetryConfig", "retry-package", "test_provider"
             )
 
             assert is_available is True
@@ -302,9 +287,7 @@ class TestProviderAvailabilityCheckerCheckImport:
             mock_import.return_value = mock_module
 
             is_available, imported_class = ProviderAvailabilityChecker.check_import(
-                "package.subpackage.module.ClassName",
-                "package-name",
-                "test_provider"
+                "package.subpackage.module.ClassName", "package-name", "test_provider"
             )
 
             assert is_available is True
@@ -323,9 +306,7 @@ class TestProviderAvailabilityCheckerCheckImport:
 
             # Try to import "some.module.ExpectedClass"
             is_available, imported_class = ProviderAvailabilityChecker.check_import(
-                "some.module.ExpectedClass",
-                "some-package",
-                "test_provider"
+                "some.module.ExpectedClass", "some-package", "test_provider"
             )
 
             # Module import succeeds, but class extraction returns None
@@ -369,9 +350,7 @@ class TestInitializeProviderWithDefaults:
         mock_instance = MagicMock()
         mock_provider_class.return_value = mock_instance
 
-        result = initialize_provider_with_defaults(
-            mock_provider_class, "test_provider"
-        )
+        result = initialize_provider_with_defaults(mock_provider_class, "test_provider")
 
         assert result is mock_instance
         mock_provider_class.assert_called_once()
@@ -478,9 +457,7 @@ class TestInitializeProviderWithDefaults:
         assert call_kwargs["circuit_config"] is custom_circuit
         assert call_kwargs["extra_param"] == "extra_value"
 
-    def test_initialize_provider_with_defaults_logs_initialization(
-        self, caplog
-    ) -> None:
+    def test_initialize_provider_with_defaults_logs_initialization(self, caplog) -> None:
         """Test that initialization logs info message."""
         mock_provider_class = Mock()
         mock_provider_class.return_value = MagicMock()
@@ -489,8 +466,7 @@ class TestInitializeProviderWithDefaults:
             initialize_provider_with_defaults(mock_provider_class, "test_provider")
 
         assert any(
-            "Initializing test_provider provider" in record.message
-            for record in caplog.records
+            "Initializing test_provider provider" in record.message for record in caplog.records
         )
 
     def test_initialize_provider_with_defaults_api_key_none_not_passed(self) -> None:
@@ -538,9 +514,7 @@ class TestInitializeProviderWithDefaults:
         mock_provider_class.side_effect = ValueError("Invalid configuration")
 
         with pytest.raises(ValueError) as exc_info:
-            initialize_provider_with_defaults(
-                mock_provider_class, "test_provider"
-            )
+            initialize_provider_with_defaults(mock_provider_class, "test_provider")
 
         assert "Invalid configuration" in str(exc_info.value)
 
@@ -551,9 +525,7 @@ class TestInitializeProviderWithDefaults:
         mock_provider_class.return_value = mock_instance
 
         # Explicitly pass empty kwargs
-        result = initialize_provider_with_defaults(
-            mock_provider_class, "test_provider", **{}
-        )
+        result = initialize_provider_with_defaults(mock_provider_class, "test_provider", **{})
 
         assert result is mock_instance
         call_kwargs = mock_provider_class.call_args[1]
@@ -594,9 +566,7 @@ class TestProviderUtilsIntegration:
     def test_full_provider_initialization_workflow(self) -> None:
         """Test complete workflow: check import, ensure available, initialize."""
         # Step 1: Check if dependencies are available (using real module)
-        is_available, _ = ProviderAvailabilityChecker.check_import(
-            "json", "json", "test_provider"
-        )
+        is_available, _ = ProviderAvailabilityChecker.check_import("json", "json", "test_provider")
 
         # Step 2: Ensure available
         ProviderAvailabilityChecker.ensure_available(is_available, "test_provider")
@@ -618,9 +588,7 @@ class TestProviderUtilsIntegration:
     def test_custom_configs_flow_through_initialization(self) -> None:
         """Test that custom configs flow correctly through initialization."""
         custom_retry = RetryConfig(max_attempts=8, base_delay=5.0)
-        custom_circuit = CircuitBreakerConfig(
-            failure_threshold=20, recovery_timeout=180.0
-        )
+        custom_circuit = CircuitBreakerConfig(failure_threshold=20, recovery_timeout=180.0)
 
         mock_provider_class = Mock()
         mock_instance = MagicMock()

@@ -10,25 +10,21 @@ Tests cover:
 - Report generation and saving
 - Error handling and edge cases
 """
-import pytest
+
 import json
-import tempfile
 import subprocess
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock, mock_open
+import tempfile
 from argparse import Namespace
-import time
-import sys
+from pathlib import Path
+from unittest.mock import Mock, patch
+
+import pytest
 
 # Import the module to test
-from .run_e2e_tests import (
-    E2ETestRunner,
-    TestSuiteResult,
-    E2ETestReport
-)
-
+from .run_e2e_tests import E2ETestReport, E2ETestRunner, TestSuiteResult
 
 # ==================== Fixtures ====================
+
 
 @pytest.fixture
 def mock_args():
@@ -42,7 +38,7 @@ def mock_args():
         verbose=False,
         generate_test_data=False,
         real_api_keys=False,
-        keep_artifacts=False
+        keep_artifacts=False,
     )
 
 
@@ -63,6 +59,7 @@ def runner_with_temp_dir(mock_args, temp_output_dir):
 
 # ==================== Data Class Tests ====================
 
+
 class TestDataClasses:
     """Test the dataclass structures."""
 
@@ -74,7 +71,7 @@ class TestDataClasses:
             duration=10.5,
             tests_passed=50,
             tests_failed=0,
-            tests_skipped=2
+            tests_skipped=2,
         )
 
         assert result.suite_name == "unit"
@@ -95,7 +92,7 @@ class TestDataClasses:
             tests_passed=10,
             tests_failed=3,
             tests_skipped=0,
-            error_message="Test timeout"
+            error_message="Test timeout",
         )
 
         assert result.success is False
@@ -105,7 +102,7 @@ class TestDataClasses:
         """Test E2ETestReport can be created."""
         suite_results = [
             TestSuiteResult("unit", True, 10.0, 50, 0, 2),
-            TestSuiteResult("integration", True, 15.0, 30, 0, 1)
+            TestSuiteResult("integration", True, 15.0, 30, 0, 1),
         ]
 
         report = E2ETestReport(
@@ -114,7 +111,7 @@ class TestDataClasses:
             total_duration=1500.0,
             environment_info={"python_version": "3.10.0"},
             suite_results=suite_results,
-            overall_success=True
+            overall_success=True,
         )
 
         assert report.overall_success is True
@@ -123,6 +120,7 @@ class TestDataClasses:
 
 
 # ==================== Initialization Tests ====================
+
 
 class TestE2ETestRunnerInit:
     """Test E2ETestRunner initialization."""
@@ -169,6 +167,7 @@ class TestE2ETestRunnerInit:
 
 # ==================== Logging Tests ====================
 
+
 class TestLogging:
     """Test logging setup and configuration."""
 
@@ -192,10 +191,11 @@ class TestLogging:
 
 # ==================== Environment Validation Tests ====================
 
+
 class TestEnvironmentValidation:
     """Test environment validation functionality."""
 
-    @patch('tests.e2e.run_e2e_tests.E2ETestRunner.check_tool_available')
+    @patch("tests.e2e.run_e2e_tests.E2ETestRunner.check_tool_available")
     def test_validate_environment_success(self, mock_check_tool, runner_with_temp_dir):
         """Test successful environment validation."""
         mock_check_tool.return_value = True
@@ -207,7 +207,7 @@ class TestEnvironmentValidation:
         assert "python_version" in runner.environment_info
         assert "platform" in runner.environment_info
 
-    @patch('tests.e2e.run_e2e_tests.E2ETestRunner.check_tool_available')
+    @patch("tests.e2e.run_e2e_tests.E2ETestRunner.check_tool_available")
     def test_validate_environment_missing_tool(self, mock_check_tool, runner_with_temp_dir):
         """Test environment validation fails with missing tool."""
         # ffmpeg not available
@@ -219,22 +219,23 @@ class TestEnvironmentValidation:
         assert result is False
         assert len(runner.environment_info.get("validation_errors", [])) > 0
 
-    @patch('sys.version_info', (3, 7, 0))  # Python 3.7
+    @patch("sys.version_info", (3, 7, 0))  # Python 3.7
     def test_validate_environment_old_python(self, runner_with_temp_dir):
         """Test environment validation fails with old Python version."""
         runner = runner_with_temp_dir
 
         # Note: This test may not work as expected due to sys.version_info patching limitations
         # Just checking the logic exists
-        assert hasattr(runner, 'validate_environment')
+        assert hasattr(runner, "validate_environment")
 
 
 # ==================== Tool Checking Tests ====================
 
+
 class TestToolChecking:
     """Test tool availability checking."""
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_check_tool_available_success(self, mock_run, runner_with_temp_dir):
         """Test checking available tool."""
         mock_run.return_value = Mock(returncode=0)
@@ -245,7 +246,7 @@ class TestToolChecking:
         assert result is True
         mock_run.assert_called_once()
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_check_tool_available_not_found(self, mock_run, runner_with_temp_dir):
         """Test checking unavailable tool."""
         mock_run.side_effect = FileNotFoundError()
@@ -255,7 +256,7 @@ class TestToolChecking:
 
         assert result is False
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_check_tool_available_timeout(self, mock_run, runner_with_temp_dir):
         """Test tool check with timeout."""
         mock_run.side_effect = subprocess.TimeoutExpired("cmd", 10)
@@ -265,7 +266,7 @@ class TestToolChecking:
 
         assert result is False
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_get_tool_version_success(self, mock_run, runner_with_temp_dir):
         """Test getting tool version successfully."""
         mock_run.return_value = Mock(returncode=0, stdout="pytest 7.4.0\n")
@@ -275,7 +276,7 @@ class TestToolChecking:
 
         assert version == "pytest 7.4.0"
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_get_tool_version_failure(self, mock_run, runner_with_temp_dir):
         """Test getting tool version failure."""
         mock_run.side_effect = FileNotFoundError()
@@ -288,17 +289,15 @@ class TestToolChecking:
 
 # ==================== Test Data Setup Tests ====================
 
+
 class TestTestDataSetup:
     """Test test data setup functionality."""
 
-    @patch('tests.e2e.run_e2e_tests.TestDataManager')
+    @patch("tests.e2e.run_e2e_tests.TestDataManager")
     def test_setup_test_data_success(self, mock_tdm_class, runner_with_temp_dir):
         """Test successful test data setup."""
         mock_tdm = Mock()
-        mock_tdm.validate_test_files.return_value = {
-            "audio_file": True,
-            "video_file": True
-        }
+        mock_tdm.validate_test_files.return_value = {"audio_file": True, "video_file": True}
         mock_tdm_class.return_value = mock_tdm
 
         runner = runner_with_temp_dir
@@ -306,7 +305,7 @@ class TestTestDataSetup:
 
         assert result is True
 
-    @patch('tests.e2e.run_e2e_tests.TestDataManager')
+    @patch("tests.e2e.run_e2e_tests.TestDataManager")
     def test_setup_test_data_no_valid_files(self, mock_tdm_class, runner_with_temp_dir):
         """Test test data setup fails with no valid files."""
         mock_tdm = Mock()
@@ -318,7 +317,7 @@ class TestTestDataSetup:
 
         assert result is False
 
-    @patch('tests.e2e.run_e2e_tests.TestDataManager')
+    @patch("tests.e2e.run_e2e_tests.TestDataManager")
     def test_setup_test_data_with_generation(self, mock_tdm_class, mock_args, temp_output_dir):
         """Test test data setup with file generation."""
         mock_args.output_dir = str(temp_output_dir)
@@ -327,12 +326,9 @@ class TestTestDataSetup:
         mock_tdm = Mock()
         mock_tdm.generate_all_test_files.return_value = {
             "audio": "/path/to/audio.mp3",
-            "video": "/path/to/video.mp4"
+            "video": "/path/to/video.mp4",
         }
-        mock_tdm.validate_test_files.return_value = {
-            "audio": True,
-            "video": True
-        }
+        mock_tdm.validate_test_files.return_value = {"audio": True, "video": True}
         mock_tdm_class.return_value = mock_tdm
 
         runner = E2ETestRunner(mock_args)
@@ -344,25 +340,20 @@ class TestTestDataSetup:
 
 # ==================== Test Suite Execution Tests ====================
 
+
 class TestTestSuiteExecution:
     """Test test suite execution."""
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_run_test_suite_success(self, mock_run, runner_with_temp_dir, temp_output_dir):
         """Test successful test suite execution."""
         # Mock successful pytest run
         mock_run.return_value = Mock(returncode=0, stderr="")
 
         # Create mock JSON report
-        report_data = {
-            "summary": {
-                "passed": 10,
-                "failed": 0,
-                "skipped": 2
-            }
-        }
+        report_data = {"summary": {"passed": 10, "failed": 0, "skipped": 2}}
         report_file = temp_output_dir / "unit_report.json"
-        with open(report_file, 'w') as f:
+        with open(report_file, "w") as f:
             json.dump(report_data, f)
 
         runner = runner_with_temp_dir
@@ -375,22 +366,16 @@ class TestTestSuiteExecution:
         assert result.tests_failed == 0
         assert result.tests_skipped == 2
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_run_test_suite_failure(self, mock_run, runner_with_temp_dir, temp_output_dir):
         """Test failed test suite execution."""
         # Mock failed pytest run
         mock_run.return_value = Mock(returncode=1, stderr="Test failures")
 
         # Create mock JSON report with failures
-        report_data = {
-            "summary": {
-                "passed": 5,
-                "failed": 3,
-                "skipped": 0
-            }
-        }
+        report_data = {"summary": {"passed": 5, "failed": 3, "skipped": 0}}
         report_file = temp_output_dir / "unit_report.json"
-        with open(report_file, 'w') as f:
+        with open(report_file, "w") as f:
             json.dump(report_data, f)
 
         runner = runner_with_temp_dir
@@ -402,7 +387,7 @@ class TestTestSuiteExecution:
         assert result.tests_failed == 3
         assert result.error_message is not None
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_run_test_suite_timeout(self, mock_run, runner_with_temp_dir):
         """Test test suite execution timeout."""
         mock_run.side_effect = subprocess.TimeoutExpired("cmd", 300)
@@ -415,7 +400,7 @@ class TestTestSuiteExecution:
         assert result.success is False
         assert "timed out" in result.error_message.lower()
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_run_test_suite_with_coverage(self, mock_run, mock_args, temp_output_dir):
         """Test test suite execution with coverage enabled."""
         mock_args.output_dir = str(temp_output_dir)
@@ -424,19 +409,19 @@ class TestTestSuiteExecution:
 
         # Create mock report
         report_file = temp_output_dir / "unit_report.json"
-        with open(report_file, 'w') as f:
+        with open(report_file, "w") as f:
             json.dump({"summary": {"passed": 10, "failed": 0, "skipped": 0}}, f)
 
         runner = E2ETestRunner(mock_args)
         suite_config = runner.test_suites["unit"]
 
-        result = runner.run_test_suite("unit", suite_config)
+        runner.run_test_suite("unit", suite_config)
 
         # Check that coverage arguments were added
         call_args = mock_run.call_args[0][0]
         assert any("--cov" in arg for arg in call_args)
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_run_test_suite_with_parallel(self, mock_run, mock_args, temp_output_dir):
         """Test test suite execution with parallel enabled."""
         mock_args.output_dir = str(temp_output_dir)
@@ -445,19 +430,19 @@ class TestTestSuiteExecution:
 
         # Create mock report
         report_file = temp_output_dir / "unit_report.json"
-        with open(report_file, 'w') as f:
+        with open(report_file, "w") as f:
             json.dump({"summary": {"passed": 10, "failed": 0, "skipped": 0}}, f)
 
         runner = E2ETestRunner(mock_args)
         suite_config = runner.test_suites["unit"]
 
-        result = runner.run_test_suite("unit", suite_config)
+        runner.run_test_suite("unit", suite_config)
 
         # Check that parallel arguments were added
         call_args = mock_run.call_args[0][0]
         assert "-n" in call_args
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_run_test_suite_environment_variables(self, mock_run, mock_args, temp_output_dir):
         """Test test suite sets correct environment variables."""
         mock_args.output_dir = str(temp_output_dir)
@@ -467,22 +452,22 @@ class TestTestSuiteExecution:
 
         # Create mock report
         report_file = temp_output_dir / "unit_report.json"
-        with open(report_file, 'w') as f:
+        with open(report_file, "w") as f:
             json.dump({"summary": {"passed": 10, "failed": 0, "skipped": 0}}, f)
 
         runner = E2ETestRunner(mock_args)
         suite_config = runner.test_suites["unit"]
 
-        result = runner.run_test_suite("unit", suite_config)
+        runner.run_test_suite("unit", suite_config)
 
         # Verify environment variables were set
-        call_env = mock_run.call_args[1]['env']
+        call_env = mock_run.call_args[1]["env"]
         assert call_env.get("TEST_MODE") == "true"
         assert call_env.get("LOG_LEVEL") == "DEBUG"
         assert call_env.get("DEEPGRAM_API_KEY") == "test_deepgram_key_for_mocking"
         assert call_env.get("ELEVENLABS_API_KEY") == "test_elevenlabs_key_for_mocking"
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_run_test_suite_real_api_keys(self, mock_run, mock_args, temp_output_dir):
         """Test test suite with real API keys enabled."""
         mock_args.output_dir = str(temp_output_dir)
@@ -491,38 +476,32 @@ class TestTestSuiteExecution:
 
         # Create mock report
         report_file = temp_output_dir / "unit_report.json"
-        with open(report_file, 'w') as f:
+        with open(report_file, "w") as f:
             json.dump({"summary": {"passed": 10, "failed": 0, "skipped": 0}}, f)
 
         runner = E2ETestRunner(mock_args)
         suite_config = runner.test_suites["unit"]
 
-        result = runner.run_test_suite("unit", suite_config)
+        runner.run_test_suite("unit", suite_config)
 
         # Verify mock API keys were NOT set
-        call_env = mock_run.call_args[1]['env']
+        call_env = mock_run.call_args[1]["env"]
         # Should use environment's actual keys, not mock ones
         assert call_env.get("DEEPGRAM_API_KEY") != "test_deepgram_key_for_mocking"
 
 
 # ==================== JSON Report Parsing Tests ====================
 
+
 class TestJSONReportParsing:
     """Test pytest JSON report parsing."""
 
     def test_parse_valid_report(self, runner_with_temp_dir, temp_output_dir):
         """Test parsing valid pytest JSON report."""
-        report_data = {
-            "summary": {
-                "passed": 15,
-                "failed": 2,
-                "skipped": 3,
-                "error": 1
-            }
-        }
+        report_data = {"summary": {"passed": 15, "failed": 2, "skipped": 3, "error": 1}}
 
         report_file = temp_output_dir / "test_report.json"
-        with open(report_file, 'w') as f:
+        with open(report_file, "w") as f:
             json.dump(report_data, f)
 
         runner = runner_with_temp_dir
@@ -547,7 +526,7 @@ class TestJSONReportParsing:
     def test_parse_invalid_json(self, runner_with_temp_dir, temp_output_dir):
         """Test parsing invalid JSON report."""
         report_file = temp_output_dir / "invalid.json"
-        with open(report_file, 'w') as f:
+        with open(report_file, "w") as f:
             f.write("{ invalid json }")
 
         runner = runner_with_temp_dir
@@ -559,15 +538,14 @@ class TestJSONReportParsing:
 
 # ==================== Run All Suites Tests ====================
 
+
 class TestRunAllSuites:
     """Test running all test suites."""
 
-    @patch.object(E2ETestRunner, 'run_test_suite')
+    @patch.object(E2ETestRunner, "run_test_suite")
     def test_run_all_suites_success(self, mock_run_suite, runner_with_temp_dir):
         """Test running all suites successfully."""
-        mock_run_suite.return_value = TestSuiteResult(
-            "test", True, 10.0, 10, 0, 0
-        )
+        mock_run_suite.return_value = TestSuiteResult("test", True, 10.0, 10, 0, 0)
 
         runner = runner_with_temp_dir
         result = runner.run_all_suites()
@@ -575,14 +553,12 @@ class TestRunAllSuites:
         assert result is True
         assert len(runner.suite_results) == len(runner.test_suites)
 
-    @patch.object(E2ETestRunner, 'run_test_suite')
+    @patch.object(E2ETestRunner, "run_test_suite")
     def test_run_single_suite(self, mock_run_suite, mock_args, temp_output_dir):
         """Test running a single suite."""
         mock_args.output_dir = str(temp_output_dir)
         mock_args.suite = "unit"
-        mock_run_suite.return_value = TestSuiteResult(
-            "unit", True, 10.0, 10, 0, 0
-        )
+        mock_run_suite.return_value = TestSuiteResult("unit", True, 10.0, 10, 0, 0)
 
         runner = E2ETestRunner(mock_args)
         result = runner.run_all_suites()
@@ -591,7 +567,7 @@ class TestRunAllSuites:
         assert len(runner.suite_results) == 1
         assert runner.suite_results[0].suite_name == "unit"
 
-    @patch.object(E2ETestRunner, 'run_test_suite')
+    @patch.object(E2ETestRunner, "run_test_suite")
     def test_run_suites_with_failure(self, mock_run_suite, runner_with_temp_dir):
         """Test running suites with failures."""
         # First suite fails, rest succeed
@@ -614,16 +590,14 @@ class TestRunAllSuites:
         assert result is False  # Overall failure
         assert len(runner.suite_results) == 3
 
-    @patch.object(E2ETestRunner, 'run_test_suite')
+    @patch.object(E2ETestRunner, "run_test_suite")
     def test_run_suites_fail_fast(self, mock_run_suite, mock_args, temp_output_dir):
         """Test fail-fast behavior on critical failure."""
         mock_args.output_dir = str(temp_output_dir)
         mock_args.fail_fast = True
 
         # First critical suite fails
-        mock_run_suite.return_value = TestSuiteResult(
-            "unit", False, 10.0, 0, 10, 0
-        )
+        mock_run_suite.return_value = TestSuiteResult("unit", False, 10.0, 0, 10, 0)
 
         runner = E2ETestRunner(mock_args)
         result = runner.run_all_suites()
@@ -632,8 +606,10 @@ class TestRunAllSuites:
         # Should stop after first critical failure
         assert mock_run_suite.call_count == 1
 
-    @patch.object(E2ETestRunner, 'run_test_suite')
-    def test_run_suites_mixed_critical_noncritical_failures(self, mock_run_suite, runner_with_temp_dir):
+    @patch.object(E2ETestRunner, "run_test_suite")
+    def test_run_suites_mixed_critical_noncritical_failures(
+        self, mock_run_suite, runner_with_temp_dir
+    ):
         """Test handling of mixed critical and non-critical suite failures."""
         # Unit (critical) passes, performance (non-critical) fails, integration (critical) passes
         mock_run_suite.side_effect = [
@@ -642,7 +618,7 @@ class TestRunAllSuites:
             TestSuiteResult("cli", True, 20.0, 15, 0, 0),
             TestSuiteResult("provider", True, 12.0, 25, 0, 3),
             TestSuiteResult("performance", False, 30.0, 5, 10, 0),  # Non-critical failure
-            TestSuiteResult("security", True, 18.0, 20, 0, 1)
+            TestSuiteResult("security", True, 18.0, 20, 0, 1),
         ]
 
         runner = runner_with_temp_dir
@@ -653,14 +629,17 @@ class TestRunAllSuites:
         # But should run all suites since performance is not critical
         assert len(runner.suite_results) == 6
 
-    @patch.object(E2ETestRunner, 'run_test_suite')
-    def test_run_suites_non_critical_failure_no_fail_fast(self, mock_run_suite, mock_args, temp_output_dir):
+    @patch.object(E2ETestRunner, "run_test_suite")
+    def test_run_suites_non_critical_failure_no_fail_fast(
+        self, mock_run_suite, mock_args, temp_output_dir
+    ):
         """Test non-critical failures don't trigger fail-fast."""
         mock_args.output_dir = str(temp_output_dir)
         mock_args.fail_fast = True
 
         # Simulate performance (non-critical) failing, then unit (critical) passing
         results = []
+
         def mock_run_side_effect(suite_name, suite_config):
             if suite_name == "performance":
                 result = TestSuiteResult("performance", False, 20.0, 5, 10, 0)
@@ -680,6 +659,7 @@ class TestRunAllSuites:
 
 # ==================== Report Generation Tests ====================
 
+
 class TestReportGeneration:
     """Test report generation and saving."""
 
@@ -690,7 +670,7 @@ class TestReportGeneration:
         # Add some mock results
         runner.suite_results = [
             TestSuiteResult("unit", True, 10.0, 50, 0, 2),
-            TestSuiteResult("integration", True, 15.0, 30, 0, 1)
+            TestSuiteResult("integration", True, 15.0, 30, 0, 1),
         ]
 
         report = runner.generate_report()
@@ -706,7 +686,7 @@ class TestReportGeneration:
 
         runner.suite_results = [
             TestSuiteResult("unit", True, 10.0, 50, 0, 2),
-            TestSuiteResult("integration", False, 15.0, 25, 5, 1)
+            TestSuiteResult("integration", False, 15.0, 25, 5, 1),
         ]
 
         report = runner.generate_report()
@@ -722,10 +702,8 @@ class TestReportGeneration:
             end_time="2025-01-01 10:30:00",
             total_duration=1800.0,
             environment_info={"python_version": "3.10.0"},
-            suite_results=[
-                TestSuiteResult("unit", True, 10.0, 50, 0, 2)
-            ],
-            overall_success=True
+            suite_results=[TestSuiteResult("unit", True, 10.0, 50, 0, 2)],
+            overall_success=True,
         )
 
         runner.save_report(report)
@@ -737,13 +715,14 @@ class TestReportGeneration:
         assert text_file.exists()
 
         # Verify JSON content
-        with open(json_file, 'r') as f:
+        with open(json_file) as f:
             data = json.load(f)
             assert data["overall_success"] is True
             assert len(data["suite_results"]) == 1
 
 
 # ==================== Cleanup Tests ====================
+
 
 class TestCleanup:
     """Test cleanup functionality."""
@@ -767,16 +746,24 @@ class TestCleanup:
 
 # ==================== Main Run Method Tests ====================
 
+
 class TestMainRun:
     """Test the main run method."""
 
-    @patch.object(E2ETestRunner, 'validate_environment')
-    @patch.object(E2ETestRunner, 'setup_test_data')
-    @patch.object(E2ETestRunner, 'run_all_suites')
-    @patch.object(E2ETestRunner, 'save_report')
-    @patch.object(E2ETestRunner, 'cleanup')
-    def test_run_success(self, mock_cleanup, mock_save, mock_run_suites,
-                        mock_setup, mock_validate, runner_with_temp_dir):
+    @patch.object(E2ETestRunner, "validate_environment")
+    @patch.object(E2ETestRunner, "setup_test_data")
+    @patch.object(E2ETestRunner, "run_all_suites")
+    @patch.object(E2ETestRunner, "save_report")
+    @patch.object(E2ETestRunner, "cleanup")
+    def test_run_success(
+        self,
+        mock_cleanup,
+        mock_save,
+        mock_run_suites,
+        mock_setup,
+        mock_validate,
+        runner_with_temp_dir,
+    ):
         """Test successful full run."""
         mock_validate.return_value = True
         mock_setup.return_value = True
@@ -792,8 +779,8 @@ class TestMainRun:
         mock_save.assert_called_once()
         mock_cleanup.assert_called_once()
 
-    @patch.object(E2ETestRunner, 'validate_environment')
-    @patch.object(E2ETestRunner, 'cleanup')
+    @patch.object(E2ETestRunner, "validate_environment")
+    @patch.object(E2ETestRunner, "cleanup")
     def test_run_validation_failure(self, mock_cleanup, mock_validate, runner_with_temp_dir):
         """Test run fails on validation failure."""
         mock_validate.return_value = False
@@ -804,11 +791,12 @@ class TestMainRun:
         assert result is False
         mock_cleanup.assert_called_once()
 
-    @patch.object(E2ETestRunner, 'validate_environment')
-    @patch.object(E2ETestRunner, 'setup_test_data')
-    @patch.object(E2ETestRunner, 'cleanup')
-    def test_run_data_setup_failure(self, mock_cleanup, mock_setup,
-                                   mock_validate, runner_with_temp_dir):
+    @patch.object(E2ETestRunner, "validate_environment")
+    @patch.object(E2ETestRunner, "setup_test_data")
+    @patch.object(E2ETestRunner, "cleanup")
+    def test_run_data_setup_failure(
+        self, mock_cleanup, mock_setup, mock_validate, runner_with_temp_dir
+    ):
         """Test run fails on data setup failure."""
         mock_validate.return_value = True
         mock_setup.return_value = False
@@ -819,11 +807,12 @@ class TestMainRun:
         assert result is False
         mock_cleanup.assert_called_once()
 
-    @patch.object(E2ETestRunner, 'validate_environment')
-    @patch.object(E2ETestRunner, 'run_all_suites')
-    @patch.object(E2ETestRunner, 'cleanup')
-    def test_run_keyboard_interrupt(self, mock_cleanup, mock_run_suites,
-                                   mock_validate, runner_with_temp_dir):
+    @patch.object(E2ETestRunner, "validate_environment")
+    @patch.object(E2ETestRunner, "run_all_suites")
+    @patch.object(E2ETestRunner, "cleanup")
+    def test_run_keyboard_interrupt(
+        self, mock_cleanup, mock_run_suites, mock_validate, runner_with_temp_dir
+    ):
         """Test run handles KeyboardInterrupt gracefully."""
         mock_validate.return_value = True
         mock_run_suites.side_effect = KeyboardInterrupt()
@@ -834,11 +823,12 @@ class TestMainRun:
         assert result is False
         mock_cleanup.assert_called_once()
 
-    @patch.object(E2ETestRunner, 'validate_environment')
-    @patch.object(E2ETestRunner, 'run_all_suites')
-    @patch.object(E2ETestRunner, 'cleanup')
-    def test_run_unexpected_exception(self, mock_cleanup, mock_run_suites,
-                                     mock_validate, runner_with_temp_dir):
+    @patch.object(E2ETestRunner, "validate_environment")
+    @patch.object(E2ETestRunner, "run_all_suites")
+    @patch.object(E2ETestRunner, "cleanup")
+    def test_run_unexpected_exception(
+        self, mock_cleanup, mock_run_suites, mock_validate, runner_with_temp_dir
+    ):
         """Test run handles unexpected exceptions."""
         mock_validate.return_value = True
         mock_run_suites.side_effect = RuntimeError("Unexpected error")
@@ -849,11 +839,12 @@ class TestMainRun:
         assert result is False
         mock_cleanup.assert_called_once()
 
-    @patch.object(E2ETestRunner, 'validate_environment')
-    @patch.object(E2ETestRunner, 'run_all_suites')
-    @patch.object(E2ETestRunner, 'cleanup')
-    def test_run_verbose_exception_traceback(self, mock_cleanup, mock_run_suites,
-                                            mock_validate, mock_args, temp_output_dir):
+    @patch.object(E2ETestRunner, "validate_environment")
+    @patch.object(E2ETestRunner, "run_all_suites")
+    @patch.object(E2ETestRunner, "cleanup")
+    def test_run_verbose_exception_traceback(
+        self, mock_cleanup, mock_run_suites, mock_validate, mock_args, temp_output_dir
+    ):
         """Test run shows traceback in verbose mode on exception."""
         mock_args.output_dir = str(temp_output_dir)
         mock_args.verbose = True
@@ -869,6 +860,7 @@ class TestMainRun:
 
 # ==================== Print Summary Tests ====================
 
+
 class TestPrintSummary:
     """Test summary printing."""
 
@@ -883,9 +875,9 @@ class TestPrintSummary:
             environment_info={"python_version": "3.10.0"},
             suite_results=[
                 TestSuiteResult("unit", True, 10.0, 50, 0, 2),
-                TestSuiteResult("integration", False, 15.0, 25, 5, 1)
+                TestSuiteResult("integration", False, 15.0, 25, 5, 1),
             ],
-            overall_success=False
+            overall_success=False,
         )
 
         runner.print_summary(report)
@@ -906,7 +898,7 @@ class TestPrintSummary:
             total_duration=100.0,
             environment_info={"python_version": "3.10.0"},
             suite_results=[],
-            overall_success=True
+            overall_success=True,
         )
 
         runner.print_summary(report)
@@ -926,9 +918,9 @@ class TestPrintSummary:
             environment_info={"python_version": "3.10.0"},
             suite_results=[
                 TestSuiteResult("unit", True, 10.0, 100, 0, 0),
-                TestSuiteResult("integration", True, 15.0, 50, 0, 0)
+                TestSuiteResult("integration", True, 15.0, 50, 0, 0),
             ],
-            overall_success=True
+            overall_success=True,
         )
 
         runner.print_summary(report)
@@ -941,6 +933,7 @@ class TestPrintSummary:
 
 
 # ==================== Edge Cases and Error Handling ====================
+
 
 class TestEdgeCases:
     """Test edge cases and error handling."""
@@ -964,7 +957,7 @@ class TestEdgeCases:
         assert report.overall_success is True  # No failures = success
         assert len(report.suite_results) == 0
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_run_test_suite_unexpected_exception(self, mock_run, runner_with_temp_dir):
         """Test handling of unexpected exceptions during suite run."""
         mock_run.side_effect = RuntimeError("Unexpected error")
@@ -977,8 +970,10 @@ class TestEdgeCases:
         assert result.success is False
         assert "Unexpected error" in result.error_message
 
-    @patch('subprocess.run')
-    def test_run_test_suite_no_parallel_for_non_unit_integration(self, mock_run, mock_args, temp_output_dir):
+    @patch("subprocess.run")
+    def test_run_test_suite_no_parallel_for_non_unit_integration(
+        self, mock_run, mock_args, temp_output_dir
+    ):
         """Test parallel execution is not applied to non-unit/integration suites."""
         mock_args.output_dir = str(temp_output_dir)
         mock_args.parallel = True
@@ -986,13 +981,13 @@ class TestEdgeCases:
 
         # Create mock report
         report_file = temp_output_dir / "performance_report.json"
-        with open(report_file, 'w') as f:
+        with open(report_file, "w") as f:
             json.dump({"summary": {"passed": 10, "failed": 0, "skipped": 0}}, f)
 
         runner = E2ETestRunner(mock_args)
         suite_config = runner.test_suites["performance"]
 
-        result = runner.run_test_suite("performance", suite_config)
+        runner.run_test_suite("performance", suite_config)
 
         # Check that parallel arguments were NOT added
         call_args = mock_run.call_args[0][0]
@@ -1000,17 +995,10 @@ class TestEdgeCases:
 
     def test_parse_report_with_error_count(self, runner_with_temp_dir, temp_output_dir):
         """Test parsing report with error count."""
-        report_data = {
-            "summary": {
-                "passed": 10,
-                "failed": 2,
-                "skipped": 1,
-                "error": 3
-            }
-        }
+        report_data = {"summary": {"passed": 10, "failed": 2, "skipped": 1, "error": 3}}
 
         report_file = temp_output_dir / "test_report.json"
-        with open(report_file, 'w') as f:
+        with open(report_file, "w") as f:
             json.dump(report_data, f)
 
         runner = runner_with_temp_dir
@@ -1032,13 +1020,15 @@ class TestEdgeCases:
             environment_info={
                 "python_version": "3.10.0",
                 "platform": "linux",
-                "validation_errors": []
+                "validation_errors": [],
             },
             suite_results=[
                 TestSuiteResult("unit", True, 10.0, 50, 0, 2),
-                TestSuiteResult("integration", False, 15.0, 25, 5, 1, error_message="Test failures")
+                TestSuiteResult(
+                    "integration", False, 15.0, 25, 5, 1, error_message="Test failures"
+                ),
             ],
-            overall_success=False
+            overall_success=False,
         )
 
         runner.save_report(report)
@@ -1046,7 +1036,7 @@ class TestEdgeCases:
         text_file = temp_output_dir / "e2e_test_report.txt"
         assert text_file.exists()
 
-        with open(text_file, 'r') as f:
+        with open(text_file) as f:
             content = f.read()
             assert "AUDIO-EXTRACTION-ANALYSIS E2E TEST REPORT" in content
             assert "python_version: 3.10.0" in content

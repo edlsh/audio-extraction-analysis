@@ -110,7 +110,7 @@ def test_full_analyzer_returns_correct_paths(tmp_path):
     assert "key_insights" in paths
 
     # Verify all paths are Path objects and exist
-    for key, path in paths.items():
+    for _key, path in paths.items():
         assert isinstance(path, type(tmp_path))
         assert path.exists()
 
@@ -202,7 +202,9 @@ def test_approx_timestamp_for_sentence_helper():
 
     utterances = [
         TranscriptionUtterance(speaker=0, start=5.0, end=15.0, text="This is the first utterance."),
-        TranscriptionUtterance(speaker=1, start=20.0, end=30.0, text="This is the second utterance."),
+        TranscriptionUtterance(
+            speaker=1, start=20.0, end=30.0, text="This is the second utterance."
+        ),
     ]
 
     # Test matching sentence
@@ -258,9 +260,15 @@ def test_chapter_percentage_calculation(tmp_path):
     result = _make_basic_result()
     result.duration = 100.0
     result.chapters = [
-        TranscriptionChapter(start_time=0.0, end_time=25.0, topics=["intro"], confidence_scores=[0.9]),
-        TranscriptionChapter(start_time=25.0, end_time=75.0, topics=["main"], confidence_scores=[0.8]),
-        TranscriptionChapter(start_time=75.0, end_time=100.0, topics=["outro"], confidence_scores=[0.7]),
+        TranscriptionChapter(
+            start_time=0.0, end_time=25.0, topics=["intro"], confidence_scores=[0.9]
+        ),
+        TranscriptionChapter(
+            start_time=25.0, end_time=75.0, topics=["main"], confidence_scores=[0.8]
+        ),
+        TranscriptionChapter(
+            start_time=75.0, end_time=100.0, topics=["outro"], confidence_scores=[0.7]
+        ),
     ]
 
     analyzer = FullAnalyzer()
@@ -278,9 +286,15 @@ def test_speaker_statistics_in_transcript(tmp_path):
     result = _make_basic_result()
     result.duration = 100.0
     result.utterances = [
-        TranscriptionUtterance(speaker=0, start=0.0, end=40.0, text="Speaker 1 talks for 40 seconds."),
-        TranscriptionUtterance(speaker=1, start=40.0, end=60.0, text="Speaker 2 talks for 20 seconds."),
-        TranscriptionUtterance(speaker=0, start=60.0, end=100.0, text="Speaker 1 talks for another 40."),
+        TranscriptionUtterance(
+            speaker=0, start=0.0, end=40.0, text="Speaker 1 talks for 40 seconds."
+        ),
+        TranscriptionUtterance(
+            speaker=1, start=40.0, end=60.0, text="Speaker 2 talks for 20 seconds."
+        ),
+        TranscriptionUtterance(
+            speaker=0, start=60.0, end=100.0, text="Speaker 1 talks for another 40."
+        ),
     ]
 
     analyzer = FullAnalyzer()
@@ -333,7 +347,9 @@ def test_insights_with_timestamps(tmp_path):
     result = _make_basic_result()
     result.transcript = "We should implement the new feature. The team will review it."
     result.utterances = [
-        TranscriptionUtterance(speaker=0, start=10.0, end=15.0, text="We should implement the new feature."),
+        TranscriptionUtterance(
+            speaker=0, start=10.0, end=15.0, text="We should implement the new feature."
+        ),
         TranscriptionUtterance(speaker=1, start=20.0, end=25.0, text="The team will review it."),
     ]
 

@@ -15,11 +15,11 @@ Provider-specific size limits:
 - ElevenLabs: 50MB
 - Deepgram: 2GB
 """
+
 from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Optional, Set
 
 from .sanitization import PathSanitizer
 
@@ -37,20 +37,21 @@ class ValidationError(Exception):
     allowing calling code to catch a single exception type while still having
     access to the underlying cause via exception chaining.
     """
+
     pass
 
 
 class FileValidator:
     """Centralized file validation utilities."""
-    
+
     # Common audio/video extensions
-    AUDIO_EXTENSIONS = {'.wav', '.mp3', '.flac', '.aac', '.ogg', '.m4a', '.wma'}
-    VIDEO_EXTENSIONS = {'.mp4', '.avi', '.mov', '.mkv', '.webm', '.flv', '.wmv', '.m4v', '.3gp'}
+    AUDIO_EXTENSIONS = {".wav", ".mp3", ".flac", ".aac", ".ogg", ".m4a", ".wma"}
+    VIDEO_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv", ".webm", ".flv", ".wmv", ".m4v", ".3gp"}
     MEDIA_EXTENSIONS = AUDIO_EXTENSIONS | VIDEO_EXTENSIONS
-    
+
     # Default size limits
     DEFAULT_MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024  # 2GB
-    
+
     @classmethod
     def _check_file_existence(cls, file_path: Path) -> None:
         """Check if file exists.
@@ -65,7 +66,7 @@ class FileValidator:
             raise FileNotFoundError(f"File not found: {file_path}")
 
     @classmethod
-    def _check_file_extension(cls, file_path: Path, allowed_extensions: Set[str]) -> None:
+    def _check_file_extension(cls, file_path: Path, allowed_extensions: set[str]) -> None:
         """Check if file extension is allowed.
 
         Args:
@@ -94,9 +95,7 @@ class FileValidator:
         """
         file_size = file_path.stat().st_size
         if file_size > max_size:
-            raise ValueError(
-                f"File size {file_size:,} bytes exceeds maximum {max_size:,} bytes"
-            )
+            raise ValueError(f"File size {file_size:,} bytes exceeds maximum {max_size:,} bytes")
 
     @classmethod
     def _check_file_type(cls, file_path: Path) -> None:
@@ -126,7 +125,7 @@ class FileValidator:
             PermissionError: If file cannot be read
         """
         try:
-            with open(file_path, 'rb'):
+            with open(file_path, "rb"):
                 pass
         except PermissionError as e:
             raise PermissionError(f"Cannot read file: {file_path}") from e
@@ -136,8 +135,8 @@ class FileValidator:
         cls,
         file_path: Path,
         must_exist: bool = True,
-        allowed_extensions: Optional[Set[str]] = None,
-        max_size: Optional[int] = None
+        allowed_extensions: set[str] | None = None,
+        max_size: int | None = None,
     ) -> None:
         """Validate a file path with comprehensive checks.
 
@@ -170,7 +169,7 @@ class FileValidator:
         # Size check (requires file to exist)
         if must_exist and max_size is not None:
             cls._check_file_size(file_path, max_size)
-    
+
     @classmethod
     def validate_path_security(cls, file_path: Path) -> None:
         """Validate a path for security issues.
@@ -183,10 +182,10 @@ class FileValidator:
         """
         # Delegate to PathSanitizer for consistency
         PathSanitizer.validate_path_security(file_path)
-    
+
     @classmethod
     def validate_audio_file(
-        cls, file_path: Path, max_file_size: Optional[int] = None, must_exist: bool = True
+        cls, file_path: Path, max_file_size: int | None = None, must_exist: bool = True
     ) -> None:
         """Validate an audio file path.
 
@@ -205,9 +204,9 @@ class FileValidator:
             max_size=max_file_size or cls.DEFAULT_MAX_FILE_SIZE,
             must_exist=must_exist,
         )
-    
+
     @classmethod
-    def validate_video_file(cls, file_path: Path, max_file_size: Optional[int] = None) -> None:
+    def validate_video_file(cls, file_path: Path, max_file_size: int | None = None) -> None:
         """Validate a video file path.
 
         Args:
@@ -224,19 +223,15 @@ class FileValidator:
             max_size=max_file_size or cls.DEFAULT_MAX_FILE_SIZE,
             must_exist=True,
         )
-    
+
     @classmethod
-    def validate_media_file(
-        cls,
-        file_path: Path,
-        max_size: Optional[int] = None
-    ) -> None:
+    def validate_media_file(cls, file_path: Path, max_size: int | None = None) -> None:
         """Validate a media file (audio or video).
-        
+
         Args:
             file_path: Path to media file
             max_size: Maximum file size in bytes (default: 2GB)
-            
+
         Raises:
             FileNotFoundError: If file doesn't exist
             ValueError: If not a valid media file
@@ -245,61 +240,55 @@ class FileValidator:
             file_path,
             must_exist=True,
             allowed_extensions=cls.MEDIA_EXTENSIONS,
-            max_size=max_size or cls.DEFAULT_MAX_FILE_SIZE
+            max_size=max_size or cls.DEFAULT_MAX_FILE_SIZE,
         )
-    
+
     @classmethod
     def validate_output_path(
-        cls,
-        output_path: Path,
-        force: bool = False,
-        create_parents: bool = True
+        cls, output_path: Path, force: bool = False, create_parents: bool = True
     ) -> None:
         """Validate an output file path.
-        
+
         Args:
             output_path: Path for output file
             force: Whether to allow overwriting existing files
             create_parents: Whether to create parent directories
-            
+
         Raises:
             ValueError: If output path is invalid
             FileExistsError: If file exists and force is False
         """
         output_path = Path(output_path)
-        
+
         # Security validation
         PathSanitizer.validate_path_security(output_path)
-        
+
         # Check if file exists
         if output_path.exists() and not force:
             raise FileExistsError(
-                f"Output file already exists: {output_path}. "
-                "Use force=True to overwrite."
+                f"Output file already exists: {output_path}. Use force=True to overwrite."
             )
-        
+
         # Create parent directories if needed
         if create_parents:
             output_path.parent.mkdir(parents=True, exist_ok=True)
         elif not output_path.parent.exists():
             raise ValueError(f"Output directory does not exist: {output_path.parent}")
-        
+
         # Check write permissions on parent directory
         if not output_path.parent.is_dir():
             raise ValueError(f"Parent path is not a directory: {output_path.parent}")
-            
+
         # Test write permissions
         test_file = output_path.parent / f".write_test_{output_path.name}"
         try:
             test_file.touch()
             test_file.unlink()
         except (PermissionError, OSError) as e:
-            raise PermissionError(
-                f"Cannot write to directory: {output_path.parent}"
-            ) from e
-    
+            raise PermissionError(f"Cannot write to directory: {output_path.parent}") from e
+
     @classmethod
-    def is_valid_extension(cls, file_path: Path, extensions: Set[str]) -> bool:
+    def is_valid_extension(cls, file_path: Path, extensions: set[str]) -> bool:
         """Check if a file has a valid extension.
 
         Args:
@@ -331,36 +320,36 @@ class FileValidator:
 
 class ConfigValidator:
     """Validation for configuration values."""
-    
+
     @staticmethod
     def validate_positive_number(value: float, name: str) -> None:
         """Validate that a value is a positive number.
-        
+
         Args:
             value: Value to validate
             name: Name of the parameter for error messages
-            
+
         Raises:
             ValueError: If value is not positive
         """
         if value <= 0:
             raise ValueError(f"{name} must be positive, got {value}")
-    
+
     @staticmethod
     def validate_range(
         value: float,
-        min_val: Optional[float] = None,
-        max_val: Optional[float] = None,
-        name: str = "Value"
+        min_val: float | None = None,
+        max_val: float | None = None,
+        name: str = "Value",
     ) -> None:
         """Validate that a value is within a range.
-        
+
         Args:
             value: Value to validate
             min_val: Minimum allowed value (inclusive)
             max_val: Maximum allowed value (inclusive)
             name: Name of the parameter for error messages
-            
+
         Raises:
             ValueError: If value is outside the range
         """
@@ -368,23 +357,21 @@ class ConfigValidator:
             raise ValueError(f"{name} must be at least {min_val}, got {value}")
         if max_val is not None and value > max_val:
             raise ValueError(f"{name} must be at most {max_val}, got {value}")
-    
+
     @staticmethod
-    def validate_enum(value: str, allowed: Set[str], name: str = "Value") -> None:
+    def validate_enum(value: str, allowed: set[str], name: str = "Value") -> None:
         """Validate that a value is in an allowed set.
-        
+
         Args:
             value: Value to validate
             allowed: Set of allowed values
             name: Name of the parameter for error messages
-            
+
         Raises:
             ValueError: If value is not in allowed set
         """
         if value not in allowed:
-            raise ValueError(
-                f"{name} must be one of {sorted(allowed)}, got '{value}'"
-            )
+            raise ValueError(f"{name} must be one of {sorted(allowed)}, got '{value}'")
 
 
 # Convenience functions for backward compatibility
@@ -398,7 +385,7 @@ def validate_output_path(output_path: Path, **kwargs) -> None:
     FileValidator.validate_output_path(output_path, **kwargs)
 
 
-def _get_provider_size_limit(provider_name: str) -> Optional[int]:
+def _get_provider_size_limit(provider_name: str) -> int | None:
     """Get provider-specific file size limit.
 
     This function returns known size limits for audio processing providers.
@@ -423,16 +410,14 @@ def _get_provider_size_limit(provider_name: str) -> Optional[int]:
     # Provider-specific size limits based on official API documentation
     # These limits are enforced by the respective services
     provider_limits = {
-        'elevenlabs': 50 * 1024 * 1024,  # 50MB - ElevenLabs API limit
-        'deepgram': 2 * 1024 * 1024 * 1024,  # 2GB - Deepgram API limit
+        "elevenlabs": 50 * 1024 * 1024,  # 50MB - ElevenLabs API limit
+        "deepgram": 2 * 1024 * 1024 * 1024,  # 2GB - Deepgram API limit
     }
     return provider_limits.get(provider_name.lower())
 
 
 def _handle_validation_exception(
-    e: Exception,
-    file_path: Path | str,
-    file_type: str = 'audio'
+    e: Exception, file_path: Path | str, file_type: str = "audio"
 ) -> None:
     """Handle validation exceptions with appropriate logging and error wrapping.
 
@@ -470,9 +455,7 @@ def _handle_validation_exception(
 
 
 def validate_audio_file(
-    audio_file_path: Path | str,
-    max_file_size: Optional[int] = None,
-    provider_name: Optional[str] = None
+    audio_file_path: Path | str, max_file_size: int | None = None, provider_name: str | None = None
 ) -> Path:
     """Validate an audio file exists and is accessible.
 
@@ -520,22 +503,18 @@ def validate_audio_file(
             max_file_size = _get_provider_size_limit(provider_name)
 
         # Use existing FileValidator for comprehensive validation
-        FileValidator.validate_audio_file(
-            file_path,
-            max_file_size=max_file_size,
-            must_exist=True
-        )
+        FileValidator.validate_audio_file(file_path, max_file_size=max_file_size, must_exist=True)
 
         return file_path
 
     except Exception as e:
-        _handle_validation_exception(e, audio_file_path, 'audio')
+        _handle_validation_exception(e, audio_file_path, "audio")
 
 
 def validate_media_file(
     media_file_path: Path | str,
-    max_file_size: Optional[int] = None,
-    max_size: Optional[int] = None  # Alias for backward compatibility
+    max_file_size: int | None = None,
+    max_size: int | None = None,  # Alias for backward compatibility
 ) -> Path:
     """Validate a media file (audio or video) exists and is accessible.
 
@@ -574,21 +553,17 @@ def validate_media_file(
             max_file_size = max_size
 
         # Use existing FileValidator for comprehensive validation
-        FileValidator.validate_media_file(
-            file_path,
-            max_size=max_file_size
-        )
+        FileValidator.validate_media_file(file_path, max_size=max_file_size)
 
         return file_path
 
     except Exception as e:
-        _handle_validation_exception(e, media_file_path, 'media')
+        _handle_validation_exception(e, media_file_path, "media")
 
 
 def safe_validate_media_file(
-    media_file_path: Path | str,
-    max_file_size: Optional[int] = None
-) -> Optional[Path]:
+    media_file_path: Path | str, max_file_size: int | None = None
+) -> Path | None:
     """Safe wrapper for media file validation that returns None instead of raising exceptions.
 
     This function provides a None-returning interface for media file validation,
@@ -628,10 +603,8 @@ def safe_validate_media_file(
 
 
 def safe_validate_audio_file(
-    audio_file_path: Path | str,
-    max_file_size: Optional[int] = None,
-    provider_name: Optional[str] = None
-) -> Optional[Path]:
+    audio_file_path: Path | str, max_file_size: int | None = None, provider_name: str | None = None
+) -> Path | None:
     """Safe wrapper for audio file validation that returns None instead of raising exceptions.
 
     This function provides a None-returning interface for audio file validation,

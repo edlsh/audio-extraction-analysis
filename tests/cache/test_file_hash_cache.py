@@ -7,10 +7,11 @@ by caching file hashes based on (path, mtime, size) metadata.
 
 from __future__ import annotations
 
-import pytest
 import tempfile
 import time
 from pathlib import Path
+
+import pytest
 
 from src.cache.transcription_cache import CacheKey
 
@@ -28,7 +29,7 @@ class TestFileHashCache:
     @pytest.fixture
     def temp_file(self) -> Path:
         """Create a temporary file for testing."""
-        with tempfile.NamedTemporaryFile(mode='wb', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="wb", delete=False) as f:
             f.write(b"Test content for hash caching" * 1000)
             temp_path = Path(f.name)
 
@@ -49,6 +50,7 @@ class TestFileHashCache:
 
         # Verify cache contains entry
         import os
+
         stat = os.stat(temp_file)
         cache_key = (str(temp_file), stat.st_mtime, stat.st_size)
         assert cache_key in CacheKey._file_hash_cache, "Hash should be cached"
@@ -60,7 +62,7 @@ class TestFileHashCache:
 
         # Modify file content
         time.sleep(0.01)  # Ensure mtime changes
-        with open(temp_file, 'ab') as f:
+        with open(temp_file, "ab") as f:
             f.write(b"Modified content")
 
         # Hash should be different after modification
@@ -69,7 +71,6 @@ class TestFileHashCache:
         assert hash1 != hash2, "Hash should change when content changes"
 
         # Both hashes should be in cache (different cache keys due to mtime/size change)
-        import os
         assert len(CacheKey._file_hash_cache) >= 1, "Cache should contain entries"
 
     def test_hash_cache_invalidation_on_size_change(self, temp_file: Path):
@@ -80,7 +81,7 @@ class TestFileHashCache:
 
         # Modify file size
         time.sleep(0.01)
-        with open(temp_file, 'ab') as f:
+        with open(temp_file, "ab") as f:
             f.write(b"X" * 100)
 
         new_size = temp_file.stat().st_size
@@ -109,7 +110,7 @@ class TestFileHashCache:
         # Create multiple temp files and hash them
         temp_files = [temp_file]
         for _ in range(3):
-            with tempfile.NamedTemporaryFile(mode='wb', delete=False) as f:
+            with tempfile.NamedTemporaryFile(mode="wb", delete=False) as f:
                 f.write(b"Test content")
                 temp_path = Path(f.name)
                 temp_files.append(temp_path)
@@ -148,7 +149,7 @@ class TestFileHashCache:
         assert hash1 == hash2, "Hashes should match"
 
         # Cached should be significantly faster (at least 10x for even small files)
-        speedup = time_uncached / time_cached if time_cached > 0 else float('inf')
+        speedup = time_uncached / time_cached if time_cached > 0 else float("inf")
         assert speedup > 10, f"Cache should provide >10x speedup, got {speedup:.1f}x"
 
     def test_hash_cache_with_cache_key_from_file(self, temp_file: Path):
@@ -163,6 +164,7 @@ class TestFileHashCache:
 
         # Hash cache should have exactly one entry for this file
         import os
+
         stat = os.stat(temp_file)
         cache_key = (str(temp_file), stat.st_mtime, stat.st_size)
         assert cache_key in CacheKey._file_hash_cache, "Hash should be cached"
@@ -183,11 +185,11 @@ class TestFileHashCache:
     def test_multiple_files_different_cache_keys(self):
         """Test that different files have different cache keys."""
         # Create two different temp files
-        with tempfile.NamedTemporaryFile(mode='wb', delete=False) as f1:
+        with tempfile.NamedTemporaryFile(mode="wb", delete=False) as f1:
             f1.write(b"Content 1")
             file1 = Path(f1.name)
 
-        with tempfile.NamedTemporaryFile(mode='wb', delete=False) as f2:
+        with tempfile.NamedTemporaryFile(mode="wb", delete=False) as f2:
             f2.write(b"Content 2")
             file2 = Path(f2.name)
 

@@ -7,15 +7,16 @@ to ensure they work correctly and provide accurate performance measurements.
 
 from __future__ import annotations
 
-import pytest
+# Import functions to test from the benchmark script
+import sys
 import tempfile
 from pathlib import Path
 
-# Import functions to test from the benchmark script
-import sys
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from benchmark_hash_cache import create_test_file, benchmark_hash_performance
+from benchmark_hash_cache import benchmark_hash_performance, create_test_file
 from src.cache.transcription_cache import CacheKey
 
 
@@ -34,9 +35,9 @@ class TestCreateTestFile:
             actual_size = test_file.stat().st_size
             expected_size = size_mb * 1024 * 1024
 
-            assert actual_size == expected_size, (
-                f"File size should be {expected_size} bytes, got {actual_size}"
-            )
+            assert (
+                actual_size == expected_size
+            ), f"File size should be {expected_size} bytes, got {actual_size}"
         finally:
             test_file.unlink(missing_ok=True)
 
@@ -47,11 +48,11 @@ class TestCreateTestFile:
 
         try:
             # Read first chunk and verify it's filled with 'A'
-            with open(test_file, 'rb') as f:
+            with open(test_file, "rb") as f:
                 first_kb = f.read(1024)
-                assert all(byte == ord('A') for byte in first_kb), (
-                    "File should be filled with 'A' characters"
-                )
+                assert all(
+                    byte == ord("A") for byte in first_kb
+                ), "File should be filled with 'A' characters"
         finally:
             test_file.unlink(missing_ok=True)
 
@@ -79,9 +80,9 @@ class TestCreateTestFile:
 
                 actual_size = test_file.stat().st_size
                 expected_size = size_mb * 1024 * 1024
-                assert actual_size == expected_size, (
-                    f"File size for {size_mb}MB should be {expected_size}, got {actual_size}"
-                )
+                assert (
+                    actual_size == expected_size
+                ), f"File size for {size_mb}MB should be {expected_size}, got {actual_size}"
         finally:
             for f in files:
                 f.unlink(missing_ok=True)
@@ -109,7 +110,7 @@ class TestBenchmarkHashPerformance:
     @pytest.fixture
     def test_file(self) -> Path:
         """Create a small test file for benchmarking."""
-        with tempfile.NamedTemporaryFile(mode='wb', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="wb", delete=False) as f:
             f.write(b"A" * (1024 * 1024))  # 1MB file
             temp_path = Path(f.name)
 
@@ -144,18 +145,16 @@ class TestBenchmarkHashPerformance:
         """Test that cache provides speedup (cached should be faster)."""
         uncached, cached, speedup = benchmark_hash_performance(test_file, iterations=5)
 
-        assert speedup > 1.0, (
-            f"Cache should provide speedup, got {speedup:.2f}x"
-        )
+        assert speedup > 1.0, f"Cache should provide speedup, got {speedup:.2f}x"
 
     def test_speedup_calculation_correct(self, test_file: Path):
         """Test that speedup is correctly calculated as uncached/cached."""
         uncached, cached, speedup = benchmark_hash_performance(test_file, iterations=3)
 
-        expected_speedup = uncached / cached if cached > 0 else float('inf')
-        assert abs(speedup - expected_speedup) < 0.01, (
-            f"Speedup should be {expected_speedup:.2f}, got {speedup:.2f}"
-        )
+        expected_speedup = uncached / cached if cached > 0 else float("inf")
+        assert (
+            abs(speedup - expected_speedup) < 0.01
+        ), f"Speedup should be {expected_speedup:.2f}, got {speedup:.2f}"
 
     def test_with_single_iteration(self, test_file: Path):
         """Test benchmark with just 1 iteration."""
@@ -200,9 +199,9 @@ class TestBenchmarkHashPerformance:
         """Test that cached operations are faster than uncached."""
         uncached, cached, speedup = benchmark_hash_performance(test_file, iterations=5)
 
-        assert cached < uncached, (
-            f"Cached time ({cached:.6f}s) should be faster than uncached ({uncached:.6f}s)"
-        )
+        assert (
+            cached < uncached
+        ), f"Cached time ({cached:.6f}s) should be faster than uncached ({uncached:.6f}s)"
 
     def test_with_larger_file(self):
         """Test benchmark with a larger file (5MB)."""
@@ -249,11 +248,11 @@ class TestBenchmarkIntegration:
     def test_cache_isolation_between_files(self):
         """Test that cache correctly handles different files."""
         # Create files with different content to ensure different hashes
-        with tempfile.NamedTemporaryFile(mode='wb', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="wb", delete=False) as f:
             f.write(b"A" * (1024 * 1024))  # 1MB of 'A'
             file1 = Path(f.name)
 
-        with tempfile.NamedTemporaryFile(mode='wb', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="wb", delete=False) as f:
             f.write(b"B" * (1024 * 1024))  # 1MB of 'B'
             file2 = Path(f.name)
 
@@ -307,7 +306,6 @@ class TestBenchmarkMain:
         import benchmark_hash_cache
 
         # Patch the test_sizes to use smaller values for faster testing
-        original_main_code = benchmark_hash_cache.main.__code__
 
         def patched_main():
             """Patched version of main with smaller test sizes."""
@@ -339,7 +337,9 @@ class TestBenchmarkMain:
                     print(f"  Cached (avg of 3):    {cached * 1000:8.2f} ms")
                     print(f"  Speedup:              {speedup:8.1f}x")
                     print(f"  Chunk reads saved:    {chunks_saved:,.0f}")
-                    print(f"  I/O eliminated:       ~{chunks_saved * chunk_size / (1024**2):.1f} MB")
+                    print(
+                        f"  I/O eliminated:       ~{chunks_saved * chunk_size / (1024**2):.1f} MB"
+                    )
                     print()
 
                 finally:
@@ -354,7 +354,7 @@ class TestBenchmarkMain:
             print("=" * 80)
 
         # Temporarily replace main with patched version
-        monkeypatch.setattr(benchmark_hash_cache, 'main', patched_main)
+        monkeypatch.setattr(benchmark_hash_cache, "main", patched_main)
 
         # Run the patched main
         benchmark_hash_cache.main()
@@ -366,11 +366,10 @@ class TestBenchmarkMain:
 
     def test_main_output_format(self, capsys):
         """Test that main produces expected output format."""
-        from benchmark_hash_cache import main
         import benchmark_hash_cache
 
         # Temporarily replace test_sizes in the module
-        original_code = benchmark_hash_cache.__dict__.get('main')
+        benchmark_hash_cache.__dict__.get("main")
 
         def quick_main():
             """Quick version of main for testing output."""
@@ -382,7 +381,7 @@ class TestBenchmarkMain:
             test_file = create_test_file(1)
             try:
                 uncached, cached, speedup = benchmark_hash_performance(test_file, iterations=2)
-                print(f"Testing 1MB file...")
+                print("Testing 1MB file...")
                 print(f"  Uncached (1st call):  {uncached * 1000:8.2f} ms")
                 print(f"  Cached (avg of 2):    {cached * 1000:8.2f} ms")
                 print(f"  Speedup:              {speedup:8.1f}x")

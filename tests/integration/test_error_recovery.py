@@ -6,11 +6,12 @@ This module tests:
 - Partial failure handling in batch operations
 - Resource cleanup on errors
 """
+
 from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -22,10 +23,7 @@ class TestNetworkFailureSimulation:
 
     @pytest.mark.asyncio
     async def test_subprocess_timeout_handling(
-        self,
-        sample_audio_mp3: Path,
-        tmp_path: Path,
-        caplog
+        self, sample_audio_mp3: Path, tmp_path: Path, caplog
     ):
         """Test handling of subprocess timeouts."""
         import logging
@@ -34,18 +32,14 @@ class TestNetworkFailureSimulation:
         output = tmp_path / "timeout.mp3"
 
         # Mock subprocess to simulate timeout
-        with patch('asyncio.create_subprocess_exec') as mock_exec:
+        with patch("asyncio.create_subprocess_exec") as mock_exec:
             mock_process = AsyncMock()
-            mock_process.communicate = AsyncMock(
-                side_effect=asyncio.TimeoutError("Test timeout")
-            )
+            mock_process.communicate = AsyncMock(side_effect=asyncio.TimeoutError("Test timeout"))
             mock_exec.return_value = mock_process
 
             with caplog.at_level(logging.ERROR):
                 result = await extractor.extract_audio_async(
-                    sample_audio_mp3,
-                    output,
-                    quality=AudioQuality.STANDARD
+                    sample_audio_mp3, output, quality=AudioQuality.STANDARD
                 )
 
             # Should handle timeout gracefully
@@ -53,26 +47,20 @@ class TestNetworkFailureSimulation:
             assert any("timeout" in record.message.lower() for record in caplog.records)
 
     @pytest.mark.asyncio
-    async def test_process_error_handling(
-        self,
-        sample_audio_mp3: Path,
-        tmp_path: Path
-    ):
+    async def test_process_error_handling(self, sample_audio_mp3: Path, tmp_path: Path):
         """Test handling of process errors."""
         extractor = AsyncAudioExtractor()
         output = tmp_path / "error.mp3"
 
         # Mock subprocess to simulate process error
-        with patch('asyncio.create_subprocess_exec') as mock_exec:
+        with patch("asyncio.create_subprocess_exec") as mock_exec:
             mock_process = AsyncMock()
-            mock_process.communicate = AsyncMock(return_value=(b'', b'Error'))
+            mock_process.communicate = AsyncMock(return_value=(b"", b"Error"))
             mock_process.returncode = 1
             mock_exec.return_value = mock_process
 
-            result = await extractor.extract_audio_async(
-                sample_audio_mp3,
-                output,
-                quality=AudioQuality.STANDARD
+            await extractor.extract_audio_async(
+                sample_audio_mp3, output, quality=AudioQuality.STANDARD
             )
 
             # Should handle error gracefully
@@ -84,10 +72,7 @@ class TestBatchOperationFailures:
 
     @pytest.mark.asyncio
     async def test_partial_batch_success(
-        self,
-        sample_audio_mp3: Path,
-        corrupted_audio: Path,
-        tmp_path: Path
+        self, sample_audio_mp3: Path, corrupted_audio: Path, tmp_path: Path
     ):
         """Test batch processing with some failures."""
         extractor = AsyncAudioExtractor()
@@ -113,33 +98,24 @@ class TestBatchOperationFailures:
         failures = [r for r in results if r is None]
 
         assert len(successes) == 3  # 3 valid inputs
-        assert len(failures) == 2   # 2 corrupted inputs
+        assert len(failures) == 2  # 2 corrupted inputs
 
     @pytest.mark.asyncio
     async def test_successful_items_preserved(
-        self,
-        sample_audio_mp3: Path,
-        corrupted_audio: Path,
-        tmp_path: Path
+        self, sample_audio_mp3: Path, corrupted_audio: Path, tmp_path: Path
     ):
         """Verify successful items aren't affected by failures."""
         extractor = AsyncAudioExtractor()
 
         tasks = [
             extractor.extract_audio_async(
-                sample_audio_mp3,
-                tmp_path / "success_1.mp3",
-                AudioQuality.COMPRESSED
+                sample_audio_mp3, tmp_path / "success_1.mp3", AudioQuality.COMPRESSED
             ),
             extractor.extract_audio_async(
-                corrupted_audio,
-                tmp_path / "fail.mp3",
-                AudioQuality.COMPRESSED
+                corrupted_audio, tmp_path / "fail.mp3", AudioQuality.COMPRESSED
             ),
             extractor.extract_audio_async(
-                sample_audio_mp3,
-                tmp_path / "success_2.mp3",
-                AudioQuality.COMPRESSED
+                sample_audio_mp3, tmp_path / "success_2.mp3", AudioQuality.COMPRESSED
             ),
         ]
 
@@ -162,11 +138,7 @@ class TestResourceCleanupOnErrors:
     """Test resource cleanup when errors occur."""
 
     @pytest.mark.asyncio
-    async def test_file_handle_cleanup(
-        self,
-        sample_audio_mp3: Path,
-        tmp_path: Path
-    ):
+    async def test_file_handle_cleanup(self, sample_audio_mp3: Path, tmp_path: Path):
         """Verify file handles closed on errors."""
         import resource
 
@@ -175,16 +147,14 @@ class TestResourceCleanupOnErrors:
 
         # Get initial open file count
         try:
-            initial_fds = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+            resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         except Exception:
             pytest.skip("Resource tracking not available on this platform")
 
         # Process with potential for errors
         for _ in range(5):
             await extractor.extract_audio_async(
-                sample_audio_mp3,
-                output,
-                quality=AudioQuality.COMPRESSED
+                sample_audio_mp3, output, quality=AudioQuality.COMPRESSED
             )
 
         # File descriptor count shouldn't grow significantly
@@ -192,20 +162,14 @@ class TestResourceCleanupOnErrors:
         assert True  # Test completes without resource exhaustion
 
     @pytest.mark.asyncio
-    async def test_temp_file_cleanup_on_error(
-        self,
-        corrupted_audio: Path,
-        tmp_path: Path
-    ):
+    async def test_temp_file_cleanup_on_error(self, corrupted_audio: Path, tmp_path: Path):
         """Verify temp files cleaned up even on errors."""
         extractor = AsyncAudioExtractor()
         output = tmp_path / "error_cleanup.mp3"
 
         # Should fail but clean up
         result = await extractor.extract_audio_async(
-            corrupted_audio,
-            output,
-            quality=AudioQuality.SPEECH
+            corrupted_audio, output, quality=AudioQuality.SPEECH
         )
 
         assert result is None
@@ -215,21 +179,13 @@ class TestResourceCleanupOnErrors:
         assert len(temp_files) == 0
 
     @pytest.mark.asyncio
-    async def test_cleanup_after_cancellation(
-        self,
-        sample_audio_mp3: Path,
-        tmp_path: Path
-    ):
+    async def test_cleanup_after_cancellation(self, sample_audio_mp3: Path, tmp_path: Path):
         """Verify cleanup happens after task cancellation."""
         extractor = AsyncAudioExtractor()
         output = tmp_path / "cancel_cleanup.mp3"
 
         task = asyncio.create_task(
-            extractor.extract_audio_async(
-                sample_audio_mp3,
-                output,
-                quality=AudioQuality.SPEECH
-            )
+            extractor.extract_audio_async(sample_audio_mp3, output, quality=AudioQuality.SPEECH)
         )
 
         await asyncio.sleep(0.1)
@@ -251,12 +207,7 @@ class TestErrorRecoveryLogging:
     """Test error recovery provides good logging."""
 
     @pytest.mark.asyncio
-    async def test_error_context_logged(
-        self,
-        corrupted_audio: Path,
-        tmp_path: Path,
-        caplog
-    ):
+    async def test_error_context_logged(self, corrupted_audio: Path, tmp_path: Path, caplog):
         """Verify errors logged with context."""
         import logging
 
@@ -265,9 +216,7 @@ class TestErrorRecoveryLogging:
 
         with caplog.at_level(logging.INFO):
             await extractor.extract_audio_async(
-                corrupted_audio,
-                output,
-                quality=AudioQuality.STANDARD
+                corrupted_audio, output, quality=AudioQuality.STANDARD
             )
 
         # Should have logged the error
@@ -275,6 +224,6 @@ class TestErrorRecoveryLogging:
         assert len(error_logs) > 0
 
         # Logs should contain useful context
-        log_text = ' '.join(r.message for r in error_logs)
+        log_text = " ".join(r.message for r in error_logs)
         # Should mention file or operation
         assert len(log_text) > 20

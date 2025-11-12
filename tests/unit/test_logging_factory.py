@@ -2,9 +2,6 @@
 
 import logging
 from pathlib import Path
-from unittest.mock import patch
-
-import pytest
 
 from src.utils.logging_factory import LoggingFactory, get_logger
 
@@ -26,7 +23,7 @@ class TestLoggingFactoryInitialize:
         root.setLevel(logging.WARNING)
 
         # Clear logging module's internal flag to allow basicConfig to run
-        if hasattr(logging.root, 'handlers'):
+        if hasattr(logging.root, "handlers"):
             logging.root.handlers = []
 
     def test_initialize_default_settings(self, tmp_path):
@@ -393,7 +390,7 @@ class TestLoggingFactoryIntegration:
         log_dir = tmp_path / "logs"
         LoggingFactory.initialize(log_dir=log_dir, level=logging.INFO)
 
-        logger = LoggingFactory.get_logger("verbose.test")
+        LoggingFactory.get_logger("verbose.test")
 
         # Enable verbose mode
         LoggingFactory.configure_verbose(verbose=True)
@@ -442,7 +439,6 @@ class TestLoggingFactoryIntegration:
         logger = LoggingFactory.get_logger("persist.test")
 
         # Verify logger starts at INFO level (or inherits from parent)
-        initial_level = logger.level
 
         # Set to DEBUG
         LoggingFactory.set_level("persist.test", logging.DEBUG)

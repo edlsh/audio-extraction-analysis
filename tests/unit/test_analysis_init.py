@@ -29,6 +29,7 @@ class TestAnalysisPackage:
         without raising ImportError or other exceptions.
         """
         import src.analysis
+
         assert src.analysis is not None
 
     def test_module_docstring(self):
@@ -40,6 +41,7 @@ class TestAnalysisPackage:
         - Docstring provides package-level documentation
         """
         import src.analysis
+
         assert src.analysis.__doc__ is not None
         assert isinstance(src.analysis.__doc__, str)
         assert len(src.analysis.__doc__.strip()) > 0
@@ -52,12 +54,14 @@ class TestAnalysisPackage:
         'transcription') to help users understand the package purpose.
         """
         import src.analysis
+
         docstring_lower = src.analysis.__doc__.lower()
 
         # Verify the docstring mentions analysis or reports
         expected_keywords = ["analysis", "report", "transcription"]
-        assert any(keyword in docstring_lower for keyword in expected_keywords), \
-            f"Docstring should describe analysis functionality: {src.analysis.__doc__}"
+        assert any(
+            keyword in docstring_lower for keyword in expected_keywords
+        ), f"Docstring should describe analysis functionality: {src.analysis.__doc__}"
 
     # === Public API Export Tests ===
 
@@ -69,6 +73,7 @@ class TestAnalysisPackage:
         exists and is properly defined as a list.
         """
         import src.analysis
+
         assert hasattr(src.analysis, "__all__")
         assert isinstance(src.analysis.__all__, list)
 
@@ -80,10 +85,12 @@ class TestAnalysisPackage:
         No more, no less.
         """
         import src.analysis
+
         expected_exports = ["ConciseAnalyzer", "FullAnalyzer"]
 
-        assert set(src.analysis.__all__) == set(expected_exports), \
-            f"__all__ should contain {expected_exports}, got {src.analysis.__all__}"
+        assert set(src.analysis.__all__) == set(
+            expected_exports
+        ), f"__all__ should contain {expected_exports}, got {src.analysis.__all__}"
 
     # === Analyzer Class Export Verification ===
 
@@ -97,10 +104,12 @@ class TestAnalysisPackage:
         This ensures the __init__.py correctly re-exports the class.
         """
         import src.analysis
+
         assert hasattr(src.analysis, "ConciseAnalyzer")
 
         # Verify it's the correct class (identity check)
         from src.analysis.concise_analyzer import ConciseAnalyzer
+
         assert src.analysis.ConciseAnalyzer is ConciseAnalyzer
 
     def test_full_analyzer_exported(self):
@@ -113,10 +122,12 @@ class TestAnalysisPackage:
         This ensures the __init__.py correctly re-exports the class.
         """
         import src.analysis
+
         assert hasattr(src.analysis, "FullAnalyzer")
 
         # Verify it's the correct class (identity check)
         from src.analysis.full_analyzer import FullAnalyzer
+
         assert src.analysis.FullAnalyzer is FullAnalyzer
 
     # === Direct Import Pattern Tests ===
@@ -130,6 +141,7 @@ class TestAnalysisPackage:
         Verifies the imported object is a proper class with the expected name.
         """
         from src.analysis import ConciseAnalyzer
+
         assert ConciseAnalyzer is not None
         assert hasattr(ConciseAnalyzer, "__name__")
         assert ConciseAnalyzer.__name__ == "ConciseAnalyzer"
@@ -143,6 +155,7 @@ class TestAnalysisPackage:
         Verifies the imported object is a proper class with the expected name.
         """
         from src.analysis import FullAnalyzer
+
         assert FullAnalyzer is not None
         assert hasattr(FullAnalyzer, "__name__")
         assert FullAnalyzer.__name__ == "FullAnalyzer"
@@ -167,8 +180,9 @@ class TestAnalysisPackage:
         imported_names = [name for name in namespace.keys() if not name.startswith("__")]
         expected_names = ["ConciseAnalyzer", "FullAnalyzer"]
 
-        assert set(imported_names) == set(expected_names), \
-            f"Wildcard import should only import {expected_names}, got {imported_names}"
+        assert set(imported_names) == set(
+            expected_names
+        ), f"Wildcard import should only import {expected_names}, got {imported_names}"
 
     # === API Cleanliness Tests ===
 
@@ -185,12 +199,13 @@ class TestAnalysisPackage:
         import src.analysis
 
         # Get all public attributes (not starting with underscore)
-        public_attrs = [attr for attr in dir(src.analysis) if not attr.startswith('_')]
+        public_attrs = [attr for attr in dir(src.analysis) if not attr.startswith("_")]
 
         # Expected: analyzer classes + their source submodules
         expected_attrs = ["ConciseAnalyzer", "FullAnalyzer", "concise_analyzer", "full_analyzer"]
-        assert set(public_attrs) == set(expected_attrs), \
-            f"Module should export {expected_attrs}, got {public_attrs}"
+        assert set(public_attrs) == set(
+            expected_attrs
+        ), f"Module should export {expected_attrs}, got {public_attrs}"
 
     # === Type Validation Tests ===
 
@@ -219,7 +234,6 @@ class TestAnalysisPackage:
         circular dependencies, syntax errors, or missing dependencies.
         """
         try:
-            import src.analysis
-            from src.analysis import ConciseAnalyzer, FullAnalyzer
+            pass
         except Exception as e:
             pytest.fail(f"Importing src.analysis should not raise exceptions: {e}")

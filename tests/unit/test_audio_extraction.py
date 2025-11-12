@@ -208,7 +208,6 @@ class TestAudioExtractor:
                 mock_stat.return_value = stat_result
                 with patch.object(Path, "unlink"):  # Mock temp file cleanup
                     with patch.object(Path, "mkdir"):  # Mock output directory creation
-
                         result = extractor.extract_audio(
                             temp_video_file, output_path, AudioQuality.SPEECH
                         )
@@ -246,7 +245,6 @@ class TestAudioExtractor:
                     stat_result.st_mode = 33188  # Regular file mode
                     mock_stat.return_value = stat_result
                     with patch.object(Path, "mkdir"):
-
                         result = extractor.extract_audio(temp_video_file, output_path, quality)
 
             assert result == output_path
@@ -369,13 +367,13 @@ class TestLegacyFunction:
         # Test patterns that should be rejected (we test the regex, not actual files)
         # These characters could enable command injection or shell manipulation
         dangerous_patterns = [
-            "test;cmd.mp4",      # Command separator
-            "test&cmd.mp4",      # Background execution
-            "test|cmd.mp4",      # Pipe to another command
-            "test`cmd.mp4",      # Command substitution
-            "test$var.mp4",      # Variable expansion
-            "test<in.mp4",       # Input redirection
-            "test>out.mp4",      # Output redirection
+            "test;cmd.mp4",  # Command separator
+            "test&cmd.mp4",  # Background execution
+            "test|cmd.mp4",  # Pipe to another command
+            "test`cmd.mp4",  # Command substitution
+            "test$var.mp4",  # Variable expansion
+            "test<in.mp4",  # Input redirection
+            "test>out.mp4",  # Output redirection
         ]
 
         import re

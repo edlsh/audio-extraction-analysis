@@ -21,13 +21,13 @@ Testing Modes:
 Note: Real provider tests require valid API keys set in environment variables:
 DEEPGRAM_API_KEY, ELEVENLABS_API_KEY
 """
-import pytest
+
 import os
-from unittest.mock import patch, Mock, MagicMock
-from pathlib import Path
+from unittest.mock import Mock, patch
+
+import pytest
 
 from .base import E2ETestBase, MockProviderMixin
-from .test_data_manager import TestDataManager
 
 
 class TestProviderFactory(E2ETestBase, MockProviderMixin):
@@ -55,7 +55,7 @@ class TestProviderFactory(E2ETestBase, MockProviderMixin):
 
         # Clear provider factory state between tests to ensure isolation
         self._clear_factory_state()
-    
+
     def _clear_factory_state(self):
         """
         Clear any cached state in the provider factory.
@@ -69,17 +69,18 @@ class TestProviderFactory(E2ETestBase, MockProviderMixin):
         """
         try:
             from src.providers.factory import TranscriptionProviderFactory
+
             # Clear cached provider configuration
-            if hasattr(TranscriptionProviderFactory, '_configured_providers'):
+            if hasattr(TranscriptionProviderFactory, "_configured_providers"):
                 TranscriptionProviderFactory._configured_providers = None
             # Clear singleton instances
-            if hasattr(TranscriptionProviderFactory, '_instances'):
+            if hasattr(TranscriptionProviderFactory, "_instances"):
                 TranscriptionProviderFactory._instances = {}
         except ImportError:
             # Factory not available in test environment - this is acceptable
             # for isolated tests that only mock the factory
             pass
-    
+
     def test_factory_all_providers_available(self):
         """
         Test factory behavior when all providers are configured.
@@ -94,22 +95,21 @@ class TestProviderFactory(E2ETestBase, MockProviderMixin):
         """
         # Set all API keys to simulate full provider availability
         self.set_test_env(
-            DEEPGRAM_API_KEY="test_deepgram_key",
-            ELEVENLABS_API_KEY="test_elevenlabs_key"
+            DEEPGRAM_API_KEY="test_deepgram_key", ELEVENLABS_API_KEY="test_elevenlabs_key"
         )
-        
-        with patch('src.providers.factory.TranscriptionProviderFactory') as mock_factory:
+
+        with patch("src.providers.factory.TranscriptionProviderFactory") as mock_factory:
             mock_factory.get_configured_providers.return_value = ["deepgram", "elevenlabs"]
             mock_factory.get_best_provider.return_value = "deepgram"
-            
+
             configured_providers = mock_factory.get_configured_providers()
             best_provider = mock_factory.get_best_provider()
-            
+
             assert "deepgram" in configured_providers
             assert "elevenlabs" in configured_providers
             assert len(configured_providers) == 2
             assert best_provider in configured_providers
-    
+
     def test_factory_deepgram_only(self):
         """
         Test factory behavior with only Deepgram configured.
@@ -124,19 +124,19 @@ class TestProviderFactory(E2ETestBase, MockProviderMixin):
         """
         self.set_test_env(
             DEEPGRAM_API_KEY="test_deepgram_key",
-            ELEVENLABS_API_KEY=""  # Explicitly empty to simulate missing key
+            ELEVENLABS_API_KEY="",  # Explicitly empty to simulate missing key
         )
-        
-        with patch('src.providers.factory.TranscriptionProviderFactory') as mock_factory:
+
+        with patch("src.providers.factory.TranscriptionProviderFactory") as mock_factory:
             mock_factory.get_configured_providers.return_value = ["deepgram"]
             mock_factory.get_best_provider.return_value = "deepgram"
-            
+
             configured_providers = mock_factory.get_configured_providers()
             best_provider = mock_factory.get_best_provider()
-            
+
             assert configured_providers == ["deepgram"]
             assert best_provider == "deepgram"
-    
+
     def test_factory_elevenlabs_only(self):
         """
         Test factory behavior with only ElevenLabs configured.
@@ -151,19 +151,19 @@ class TestProviderFactory(E2ETestBase, MockProviderMixin):
         """
         self.set_test_env(
             DEEPGRAM_API_KEY="",  # Explicitly empty to simulate missing key
-            ELEVENLABS_API_KEY="test_elevenlabs_key"
+            ELEVENLABS_API_KEY="test_elevenlabs_key",
         )
-        
-        with patch('src.providers.factory.TranscriptionProviderFactory') as mock_factory:
+
+        with patch("src.providers.factory.TranscriptionProviderFactory") as mock_factory:
             mock_factory.get_configured_providers.return_value = ["elevenlabs"]
             mock_factory.get_best_provider.return_value = "elevenlabs"
-            
+
             configured_providers = mock_factory.get_configured_providers()
             best_provider = mock_factory.get_best_provider()
-            
+
             assert configured_providers == ["elevenlabs"]
             assert best_provider == "elevenlabs"
-    
+
     def test_factory_no_providers_configured(self):
         """
         Test factory behavior when no providers are configured.
@@ -176,12 +176,9 @@ class TestProviderFactory(E2ETestBase, MockProviderMixin):
         - get_best_provider() raises ValueError with clear message
         - System fails fast with actionable error message
         """
-        self.set_test_env(
-            DEEPGRAM_API_KEY="",  # No API key
-            ELEVENLABS_API_KEY=""  # No API key
-        )
+        self.set_test_env(DEEPGRAM_API_KEY="", ELEVENLABS_API_KEY="")  # No API key  # No API key
 
-        with patch('src.providers.factory.TranscriptionProviderFactory') as mock_factory:
+        with patch("src.providers.factory.TranscriptionProviderFactory") as mock_factory:
             # Mock factory behavior with no configured providers
             mock_factory.get_configured_providers.return_value = []
             mock_factory.get_best_provider.side_effect = ValueError("No providers configured")
@@ -193,7 +190,7 @@ class TestProviderFactory(E2ETestBase, MockProviderMixin):
             # Verify appropriate error is raised when trying to get a provider
             with pytest.raises(ValueError, match="No providers configured"):
                 mock_factory.get_best_provider()
-    
+
     def test_factory_invalid_api_keys(self):
         """
         Test factory behavior with invalid API keys.
@@ -208,10 +205,10 @@ class TestProviderFactory(E2ETestBase, MockProviderMixin):
         """
         self.set_test_env(
             DEEPGRAM_API_KEY="invalid_key",  # Malformed API key
-            ELEVENLABS_API_KEY="invalid_key"  # Malformed API key
+            ELEVENLABS_API_KEY="invalid_key",  # Malformed API key
         )
 
-        with patch('src.providers.factory.TranscriptionProviderFactory') as mock_factory:
+        with patch("src.providers.factory.TranscriptionProviderFactory") as mock_factory:
             # Simulate validation that detects invalid keys
             mock_factory.get_configured_providers.return_value = []
             mock_factory.validate_provider.side_effect = ValueError("Invalid API key")
@@ -223,7 +220,7 @@ class TestProviderFactory(E2ETestBase, MockProviderMixin):
             # Verify validation fails for elevenlabs with invalid key
             with pytest.raises(ValueError, match="Invalid API key"):
                 mock_factory.validate_provider("elevenlabs")
-    
+
     def test_factory_provider_selection_by_file_size(self):
         """
         Test provider selection based on file size constraints.
@@ -241,11 +238,10 @@ class TestProviderFactory(E2ETestBase, MockProviderMixin):
         - Deepgram: Generally supports larger file uploads
         """
         self.set_test_env(
-            DEEPGRAM_API_KEY="test_deepgram_key",
-            ELEVENLABS_API_KEY="test_elevenlabs_key"
+            DEEPGRAM_API_KEY="test_deepgram_key", ELEVENLABS_API_KEY="test_elevenlabs_key"
         )
 
-        with patch('src.providers.factory.TranscriptionProviderFactory') as mock_factory:
+        with patch("src.providers.factory.TranscriptionProviderFactory") as mock_factory:
             # Small file (1MB) - should select based on provider capabilities
             mock_factory.get_best_provider_for_file.return_value = "elevenlabs"
             small_file_provider = mock_factory.get_best_provider_for_file(
@@ -260,7 +256,7 @@ class TestProviderFactory(E2ETestBase, MockProviderMixin):
 
             assert small_file_provider in ["deepgram", "elevenlabs"]
             assert large_file_provider in ["deepgram", "elevenlabs"]
-    
+
     def test_factory_provider_feature_requirements(self):
         """
         Test provider selection based on feature requirements.
@@ -279,11 +275,10 @@ class TestProviderFactory(E2ETestBase, MockProviderMixin):
         - ElevenLabs: May have different feature set
         """
         self.set_test_env(
-            DEEPGRAM_API_KEY="test_deepgram_key",
-            ELEVENLABS_API_KEY="test_elevenlabs_key"
+            DEEPGRAM_API_KEY="test_deepgram_key", ELEVENLABS_API_KEY="test_elevenlabs_key"
         )
 
-        with patch('src.providers.factory.TranscriptionProviderFactory') as mock_factory:
+        with patch("src.providers.factory.TranscriptionProviderFactory") as mock_factory:
             # Test speaker diarization requirement (typically Deepgram)
             mock_factory.get_provider_with_features.return_value = "deepgram"
             diarization_provider = mock_factory.get_provider_with_features(
@@ -326,21 +321,21 @@ class TestWhisperProviderIntegration(E2ETestBase, MockProviderMixin):
         - Confidence scores are provided
         """
         # Whisper should work without API keys - this is its key advantage
-        with patch('src.providers.whisper.WhisperProvider') as mock_provider:
+        with patch("src.providers.whisper.WhisperProvider") as mock_provider:
             mock_instance = Mock()
             mock_instance.transcribe.return_value = {
                 "transcript": "Offline transcription result",
                 "language": "en",
-                "confidence": 0.85
+                "confidence": 0.85,
             }
             mock_provider.return_value = mock_instance
-            
+
             provider = mock_provider()  # No API key needed
             result = provider.transcribe("dummy_file.mp3")
-            
+
             assert "Offline transcription" in result["transcript"]
             assert result["language"] == "en"
-    
+
     def test_whisper_model_selection(self):
         """
         Test Whisper model selection across different sizes.
@@ -361,7 +356,7 @@ class TestWhisperProviderIntegration(E2ETestBase, MockProviderMixin):
         - medium: Good accuracy, slower (~5GB RAM)
         - large: Best accuracy, slowest (~10GB RAM)
         """
-        with patch('src.providers.whisper.WhisperProvider') as mock_provider:
+        with patch("src.providers.whisper.WhisperProvider") as mock_provider:
             mock_instance = Mock()
             mock_instance.set_model.return_value = True
             mock_provider.return_value = mock_instance
@@ -373,7 +368,7 @@ class TestWhisperProviderIntegration(E2ETestBase, MockProviderMixin):
             for model in models:
                 result = provider.set_model(model)
                 assert result is True
-    
+
     def test_whisper_gpu_acceleration(self):
         """
         Test Whisper GPU acceleration detection and CPU fallback.
@@ -389,7 +384,7 @@ class TestWhisperProviderIntegration(E2ETestBase, MockProviderMixin):
         Note: In test environment, we typically assume no GPU is available.
         Real deployments should leverage GPU when available for better performance.
         """
-        with patch('src.providers.whisper.WhisperProvider') as mock_provider:
+        with patch("src.providers.whisper.WhisperProvider") as mock_provider:
             mock_instance = Mock()
             # Assume no GPU in test environment (typical for CI/CD)
             mock_instance.has_gpu_support.return_value = False
@@ -427,6 +422,7 @@ class TestWhisperProviderIntegration(E2ETestBase, MockProviderMixin):
 # Note: Whisper provider doesn't require API keys (offline/local model)
 # ============================================================================
 
+
 @pytest.fixture(scope="session")
 def real_provider_mode(request):
     """
@@ -442,7 +438,7 @@ def real_provider_mode(request):
     """
     return {
         "enabled": request.config.getoption("--real-provider-mode", default=False),
-        "provider": request.config.getoption("--provider", default=None)
+        "provider": request.config.getoption("--provider", default=None),
     }
 
 
@@ -459,7 +455,7 @@ def real_provider_credentials():
     """
     return {
         "deepgram": os.getenv("DEEPGRAM_API_KEY"),
-        "elevenlabs": os.getenv("ELEVENLABS_API_KEY")
+        "elevenlabs": os.getenv("ELEVENLABS_API_KEY"),
     }
 
 
@@ -502,7 +498,7 @@ def pytest_configure(config):
     """
     config.addinivalue_line(
         "markers",
-        "real_provider: mark test to run against real provider APIs (requires credentials)"
+        "real_provider: mark test to run against real provider APIs (requires credentials)",
     )
 
 
@@ -536,11 +532,11 @@ def pytest_addoption(parser):
         "--real-provider-mode",
         action="store_true",
         default=False,
-        help="Enable real provider contract testing (requires API keys)"
+        help="Enable real provider contract testing (requires API keys)",
     )
     parser.addoption(
         "--provider",
         action="store",
         default=None,
-        help="Specific provider to test in real mode (deepgram, elevenlabs, whisper)"
+        help="Specific provider to test in real mode (deepgram, elevenlabs, whisper)",
     )

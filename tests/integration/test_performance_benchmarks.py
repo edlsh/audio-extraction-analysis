@@ -5,6 +5,7 @@ This module establishes performance baselines:
 - Throughput measurements
 - Resource utilization
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -20,11 +21,7 @@ class TestAsyncPerformance:
     """Performance benchmarks for async operations."""
 
     @pytest.mark.asyncio
-    async def test_async_throughput(
-        self,
-        sample_audio_mp3: Path,
-        tmp_path: Path
-    ):
+    async def test_async_throughput(self, sample_audio_mp3: Path, tmp_path: Path):
         """Measure async processing throughput."""
         extractor = AsyncAudioExtractor()
 
@@ -35,9 +32,7 @@ class TestAsyncPerformance:
         for i in range(10):
             output = tmp_path / f"throughput_{i}.mp3"
             task = extractor.extract_audio_async(
-                sample_audio_mp3,
-                output,
-                quality=AudioQuality.COMPRESSED
+                sample_audio_mp3, output, quality=AudioQuality.COMPRESSED
             )
             tasks.append(task)
 
@@ -58,11 +53,7 @@ class TestAsyncPerformance:
         assert elapsed < 30
 
     @pytest.mark.asyncio
-    async def test_sequential_vs_concurrent(
-        self,
-        sample_audio_mp3: Path,
-        tmp_path: Path
-    ):
+    async def test_sequential_vs_concurrent(self, sample_audio_mp3: Path, tmp_path: Path):
         """Compare sequential vs concurrent performance."""
         extractor = AsyncAudioExtractor()
 
@@ -71,9 +62,7 @@ class TestAsyncPerformance:
         for i in range(5):
             output = tmp_path / f"sequential_{i}.mp3"
             await extractor.extract_audio_async(
-                sample_audio_mp3,
-                output,
-                quality=AudioQuality.COMPRESSED
+                sample_audio_mp3, output, quality=AudioQuality.COMPRESSED
             )
         sequential_time = time.time() - start_sequential
 
@@ -81,9 +70,7 @@ class TestAsyncPerformance:
         start_concurrent = time.time()
         tasks = [
             extractor.extract_audio_async(
-                sample_audio_mp3,
-                tmp_path / f"concurrent_{i}.mp3",
-                quality=AudioQuality.COMPRESSED
+                sample_audio_mp3, tmp_path / f"concurrent_{i}.mp3", quality=AudioQuality.COMPRESSED
             )
             for i in range(5)
         ]
@@ -99,11 +86,7 @@ class TestAsyncPerformance:
         assert concurrent_time <= sequential_time * 1.5  # Allow some variance
 
     @pytest.mark.asyncio
-    async def test_memory_efficiency(
-        self,
-        sample_audio_mp3: Path,
-        tmp_path: Path
-    ):
+    async def test_memory_efficiency(self, sample_audio_mp3: Path, tmp_path: Path):
         """Verify async operations don't cause memory leaks."""
         extractor = AsyncAudioExtractor()
 
@@ -113,7 +96,7 @@ class TestAsyncPerformance:
                 extractor.extract_audio_async(
                     sample_audio_mp3,
                     tmp_path / f"mem_{batch}_{i}.mp3",
-                    quality=AudioQuality.COMPRESSED
+                    quality=AudioQuality.COMPRESSED,
                 )
                 for i in range(10)
             ]
@@ -130,11 +113,7 @@ class TestPerformanceBaselines:
     """Establish performance baselines for different quality settings."""
 
     @pytest.mark.asyncio
-    async def test_quality_performance_comparison(
-        self,
-        sample_audio_mp3: Path,
-        tmp_path: Path
-    ):
+    async def test_quality_performance_comparison(self, sample_audio_mp3: Path, tmp_path: Path):
         """Compare performance across quality settings."""
         extractor = AsyncAudioExtractor()
 
@@ -142,7 +121,7 @@ class TestPerformanceBaselines:
             AudioQuality.COMPRESSED,
             AudioQuality.STANDARD,
             AudioQuality.HIGH,
-            AudioQuality.SPEECH
+            AudioQuality.SPEECH,
         ]
 
         timings = {}
@@ -151,11 +130,7 @@ class TestPerformanceBaselines:
             output = tmp_path / f"quality_{quality.value}.mp3"
 
             start = time.time()
-            await extractor.extract_audio_async(
-                sample_audio_mp3,
-                output,
-                quality=quality
-            )
+            await extractor.extract_audio_async(sample_audio_mp3, output, quality=quality)
             elapsed = time.time() - start
 
             timings[quality.value] = elapsed

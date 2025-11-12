@@ -5,11 +5,12 @@ This module provides mock responses for external API providers:
 - ElevenLabs transcription API
 - Standardized mock response patterns
 """
+
 from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 # Mock API responses based on real API documentation
 
@@ -20,7 +21,7 @@ DEEPGRAM_SUCCESS_RESPONSE = {
         "sha256": "test-sha256-hash",
         "created": "2025-01-27T00:00:00.000Z",
         "duration": 5.0,
-        "channels": 1
+        "channels": 1,
     },
     "results": {
         "channels": [
@@ -36,25 +37,25 @@ DEEPGRAM_SUCCESS_RESPONSE = {
                             {"word": "test", "start": 0.4, "end": 0.7, "confidence": 0.95},
                             {"word": "transcription", "start": 0.7, "end": 1.5, "confidence": 0.94},
                             {"word": "from", "start": 1.5, "end": 1.7, "confidence": 0.93},
-                            {"word": "Deepgram", "start": 1.7, "end": 2.2, "confidence": 0.92}
-                        ]
+                            {"word": "Deepgram", "start": 1.7, "end": 2.2, "confidence": 0.92},
+                        ],
                     }
                 ]
             }
         ]
-    }
+    },
 }
 
 DEEPGRAM_ERROR_401 = {
     "err_code": "INVALID_CREDENTIALS",
     "err_msg": "Invalid API credentials",
-    "request_id": "test-request-error-401"
+    "request_id": "test-request-error-401",
 }
 
 DEEPGRAM_ERROR_TIMEOUT = {
     "err_code": "TIMEOUT",
     "err_msg": "Request timed out",
-    "request_id": "test-request-timeout"
+    "request_id": "test-request-timeout",
 }
 
 ELEVENLABS_SUCCESS_RESPONSE = {
@@ -62,28 +63,24 @@ ELEVENLABS_SUCCESS_RESPONSE = {
     "confidence": 0.94,
     "language": "en",
     "duration_seconds": 5.0,
-    "request_id": "test-elevenlabs-123"
+    "request_id": "test-elevenlabs-123",
 }
 
 ELEVENLABS_ERROR_500 = {
-    "error": {
-        "message": "Internal server error",
-        "type": "server_error",
-        "code": 500
-    }
+    "error": {"message": "Internal server error", "type": "server_error", "code": 500}
 }
 
 
 class MockAPIResponse:
     """Mock HTTP response object."""
 
-    def __init__(self, json_data: Dict[str, Any], status_code: int = 200):
+    def __init__(self, json_data: dict[str, Any], status_code: int = 200):
         self.json_data = json_data
         self.status_code = status_code
         self.text = json.dumps(json_data)
-        self.headers = {'Content-Type': 'application/json'}
+        self.headers = {"Content-Type": "application/json"}
 
-    def json(self) -> Dict[str, Any]:
+    def json(self) -> dict[str, Any]:
         """Return JSON data."""
         return self.json_data
 
@@ -106,20 +103,20 @@ def get_mock_response(provider: str, scenario: str) -> MockAPIResponse:
     Raises:
         ValueError: If provider or scenario is unknown
     """
-    if provider.lower() == 'deepgram':
-        if scenario == 'success':
+    if provider.lower() == "deepgram":
+        if scenario == "success":
             return MockAPIResponse(DEEPGRAM_SUCCESS_RESPONSE, 200)
-        elif scenario == 'error_401':
+        elif scenario == "error_401":
             return MockAPIResponse(DEEPGRAM_ERROR_401, 401)
-        elif scenario == 'error_timeout':
+        elif scenario == "error_timeout":
             return MockAPIResponse(DEEPGRAM_ERROR_TIMEOUT, 408)
         else:
             raise ValueError(f"Unknown Deepgram scenario: {scenario}")
 
-    elif provider.lower() == 'elevenlabs':
-        if scenario == 'success':
+    elif provider.lower() == "elevenlabs":
+        if scenario == "success":
             return MockAPIResponse(ELEVENLABS_SUCCESS_RESPONSE, 200)
-        elif scenario == 'error_500':
+        elif scenario == "error_500":
             return MockAPIResponse(ELEVENLABS_ERROR_500, 500)
         else:
             raise ValueError(f"Unknown ElevenLabs scenario: {scenario}")
@@ -128,7 +125,7 @@ def get_mock_response(provider: str, scenario: str) -> MockAPIResponse:
         raise ValueError(f"Unknown provider: {provider}")
 
 
-def load_mock_response_from_file(filepath: Path) -> Dict[str, Any]:
+def load_mock_response_from_file(filepath: Path) -> dict[str, Any]:
     """Load mock response from JSON file.
 
     Args:
@@ -141,7 +138,7 @@ def load_mock_response_from_file(filepath: Path) -> Dict[str, Any]:
         return json.load(f)
 
 
-def save_mock_response_to_file(data: Dict[str, Any], filepath: Path):
+def save_mock_response_to_file(data: dict[str, Any], filepath: Path):
     """Save mock response to JSON file.
 
     Args:
@@ -149,5 +146,5 @@ def save_mock_response_to_file(data: Dict[str, Any], filepath: Path):
         filepath: Path where to save the file
     """
     filepath.parent.mkdir(parents=True, exist_ok=True)
-    with filepath.open('w') as f:
+    with filepath.open("w") as f:
         json.dump(data, f, indent=2)

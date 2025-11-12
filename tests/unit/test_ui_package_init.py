@@ -1,7 +1,6 @@
 """Tests for src/ui/__init__.py package initialization."""
 
 import importlib
-import sys
 
 
 class TestUIPackageInit:
@@ -10,11 +9,13 @@ class TestUIPackageInit:
     def test_module_can_be_imported(self):
         """Test that src.ui module can be imported without errors."""
         import src.ui
+
         assert src.ui is not None
 
     def test_console_manager_exposed_at_package_level(self):
         """Test that ConsoleManager is accessible from package level."""
         from src.ui import ConsoleManager
+
         assert ConsoleManager is not None
 
     def test_console_manager_is_correct_class(self):
@@ -27,16 +28,19 @@ class TestUIPackageInit:
     def test_all_attribute_exists(self):
         """Test that __all__ is defined in the module."""
         import src.ui
+
         assert hasattr(src.ui, "__all__")
 
     def test_all_contains_console_manager(self):
         """Test that __all__ includes ConsoleManager."""
         import src.ui
+
         assert "ConsoleManager" in src.ui.__all__
 
     def test_all_only_exports_intended_items(self):
         """Test that __all__ only contains intended exports."""
         import src.ui
+
         expected_exports = {"ConsoleManager"}
         actual_exports = set(src.ui.__all__)
         assert actual_exports == expected_exports
@@ -44,12 +48,14 @@ class TestUIPackageInit:
     def test_module_docstring_exists(self):
         """Test that module has a docstring."""
         import src.ui
+
         assert src.ui.__doc__ is not None
         assert len(src.ui.__doc__.strip()) > 0
 
     def test_module_docstring_content(self):
         """Test that module docstring describes UI components."""
         import src.ui
+
         assert "UI components" in src.ui.__doc__
         assert "console" in src.ui.__doc__.lower()
 
@@ -76,7 +82,6 @@ class TestUIPackageInit:
         import src.ui
 
         # Get initial ConsoleManager
-        initial_cm = src.ui.ConsoleManager
 
         # Reload module
         importlib.reload(src.ui)
@@ -103,6 +108,7 @@ class TestUIPackageInit:
     def test_package_name_attribute(self):
         """Test that package __name__ is correct."""
         import src.ui
+
         assert src.ui.__name__ == "src.ui"
 
     def test_console_manager_from_package_is_functional(self):
