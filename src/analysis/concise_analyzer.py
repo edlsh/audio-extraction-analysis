@@ -1,19 +1,4 @@
-"""Concise transcript analyzer that generates a single comprehensive analysis file.
-
-This module provides functionality to analyze transcription results and generate
-a unified markdown report containing multiple analytical sections including:
-- Overview and summary
-- Key topics and themes
-- Speaker analysis and distribution
-- Sentiment analysis
-- Highlights and notable quotes
-- Action items and intents
-- Timeline and segments
-- Technical metadata
-
-The analyzer is designed to produce a human-readable, well-structured analysis
-that consolidates all available transcription data into a single document.
-"""
+"""Single-file transcript analyzer generating comprehensive markdown reports."""
 
 from __future__ import annotations
 
@@ -26,55 +11,20 @@ logger = logging.getLogger(__name__)
 
 
 class ConciseAnalyzer:
-    """Generates a single, comprehensive analysis file from transcript data.
-
-    This analyzer processes TranscriptionResult objects and creates a unified
-    markdown analysis report with multiple sections. The analyzer is stateless
-    and can be reused for multiple transcriptions without side effects.
-
-    The generated report includes:
-    - Header with metadata (provider, duration, file info)
-    - Overview with content statistics
-    - Key topics ranked by frequency
-    - Speaker analysis with time distribution
-    - Sentiment analysis with distribution
-    - Highlights and notable quotes (extracted heuristically)
-    - Action items and intents (detected or inferred)
-    - Timeline from chapters or utterances
-    - Technical metadata
-    """
-
-    def __init__(self):
-        """Initialize the concise analyzer.
-
-        The analyzer is stateless and requires no configuration. All analysis
-        parameters are determined automatically based on the input data.
-        """
-        pass
+    """Generates single comprehensive analysis file from transcription results."""
 
     def analyze_and_save(
         self, result: TranscriptionResult, output_dir: Path, filename_base: str
     ) -> Path:
-        """Analyze transcript and save a single comprehensive analysis file.
-
-        Creates the output directory if it doesn't exist, generates a complete
-        markdown analysis from the transcription result, and saves it with the
-        naming pattern: {filename_base}_analysis.md
+        """Generate and save comprehensive analysis markdown file.
 
         Args:
-            result: TranscriptionResult containing transcript data and metadata.
-                   May include topics, speakers, sentiment, intents, chapters,
-                   and utterances depending on provider capabilities.
-            output_dir: Directory path where the analysis file will be saved.
-                       Created automatically if it doesn't exist.
-            filename_base: Base filename without extension (e.g., "recording_001").
-                          The output will be saved as {filename_base}_analysis.md
+            result: Transcription result with topics, speakers, sentiment
+            output_dir: Output directory (created if needed)
+            filename_base: Base filename (output: {base}_analysis.md)
 
         Returns:
-            Path: Absolute path to the generated analysis markdown file.
-
-        Raises:
-            OSError: If the output directory cannot be created or file cannot be written.
+            Path to generated analysis file
         """
         output_dir.mkdir(parents=True, exist_ok=True)
         analysis_path = output_dir / f"{filename_base}_analysis.md"
@@ -90,14 +40,10 @@ class ConciseAnalyzer:
         return analysis_path
 
     def _generate_analysis(self, result: TranscriptionResult) -> str:
-        """Generate the complete analysis content.
-
-        Combines all analysis sections into a single markdown document. Each section
-        is generated independently and then joined with double newlines. Empty sections
-        (None values) are filtered out to avoid unnecessary whitespace.
+        """Generate complete analysis markdown content.
 
         Args:
-            result: TranscriptionResult with rich transcript data including optional
+            result: TranscriptionResult with optional
                    fields like topics, speakers, sentiment, chapters, and utterances.
 
         Returns:
