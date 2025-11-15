@@ -169,7 +169,7 @@ class TestBuildExtractCommands:
         input_path = Path("/test/input.mp4")
         output_path = Path("/test/audio/final.mp3")
 
-        commands, temp_path = build_extract_commands(input_path, output_path, "speech")
+        _commands, temp_path = build_extract_commands(input_path, output_path, "speech")
 
         assert temp_path.parent == output_path.parent
         assert temp_path.name == "final.temp.mp3"
@@ -195,7 +195,7 @@ class TestBuildExtractCommands:
 
         # Test with all quality presets
         for quality in ["high", "standard", "compressed", "speech"]:
-            commands, temp_path = build_extract_commands(input_path, output_path, quality)
+            commands, _temp_path = build_extract_commands(input_path, output_path, quality)
 
             # Verify input path in first command
             assert str(input_path) in " ".join(commands[0])
@@ -231,11 +231,11 @@ class TestBuildExtractCommands:
         output_path = Path("/test/output.mp3")
 
         # Uppercase should default to SPEECH (two-step)
-        commands_upper, temp_upper = build_extract_commands(input_path, output_path, "HIGH")
+        commands_upper, _temp_upper = build_extract_commands(input_path, output_path, "HIGH")
         assert len(commands_upper) == 2, "Uppercase 'HIGH' should default to SPEECH"
 
         # Lowercase should use specific preset (single-step)
-        commands_lower, temp_lower = build_extract_commands(input_path, output_path, "high")
+        commands_lower, _temp_lower = build_extract_commands(input_path, output_path, "high")
         assert len(commands_lower) == 1, "Lowercase 'high' should use HIGH preset"
 
     def test_audio_map_parameter_in_all_presets(self):

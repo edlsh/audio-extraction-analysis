@@ -538,7 +538,7 @@ class TestProviderUtilsIntegration:
     def test_check_import_and_ensure_available_success_flow(self) -> None:
         """Test successful flow from check_import to ensure_available."""
         # Simulate successful import
-        is_available, imported_class = ProviderAvailabilityChecker.check_import(
+        is_available, _imported_class = ProviderAvailabilityChecker.check_import(
             "json", "json", "test_provider"
         )
 

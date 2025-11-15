@@ -259,7 +259,7 @@ class TestRunBenchmarks:
 
     def test_benchmarks_with_actual_cache(self):
         """Integration test with actual DiskCache instance."""
-        with temporary_cache() as (cache, temp_dir):
+        with temporary_cache() as (_cache, temp_dir):
             # Verify the cache directory was created
             assert temp_dir.exists()
 

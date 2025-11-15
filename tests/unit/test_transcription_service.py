@@ -161,7 +161,7 @@ class TestDeepgramTranscriber:
     def test_transcribe_sync_wrapper(self, api_key_set, temp_audio_file, mock_deepgram_client):
         """Test synchronous transcription wrapper."""
         transcriber = DeepgramTranscriber()
-        mock_deepgram, mock_response = mock_deepgram_client
+        _mock_deepgram, _mock_response = mock_deepgram_client
 
         # Mock the entire transcribe_async method instead of dealing with imports
         async def mock_transcribe_async(audio_path, language="en"):
