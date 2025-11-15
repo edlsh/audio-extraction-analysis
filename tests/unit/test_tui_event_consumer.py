@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 
 import pytest
 
@@ -340,6 +341,51 @@ class TestEventConsumerLifecycle:
             except asyncio.CancelledError:
                 pass
 
+    @pytest.mark.asyncio
+    async def test_stop_flushes_pending_events(self):
+        """Stop should flush any pending events immediately."""
+        queue = asyncio.Queue()
+        batches: list[list[Event]] = []
+
+        consumer = EventConsumer(
+            queue,
+            lambda e: batches.append(e.copy()),
+            EventConsumerConfig(throttle_ms=500),
+        )
+
+        task = asyncio.create_task(consumer.run())
+
+        try:
+            await queue.put(Event(type="log", data={"message": "pending"}))
+            await asyncio.sleep(0.05)
+
+            await consumer.stop()
+            await task
+        finally:
+            if not task.done():
+                task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await task
+
+        assert batches and batches[0][0].data["message"] == "pending"
+
+    @pytest.mark.asyncio
+    async def test_stop_returns_when_queue_idle(self):
+        """Stop returns even if consumer is waiting on empty queue."""
+        queue = asyncio.Queue()
+        consumer = EventConsumer(queue, lambda e: None)
+        task = asyncio.create_task(consumer.run())
+
+        try:
+            await asyncio.sleep(0.01)
+            await asyncio.wait_for(consumer.stop(), timeout=0.5)
+            await task
+        finally:
+            if not task.done():
+                task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await task
+
 
 class TestEventConsumerMixedEvents:
     """Tests for handling mixed event types."""
@@ -426,3 +472,49 @@ class TestEventConsumerMixedEvents:
         # Check ordering
         for i, event in enumerate(all_events):
             assert event.data["message"] == f"Log {i}"
+
+
+class TestEventConsumerQueuePolicies:
+    """Tests for queue sizing and drop policies."""
+
+    def test_create_queue_respects_max_size(self):
+        """Queue factory should size queue according to config."""
+        config = EventConsumerConfig(max_queue_size=128)
+        queue = EventConsumer.create_queue(config)
+        assert queue.maxsize == 128
+
+    def test_oldest_drop_policy_evicts_oldest(self):
+        """Oldest policy evicts earliest event when full."""
+        config = EventConsumerConfig(max_queue_size=2, drop_policy="oldest")
+        queue = EventConsumer.create_queue(config)
+
+        e1 = Event(type="log", data={"idx": 1})
+        e2 = Event(type="log", data={"idx": 2})
+        e3 = Event(type="log", data={"idx": 3})
+
+        queue.put_nowait(e1)
+        queue.put_nowait(e2)
+        queue.put_nowait(e3)
+
+        first = queue.get_nowait()
+        second = queue.get_nowait()
+        assert first is e2
+        assert second is e3
+
+    def test_newest_drop_policy_discards_new_event(self):
+        """Newest policy discards incoming event when queue is full."""
+        config = EventConsumerConfig(max_queue_size=2, drop_policy="newest")
+        queue = EventConsumer.create_queue(config)
+
+        e1 = Event(type="log", data={"idx": 1})
+        e2 = Event(type="log", data={"idx": 2})
+        e3 = Event(type="log", data={"idx": 3})
+
+        queue.put_nowait(e1)
+        queue.put_nowait(e2)
+        queue.put_nowait(e3)
+
+        first = queue.get_nowait()
+        second = queue.get_nowait()
+        assert first is e1
+        assert second is e2

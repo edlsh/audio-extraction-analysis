@@ -13,7 +13,7 @@ from textual.containers import Container, Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Static
 
-from ..events import EventConsumer
+from ..events import EventConsumer, EventConsumerConfig
 from ..services import run_pipeline
 from ..widgets import LogPanel, ProgressBoard
 
@@ -155,8 +155,8 @@ class RunScreen(Screen):
 
         self._running = True
 
-        # Create event queue and consumer
-        event_queue = asyncio.Queue()
+        consumer_config = EventConsumerConfig()
+        event_queue = EventConsumer.create_queue(consumer_config)
 
         # Define batch handler to update app state
         def handle_batch(events: list) -> None:
@@ -170,6 +170,7 @@ class RunScreen(Screen):
         self._event_consumer = EventConsumer(
             queue=event_queue,
             on_batch=handle_batch,
+            config=consumer_config,
         )
 
         # Generate run ID
@@ -243,9 +244,9 @@ class RunScreen(Screen):
 
         # Stop event consumer
         if self._event_consumer:
-            self._event_consumer._running = False
-            if self._consume_task:
-                await self._consume_task
+            await self._event_consumer.stop()
+        if self._consume_task:
+            await self._consume_task
 
         # Update UI one final time
         self._update_display()
