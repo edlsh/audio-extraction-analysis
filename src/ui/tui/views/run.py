@@ -4,20 +4,23 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from rich.panel import Panel
+from textual._context import active_app
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical
+from textual.css.query import NoMatches
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Static
 
 from ..events import EventConsumer, EventConsumerConfig
-from ..services import run_pipeline
+from ..services import open_path, run_pipeline
 from ..widgets import LogPanel, ProgressBoard
 
 if TYPE_CHECKING:
+    from ..app import AudioExtractionApp
     from ..state import AppState
 
 
@@ -118,24 +121,33 @@ class RunScreen(Screen):
         self._consume_task: asyncio.Task | None = None
         self._running = False
         self._output_dir: Path | None = None
+        self._app_override: AudioExtractionApp | None = None
+
+    @property
+    def app(self) -> "AudioExtractionApp":
+        if self._app_override is not None:
+            return self._app_override
+        return cast("AudioExtractionApp", super().app)
+
+    @app.setter
+    def app(self, value: "AudioExtractionApp") -> None:
+        self._app_override = value
+        active_app.set(value)
 
     def compose(self) -> ComposeResult:
         """Compose the run screen layout."""
         yield Header()
 
-        # Progress board container
-        with Container(id="progress-container"):
-            yield ProgressBoard(id="progress-board")
+        yield Container(ProgressBoard(id="progress-board"), id="progress-container")
 
-        # Log panel container
-        with Container(id="log-container"):
-            yield LogPanel(id="log-panel")
+        yield Container(LogPanel(id="log-panel"), id="log-container")
 
-        # Controls container
-        with Container(id="controls-container"):
-            with Horizontal(classes="button-row"):
-                yield Button("Cancel", variant="error", id="cancel-btn")
-                yield Button("Open Output", variant="success", id="output-btn", disabled=True)
+        controls = Horizontal(
+            Button("Cancel", variant="error", id="cancel-btn"),
+            Button("Open Output", variant="success", id="output-btn", disabled=True),
+            classes="button-row",
+        )
+        yield Container(controls, id="controls-container")
 
         yield Footer()
 
@@ -189,18 +201,28 @@ class RunScreen(Screen):
         # Monitor pipeline completion
         self._monitor_task = asyncio.create_task(self._monitor_pipeline())
 
-    async def _run_pipeline_with_events(self, event_queue: asyncio.Queue, run_id: str) -> None:
+    async def _run_pipeline_with_events(
+        self,
+        event_queue: asyncio.Queue | None = None,
+        run_id: str | None = None,
+    ) -> None:
         """Run pipeline and feed events to consumer.
 
         Args:
             event_queue: Queue to send events to
             run_id: Unique run identifier
         """
+        import uuid
+
         from src.models.events import QueueEventSink
 
         try:
+            self._ensure_runtime_context()
+            queue = event_queue or asyncio.Queue()
+            run_identifier = run_id or getattr(self.app.state, "run_id", None) or str(uuid.uuid4())
+
             # Create event sink for the queue
-            event_sink = QueueEventSink(event_queue)
+            event_sink = QueueEventSink(queue)
 
             # Run pipeline with correct parameters
             result = await run_pipeline(
@@ -211,7 +233,7 @@ class RunScreen(Screen):
                 provider=self.config.get("provider", "auto"),
                 analysis_style=self.config.get("analysis_style", "concise"),
                 event_sink=event_sink,
-                run_id=run_id,
+                run_id=run_identifier,
             )
 
             # Store output directory from result
@@ -231,8 +253,9 @@ class RunScreen(Screen):
             self.notify("Pipeline completed!", severity="information")
 
             # Enable output button
-            output_btn = self.query_one("#output-btn", Button)
-            output_btn.disabled = False
+            output_btn = self._get_button("#output-btn")
+            if output_btn:
+                output_btn.disabled = False
 
     async def _monitor_pipeline(self) -> None:
         """Monitor pipeline and update UI."""
@@ -264,6 +287,14 @@ class RunScreen(Screen):
         log_panel = self.query_one("#log-panel", LogPanel)
         log_panel.update_logs(self.app.state)
 
+    def _get_button(self, selector: str) -> Button | None:
+        """Return a button if present in the DOM."""
+
+        try:
+            return self.query_one(selector, Button)
+        except NoMatches:
+            return None
+
     # Button handlers
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -292,8 +323,9 @@ class RunScreen(Screen):
             self.notify("Cancelling pipeline...", severity="warning")
 
         # Disable cancel button
-        cancel_btn = self.query_one("#cancel-btn", Button)
-        cancel_btn.disabled = True
+        cancel_btn = self._get_button("#cancel-btn")
+        if cancel_btn:
+            cancel_btn.disabled = True
 
     async def action_open_output(self) -> None:
         """Open output directory."""
@@ -301,9 +333,6 @@ class RunScreen(Screen):
         if not output_dir or not output_dir.exists():
             self.notify("Output directory not found", severity="error")
             return
-
-        # Import open_path service
-        from ..services import open_path
 
         try:
             # open_path is sync, no await needed

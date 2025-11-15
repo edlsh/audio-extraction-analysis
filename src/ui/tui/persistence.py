@@ -176,7 +176,7 @@ def load_recent_files(max_entries: int = 20) -> list[dict[str, Any]]:
     if not config_dir:
         return []
 
-    recent_file = config_dir / "recent.json"
+    recent_file = config_dir / "recent_files.json"
 
     if not recent_file.exists():
         return []
@@ -210,7 +210,7 @@ def save_recent_files(files: list[dict[str, Any]], max_entries: int = 20) -> boo
     if not config_dir:
         return False
 
-    recent_file = config_dir / "recent.json"
+    recent_file = config_dir / "recent_files.json"
     payload = {"files": files[:max_entries], "max_entries": max_entries}
 
     try:
@@ -277,13 +277,4 @@ def clear_recent_files() -> bool:
     if not config_dir:
         return False
 
-    recent_file = config_dir / "recent.json"
-
-    try:
-        if recent_file.exists():
-            recent_file.unlink()
-        return True
-
-    except OSError as e:
-        logger.error(f"Failed to clear recent files: {e}")
-        return False
+    return save_recent_files([], max_entries=0)

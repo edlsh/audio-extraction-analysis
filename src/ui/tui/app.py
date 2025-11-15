@@ -9,40 +9,89 @@ from typing import Any
 
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical
-from textual.widgets import Button, Footer, Header, Label, Static
+from textual.screen import Screen as TextualScreen
+from textual.widgets import Button, Footer, Header, Label
 
 from ...models.events import Event, QueueEventSink
 from .state import AppState
 from .views.config import ConfigScreen
+from .views.help import HelpScreen
 from .views.home import HomeScreen
 from .views.run import RunScreen
 
 logger = logging.getLogger(__name__)
 
 
-class WelcomeScreen(Static):
+class WelcomeScreen(TextualScreen):
     """Welcome screen with basic information."""
 
     def compose(self) -> ComposeResult:
         """Compose the welcome screen."""
+        yield Header()
         yield Container(
             Label("🎵 Audio Extraction & Transcription Analysis", id="title"),
             Label(""),
             Label("Welcome to the interactive TUI!", classes="welcome-text"),
             Label(""),
             Label(
-                "This interface provides live progress updates, "
-                "provider health checks, and artifact management.",
+                "Transform audio/video files into analyzed transcripts with ease.",
                 classes="welcome-text",
             ),
             Label(""),
+            Label("[dim]Features:[/dim]", classes="welcome-text"),
+            Label(
+                "  • Live progress monitoring with ETAs",
+                classes="welcome-text feature-item",
+            ),
+            Label(
+                "  • Real-time log streaming and filtering",
+                classes="welcome-text feature-item",
+            ),
+            Label(
+                "  • Multiple transcription providers (Deepgram, ElevenLabs, Whisper, Parakeet)",
+                classes="welcome-text feature-item",
+            ),
+            Label(
+                "  • Provider health monitoring",
+                classes="welcome-text feature-item",
+            ),
+            Label(
+                "  • Auto-save configuration and recent files",
+                classes="welcome-text feature-item",
+            ),
+            Label(""),
+            Label("[dim]Press 'h' or '?' anytime for help[/dim]", classes="welcome-text"),
+            Label(""),
             Horizontal(
-                Button("Start Processing", variant="primary", id="start-btn"),
-                Button("Exit", variant="error", id="exit-btn"),
+                Button(
+                    "Start Processing",
+                    variant="primary",
+                    id="start-btn",
+                ),
+                Button(
+                    "Help",
+                    variant="default",
+                    id="help-btn",
+                ),
+                Button(
+                    "Exit",
+                    variant="error",
+                    id="exit-btn",
+                ),
                 classes="button-row",
             ),
             id="welcome-container",
         )
+        yield Footer()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Handle button press events on the welcome screen."""
+        if event.button.id == "exit-btn":
+            self.app.exit()
+        elif event.button.id == "start-btn":
+            self.app.push_screen("home")
+        elif event.button.id == "help-btn":
+            self.app.push_screen("help")
 
 
 class AudioExtractionApp(App):
@@ -52,10 +101,11 @@ class AudioExtractionApp(App):
     """
 
     SCREENS = {
+        "welcome": WelcomeScreen,
         "home": HomeScreen,
         "config": ConfigScreen,
-        # Note: RunScreen is not registered here as it requires parameters
-        # and is pushed directly from ConfigScreen
+        "help": HelpScreen,
+        "run": RunScreen,
     }
 
     CSS = """
@@ -95,6 +145,8 @@ class AudioExtractionApp(App):
     BINDINGS = [
         ("q", "quit", "Quit"),
         ("d", "toggle_dark", "Toggle Dark Mode"),
+        ("h", "help", "Help"),
+        ("?", "help", "Help"),
     ]
 
     def __init__(
@@ -117,23 +169,25 @@ class AudioExtractionApp(App):
         self.event_sink = QueueEventSink(self.event_queue)
         self.pipeline_task: asyncio.Task | None = None
 
-    def compose(self) -> ComposeResult:
-        """Compose the main UI layout."""
-        yield Header()
-        yield WelcomeScreen()
-        yield Footer()
-
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        """Handle button press events."""
-        if event.button.id == "exit-btn":
-            self.exit()
-        elif event.button.id == "start-btn":
-            # Navigate to home screen for file selection
-            self.push_screen("home")
+    def on_mount(self) -> None:
+        """Push the welcome screen when the app starts."""
+        self.push_screen("welcome")
 
     def action_toggle_dark(self) -> None:
         """Toggle dark mode."""
         self.dark = not self.dark
+
+    def action_help(self) -> None:
+        """Show help screen."""
+        stack_help = next(
+            (screen for screen in self.screen_stack if isinstance(screen, HelpScreen)), None
+        )
+        if stack_help is self.screen:
+            return
+        if stack_help is not None:
+            self.switch_screen("help")
+            return
+        self.push_screen("help")
 
     async def _run_pipeline(self) -> None:
         """Run the pipeline with event streaming.

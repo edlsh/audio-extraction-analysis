@@ -4,13 +4,21 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
+from textual._context import active_app
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal, Vertical, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import Button, Checkbox, Footer, Header, Input, Label, Select
 
-from ..persistence import load_settings, save_settings
+from ..persistence import default_settings as _default_settings, load_settings, save_settings
+
+# Re-export for test patching convenience
+default_settings = _default_settings
+
+if TYPE_CHECKING:
+    from ..app import AudioExtractionApp
 
 logger = logging.getLogger(__name__)
 
@@ -95,89 +103,134 @@ class ConfigScreen(Screen):
         """Initialize config screen."""
         super().__init__()
         self.settings = load_settings()
+        self._app_override: AudioExtractionApp | None = None
+
+    @property
+    def app(self) -> "AudioExtractionApp":
+        if self._app_override is not None:
+            return self._app_override
+        return cast("AudioExtractionApp", super().app)
+
+    @app.setter
+    def app(self, value: "AudioExtractionApp") -> None:
+        self._app_override = value
+        active_app.set(value)
 
     def compose(self) -> ComposeResult:
         """Compose the config screen layout."""
         yield Header()
         yield Label("Configure Pipeline", id="config-title")
 
-        with VerticalScroll(id="config-form"):
-            # Quality selection
-            with Container(classes="config-group"):
-                yield Label("Audio Quality", classes="config-label")
-                yield Select(
-                    options=[
-                        ("Speech (optimized for transcription)", "speech"),
-                        ("Standard (balanced quality)", "standard"),
-                        ("High (best quality)", "high"),
-                        ("Compressed (smaller files)", "compressed"),
-                    ],
-                    value=self.settings["defaults"]["quality"],
-                    id="quality-select",
-                )
+        quality_group = Container(
+            Label("Audio Quality", classes="config-label"),
+            Label("[dim]Choose extraction quality preset[/dim]", classes="config-help"),
+            Select(
+                options=[
+                    ("Speech (optimized for transcription)", "speech"),
+                    ("Standard (balanced quality)", "standard"),
+                    ("High (best quality)", "high"),
+                    ("Compressed (smaller files)", "compressed"),
+                ],
+                value=self.settings["defaults"]["quality"],
+                id="quality-select",
+            ),
+            classes="config-group",
+        )
 
-            # Provider selection
-            with Container(classes="config-group"):
-                yield Label("Transcription Provider", classes="config-label")
-                yield Select(
-                    options=[
-                        ("Auto (automatic selection)", "auto"),
-                        ("Deepgram Nova 3", "deepgram"),
-                        ("ElevenLabs", "elevenlabs"),
-                        ("Whisper (local)", "whisper"),
-                        ("Parakeet (local)", "parakeet"),
-                    ],
-                    value=self.settings["defaults"]["provider"],
-                    id="provider-select",
-                )
+        provider_group = Container(
+            Label("Transcription Provider", classes="config-label"),
+            Label(
+                "[dim]Select transcription service (auto = best available)[/dim]",
+                classes="config-help",
+            ),
+            Select(
+                options=[
+                    ("Auto (automatic selection)", "auto"),
+                    ("Deepgram Nova 3 (cloud, best quality)", "deepgram"),
+                    ("ElevenLabs (cloud)", "elevenlabs"),
+                    ("Whisper (local, no API key)", "whisper"),
+                    ("Parakeet (local, no API key)", "parakeet"),
+                ],
+                value=self.settings["defaults"]["provider"],
+                id="provider-select",
+            ),
+            classes="config-group",
+        )
 
-            # Language selection
-            with Container(classes="config-group"):
-                yield Label("Language", classes="config-label")
-                yield Select(
-                    options=[
-                        ("English", "en"),
-                        ("Spanish", "es"),
-                        ("French", "fr"),
-                        ("German", "de"),
-                        ("Italian", "it"),
-                        ("Portuguese", "pt"),
-                    ],
-                    value=self.settings["defaults"]["language"],
-                    id="language-select",
-                )
+        language_group = Container(
+            Label("Language", classes="config-label"),
+            Label("[dim]Primary language of the audio content[/dim]", classes="config-help"),
+            Select(
+                options=[
+                    ("English", "en"),
+                    ("Spanish", "es"),
+                    ("French", "fr"),
+                    ("German", "de"),
+                    ("Italian", "it"),
+                    ("Portuguese", "pt"),
+                ],
+                value=self.settings["defaults"]["language"],
+                id="language-select",
+            ),
+            classes="config-group",
+        )
 
-            # Analysis style
-            with Container(classes="config-group"):
-                yield Label("Analysis Style", classes="config-label")
-                yield Select(
-                    options=[
-                        ("Concise (single file)", "concise"),
-                        ("Full (5 detailed files)", "full"),
-                    ],
-                    value=self.settings["defaults"]["analysis_style"],
-                    id="analysis-select",
-                )
+        style_group = Container(
+            Label("Analysis Style", classes="config-label"),
+            Label(
+                "[dim]Output format: concise = 1 file, full = 5 detailed files[/dim]",
+                classes="config-help",
+            ),
+            Select(
+                options=[
+                    ("Concise (single comprehensive file)", "concise"),
+                    ("Full (5 detailed analysis files)", "full"),
+                ],
+                value=self.settings["defaults"]["analysis_style"],
+                id="style-select",
+            ),
+            classes="config-group",
+        )
 
-            # Output directory
-            with Container(classes="config-group"):
-                yield Label("Output Directory", classes="config-label")
-                yield Input(
-                    placeholder="Output directory path",
-                    value=self.settings["last_output_dir"],
-                    id="output-input",
-                )
+        output_group = Container(
+            Label("Output Directory", classes="config-label"),
+            Label("[dim]Where to save output files (default: ./output)[/dim]", classes="config-help"),
+            Input(
+                placeholder="./output (or specify custom path)",
+                value=self.settings["last_output_dir"],
+                id="output-dir-input",
+            ),
+            classes="config-group",
+        )
 
-            # Export options
-            with Container(classes="config-group"):
-                yield Label("Export Options", classes="config-label")
-                yield Checkbox("Export Markdown transcript", value=True, id="export-md-checkbox")
-                yield Checkbox("Generate HTML dashboard", value=False, id="html-dashboard-checkbox")
+        export_group = Container(
+            Label("Export Options", classes="config-label"),
+            Label("[dim]Additional output formats[/dim]", classes="config-help"),
+            Checkbox("Export Markdown transcript (recommended)", value=True, id="export-md-checkbox"),
+            Checkbox(
+                "Generate HTML dashboard (interactive)",
+                value=False,
+                id="html-dashboard-checkbox",
+            ),
+            classes="config-group",
+        )
 
-        with Horizontal(id="button-row"):
-            yield Button("Start Run", variant="primary", id="start-btn")
-            yield Button("Reset to Defaults", variant="default", id="reset-btn")
-            yield Button("Back", variant="default", id="back-btn")
+        yield VerticalScroll(
+            quality_group,
+            provider_group,
+            language_group,
+            style_group,
+            output_group,
+            export_group,
+            id="config-form",
+        )
+
+        yield Horizontal(
+            Button("Start Run", variant="primary", id="start-btn"),
+            Button("Reset to Defaults", variant="default", id="reset-btn"),
+            Button("Back", variant="default", id="back-btn"),
+            id="button-row",
+        )
 
         yield Footer()
 
@@ -213,7 +266,7 @@ class ConfigScreen(Screen):
             self.app.state.language = str(event.value)
             self.settings["defaults"]["language"] = str(event.value)
 
-        elif select_id == "analysis-select":
+        elif select_id == "style-select":
             self.app.state.analysis_style = str(event.value)
             self.settings["defaults"]["analysis_style"] = str(event.value)
 
@@ -226,7 +279,7 @@ class ConfigScreen(Screen):
         Args:
             event: Input changed event
         """
-        if event.input.id == "output-input":
+        if event.input.id == "output-dir-input":
             output_path = Path(event.value)
             self.app.state.output_dir = output_path
             self.settings["last_output_dir"] = str(output_path)
@@ -282,8 +335,6 @@ class ConfigScreen(Screen):
 
     def action_reset_defaults(self) -> None:
         """Reset configuration to defaults."""
-        from ..persistence import default_settings
-
         self.settings = default_settings()
         save_settings(self.settings)
 
@@ -291,10 +342,8 @@ class ConfigScreen(Screen):
         self.query_one("#quality-select", Select).value = self.settings["defaults"]["quality"]
         self.query_one("#provider-select", Select).value = self.settings["defaults"]["provider"]
         self.query_one("#language-select", Select).value = self.settings["defaults"]["language"]
-        self.query_one("#analysis-select", Select).value = self.settings["defaults"][
-            "analysis_style"
-        ]
-        self.query_one("#output-input", Input).value = self.settings["last_output_dir"]
+        self.query_one("#style-select", Select).value = self.settings["defaults"]["analysis_style"]
+        self.query_one("#output-dir-input", Input).value = self.settings["last_output_dir"]
 
         self.notify("Configuration reset to defaults", severity="information", timeout=2)
 
