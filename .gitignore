@@ -143,12 +143,22 @@ cython_debug/
 # Windows
 Thumbs.db
 
+# Runtime directories (created during execution)
+/cache/
+/logs/
+/output/
+/reports/
+
 # Data directory (exclude input files but keep structure)
 data/input/*
 !data/input/.gitkeep
 
-# Reports directory
-reports/static/
+# Build artifacts
+coverage.json
+
+# Temporary tool files
+tools/*.tmp
+.architecture_baseline.json.tmp
 
 # Local configuration files
 *.local
@@ -163,3 +173,7 @@ reports/static/
 # AI assistant configuration and specs
 .claude/
 .sugar/
+.codex/
+.opencode/
+.cursor/
+.windsurf/

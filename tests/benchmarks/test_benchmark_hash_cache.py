@@ -16,7 +16,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from benchmark_hash_cache import benchmark_hash_performance, create_test_file
+from benchmarks.hash_cache_benchmark import benchmark_hash_performance, create_test_file
 from src.cache.transcription_cache import CacheKey
 
 
