@@ -837,7 +837,7 @@ def process_command(args: argparse.Namespace, console_manager: ConsoleManager | 
 
         # Execute pipeline
         try:
-            pipeline_result, result = _execute_processing_pipeline(
+            _pipeline_result, result = _execute_processing_pipeline(
                 input_path, output_dir, quality, args, console_manager
             )
         except Exception as e:

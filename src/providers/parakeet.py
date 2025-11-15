@@ -200,7 +200,7 @@ class GPUManager:
         try:
             if self._device and self._device.startswith("cuda"):
                 if self._device_id is not None:
-                    free, total = torch.cuda.mem_get_info(self._device_id)
+                    free, _total = torch.cuda.mem_get_info(self._device_id)
                     return free
             elif self._device == "mps":
                 # MPS doesn't provide direct memory query

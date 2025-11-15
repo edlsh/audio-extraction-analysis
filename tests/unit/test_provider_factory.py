@@ -274,7 +274,7 @@ class TestTranscriptionProviderFactoryAutoSelection:
             mock_get_config.return_value = mock_config
 
             # This should use auto_select_provider on the class, not instance
-            with pytest.raises(ValueError, match="File size .* exceeds limits"):
+            with pytest.raises(ValueError, match=r"File size .* exceeds limits"):
                 TranscriptionProviderFactory.auto_select_provider(audio_file_path=large_audio_file)
 
     def test_auto_select_provider_small_file_both_configured(self, monkeypatch, temp_audio_file):
