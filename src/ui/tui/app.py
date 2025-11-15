@@ -120,7 +120,8 @@ class AudioExtractionApp(App):
     BINDINGS = [
         ("q", "quit", "Quit"),
         ("d", "toggle_dark", "Toggle Dark Mode"),
-        ("h,?", "help", "Help"),
+        ("h", "help", "Help"),
+        ("?", "help", "Help"),
     ]
 
     def __init__(
@@ -166,6 +167,14 @@ class AudioExtractionApp(App):
 
     def action_help(self) -> None:
         """Show help screen."""
+        stack_help = next(
+            (screen for screen in self.screen_stack if isinstance(screen, HelpScreen)), None
+        )
+        if stack_help is self.screen:
+            return
+        if stack_help is not None:
+            self.switch_screen("help")
+            return
         self.push_screen("help")
 
     async def _run_pipeline(self) -> None:

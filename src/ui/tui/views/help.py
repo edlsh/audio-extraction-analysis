@@ -62,115 +62,87 @@ class HelpScreen(Screen):
         yield Header()
 
         with VerticalScroll(id="help-container"):
-            yield Static(self._build_help_content(), classes="help-content")
+            for renderable in self._build_help_sections():
+                yield Static(renderable, classes="help-content")
 
         yield Footer()
 
-    def _build_help_content(self) -> str:
-        """Build the help content with formatting.
-
-        Returns:
-            Formatted help text with Rich markup
-        """
-        sections = []
-
-        # Title
-        sections.append(
-            "[bold cyan]📖 Audio Extraction & Transcription Analysis - TUI Guide[/bold cyan]\n"
-        )
-
-        # Overview
+    def _build_help_sections(self) -> list[Text | Table]:
+        """Build ordered help renderables."""
+        sections: list[Text | Table] = []
+        sections.append(Text.from_markup("[bold cyan]📖 Audio Extraction & Transcription Analysis - TUI Guide[/bold cyan]"))
         sections.append(self._section_overview())
-
-        # Global Shortcuts
-        sections.append(self._section_global_shortcuts())
-
-        # Screen-specific Shortcuts
-        sections.append(self._section_screen_shortcuts())
-
-        # Navigation Flow
+        sections.extend(self._section_global_shortcuts())
+        sections.extend(self._section_screen_shortcuts())
         sections.append(self._section_navigation())
-
-        # Features
         sections.append(self._section_features())
-
-        # Tips
         sections.append(self._section_tips())
+        return sections
 
-        return "\n".join(sections)
-
-    def _section_overview(self) -> str:
+    def _section_overview(self) -> Text:
         """Build overview section."""
-        return """[bold yellow]Overview[/bold yellow]
+        return Text.from_markup(
+            """[bold yellow]Overview[/bold yellow]
 This TUI provides an interactive interface for audio extraction, transcription, and analysis.
 It features live progress monitoring, real-time log streaming, and provider health checks.
 
-[dim]Navigate between screens using keyboard shortcuts or buttons.[/dim]
-"""
+[dim]Navigate between screens using keyboard shortcuts or buttons.[/dim]\n"""
+        )
 
-    def _section_global_shortcuts(self) -> str:
-        """Build global shortcuts section."""
-        table = Table(show_header=True, box=None, padding=(0, 2))
-        table.add_column("Key", style="cyan", width=12)
-        table.add_column("Action", style="white")
-
-        shortcuts = [
-            ("q", "Quit application"),
-            ("d", "Toggle dark mode"),
-            ("h, ?", "Show this help screen"),
-            ("Esc", "Go back / Close screen"),
+    def _section_global_shortcuts(self) -> list[Text | Table]:
+        table = self._build_shortcut_table(
+            [
+                ("q", "Quit application"),
+                ("d", "Toggle dark mode"),
+                ("h", "Show this help screen"),
+                ("?", "Show this help screen"),
+                ("Esc", "Go back / Close screen"),
+            ]
+        )
+        return [
+            Text.from_markup("[bold yellow]Global Keyboard Shortcuts[/bold yellow]"),
+            table,
         ]
 
-        for key, action in shortcuts:
-            table.add_row(key, action)
+    def _section_screen_shortcuts(self) -> list[Text | Table]:
+        renderables: list[Text | Table] = [
+            Text.from_markup("[bold yellow]Screen-Specific Shortcuts[/bold yellow]"),
+            Text.from_markup("[bold cyan]Home Screen[/bold cyan]"),
+            self._build_shortcut_table(
+                [
+                    ("Enter", "Select file / directory"),
+                    ("Tab", "Switch between file tree and recent files"),
+                    ("/", "Filter / search files"),
+                    ("r", "Refresh recent files list"),
+                    ("c", "Continue to configuration"),
+                ]
+            ),
+            Text.from_markup("[bold cyan]Configuration Screen[/bold cyan]"),
+            self._build_shortcut_table(
+                [
+                    ("s", "Start pipeline run"),
+                    ("r", "Reset to defaults"),
+                    ("Tab", "Navigate between fields"),
+                ]
+            ),
+            Text.from_markup("[bold cyan]Run Screen[/bold cyan]"),
+            self._build_shortcut_table(
+                [
+                    ("c", "Cancel running pipeline"),
+                    ("o", "Open output directory"),
+                    ("a", "Show all logs"),
+                    ("d", "Show debug+ logs"),
+                    ("i", "Show info+ logs"),
+                    ("w", "Show warning+ logs"),
+                    ("e", "Show error logs only"),
+                ]
+            ),
+        ]
+        return renderables
 
-        return f"[bold yellow]Global Keyboard Shortcuts[/bold yellow]\n{table}"
-
-    def _section_screen_shortcuts(self) -> str:
-        """Build screen-specific shortcuts section."""
-        content = ["[bold yellow]Screen-Specific Shortcuts[/bold yellow]\n"]
-
-        # Home Screen
-        content.append("[bold cyan]Home Screen[/bold cyan]")
-        table = Table(show_header=False, box=None, padding=(0, 2))
-        table.add_column("Key", style="cyan", width=12)
-        table.add_column("Action", style="white")
-        table.add_row("Enter", "Select file / directory")
-        table.add_row("Tab", "Switch between file tree and recent files")
-        table.add_row("/", "Filter / search files")
-        table.add_row("r", "Refresh recent files list")
-        table.add_row("c", "Continue to configuration")
-        content.append(str(table))
-
-        # Config Screen
-        content.append("\n[bold cyan]Configuration Screen[/bold cyan]")
-        table = Table(show_header=False, box=None, padding=(0, 2))
-        table.add_column("Key", style="cyan", width=12)
-        table.add_column("Action", style="white")
-        table.add_row("s", "Start pipeline run")
-        table.add_row("r", "Reset to defaults")
-        table.add_row("Tab", "Navigate between fields")
-        content.append(str(table))
-
-        # Run Screen
-        content.append("\n[bold cyan]Run Screen[/bold cyan]")
-        table = Table(show_header=False, box=None, padding=(0, 2))
-        table.add_column("Key", style="cyan", width=12)
-        table.add_column("Action", style="white")
-        table.add_row("c", "Cancel running pipeline")
-        table.add_row("o", "Open output directory")
-        table.add_row("a", "Show all logs")
-        table.add_row("d", "Show debug+ logs")
-        table.add_row("i", "Show info+ logs")
-        table.add_row("w", "Show warning+ logs")
-        table.add_row("e", "Show error logs only")
-        content.append(str(table))
-
-        return "\n".join(content)
-
-    def _section_navigation(self) -> str:
-        """Build navigation flow section."""
-        return """[bold yellow]Navigation Flow[/bold yellow]
+    def _section_navigation(self) -> Text:
+        return Text.from_markup(
+            """[bold yellow]Navigation Flow[/bold yellow]
 
 [cyan]Welcome Screen[/cyan] → [dim](Start button)[/dim]
     ↓
@@ -182,12 +154,12 @@ It features live progress monitoring, real-time log streaming, and provider heal
     ↓
 [green]Complete![/green] → [dim](Open output directory)[/dim]
 
-[dim]Press 'Esc' to go back at any time (except during pipeline execution).[/dim]
-"""
+[dim]Press 'Esc' to go back at any time (except during pipeline execution).[/dim]\n"""
+        )
 
-    def _section_features(self) -> str:
-        """Build features section."""
-        return """[bold yellow]Key Features[/bold yellow]
+    def _section_features(self) -> Text:
+        return Text.from_markup(
+            """[bold yellow]Key Features[/bold yellow]
 
 [cyan]• Live Progress Monitoring[/cyan]
   Three-stage progress cards with ETAs for extraction, transcription, and analysis
@@ -208,12 +180,12 @@ It features live progress monitoring, real-time log streaming, and provider heal
   Cancel long-running operations at any time with the 'c' key
 
 [cyan]• Auto-Save Settings[/cyan]
-  Configuration changes are saved automatically
-"""
+  Configuration changes are saved automatically\n"""
+        )
 
-    def _section_tips(self) -> str:
-        """Build tips and tricks section."""
-        return """[bold yellow]Tips & Tricks[/bold yellow]
+    def _section_tips(self) -> Text:
+        return Text.from_markup(
+            """[bold yellow]Tips & Tricks[/bold yellow]
 
 [green]💡 Tip:[/green] Use Tab to quickly navigate between input fields and lists
 
@@ -229,8 +201,17 @@ It features live progress monitoring, real-time log streaming, and provider heal
 
 [green]💡 Tip:[/green] Press '?' or 'h' anytime to return to this help screen
 
-[dim]For more information, see the full documentation in docs/TUI_GUIDE.md[/dim]
-"""
+[dim]For more information, see the full documentation in docs/TUI_GUIDE.md[/dim]\n"""
+        )
+
+    @staticmethod
+    def _build_shortcut_table(rows: list[tuple[str, str]]) -> Table:
+        table = Table(show_header=False, box=None, padding=(0, 2))
+        table.add_column("Key", style="cyan", width=12)
+        table.add_column("Action", style="white")
+        for key, action in rows:
+            table.add_row(key, action)
+        return table
 
     def action_back(self) -> None:
         """Return to previous screen."""
