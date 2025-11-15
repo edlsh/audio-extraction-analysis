@@ -6,26 +6,32 @@ on:
       - 'v*.*.*'
 
 jobs:
-  build:
+  build-and-release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install dependencies
+
+      - name: Install build tooling
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-      - name: Package artifacts
-        run: |
-          mkdir -p dist
-          cp -r scripts docs examples prompts dist/
-          cp README.md LICENSE requirements.txt dist/
-      - name: Create GitHub Release
+          python -m pip install build twine
+
+      - name: Build distributions
+        run: python -m build
+
+      - name: Verify artifacts
+        run: twine check dist/*
+        continue-on-error: true
+
+      - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            dist/**
+          files: dist/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

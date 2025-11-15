@@ -390,9 +390,9 @@ mkdir -p /path/to/output
 ## 📚 Documentation
 
 For detailed information:
-- **[CLI Reference](docs/CLI_REFERENCE.md)** - Complete command syntax and options
-- **[Examples](docs/EXAMPLES.md)** - Common use cases and workflows
-- **[Sample Outputs](examples/)** - Generated markdown files examples
+- **CLI Help (`audio-extraction-analysis --help`)** - Discover the latest command syntax directly from the tool
+- **[HTML Dashboard Guide](docs/HTML_DASHBOARD.md)** - Learn how to render interactive dashboards from analysis output
+- **[Examples Directory](examples/)** - Browse runnable samples and generated markdown outputs
 
 ## 🤝 Contributing
 
