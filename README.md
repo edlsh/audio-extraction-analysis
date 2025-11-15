@@ -89,7 +89,48 @@ audio-extraction-analysis process video.mp4 --export-markdown --md-no-speakers -
 | `--analysis-style` | `concise`, `full` | Output style: single analysis vs. 5 files |
 | `--verbose` | Flag | Detailed logging |
 
-## 💡 Usage Examples
+## 🖥️ Interactive TUI (Terminal User Interface)
+
+For a guided, interactive experience with live progress monitoring, use the TUI mode:
+
+```bash
+# Launch interactive TUI
+audio-extraction-analysis tui
+
+# Or with pre-populated paths
+audio-extraction-analysis tui --input video.mp4 --output-dir ./results
+```
+
+### TUI Features
+- **📊 Live Progress Monitoring**: Real-time progress cards for extraction, transcription, and analysis with ETAs
+- **📝 Log Streaming**: Filterable, color-coded logs (DEBUG, INFO, WARNING, ERROR)
+- **🏥 Provider Health**: Monitor transcription provider status (Deepgram, ElevenLabs, Whisper, Parakeet)
+- **💾 Auto-Save Settings**: Configuration and recent files persist across sessions
+- **⌨️ Keyboard Shortcuts**: Full keyboard navigation (press `h` or `?` for help)
+- **🎯 File Browser**: Browse and select files with recent files quick access
+
+### TUI Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| `h`, `?` | Show help screen |
+| `q` | Quit application |
+| `d` | Toggle dark mode |
+| `Esc` | Go back / Close screen |
+
+**In Run Screen:**
+- `c` - Cancel pipeline
+- `o` - Open output directory
+- `a/d/i/w/e` - Filter logs (all/debug+/info+/warning+/error)
+
+### TUI Workflow
+```
+Welcome → Select File → Configure → Run → View Results
+   ↓           ↓            ↓         ↓        ↓
+ Start      Browse       Settings  Progress  Open Output
+```
+
+## 💡 CLI Usage Examples
 
 ### Basic Usage
 ```bash

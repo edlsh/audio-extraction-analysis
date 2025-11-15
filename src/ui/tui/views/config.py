@@ -105,6 +105,10 @@ class ConfigScreen(Screen):
             # Quality selection
             with Container(classes="config-group"):
                 yield Label("Audio Quality", classes="config-label")
+                yield Label(
+                    "[dim]Choose extraction quality preset[/dim]",
+                    classes="config-help",
+                )
                 yield Select(
                     options=[
                         ("Speech (optimized for transcription)", "speech"),
@@ -119,13 +123,17 @@ class ConfigScreen(Screen):
             # Provider selection
             with Container(classes="config-group"):
                 yield Label("Transcription Provider", classes="config-label")
+                yield Label(
+                    "[dim]Select transcription service (auto = best available)[/dim]",
+                    classes="config-help",
+                )
                 yield Select(
                     options=[
                         ("Auto (automatic selection)", "auto"),
-                        ("Deepgram Nova 3", "deepgram"),
-                        ("ElevenLabs", "elevenlabs"),
-                        ("Whisper (local)", "whisper"),
-                        ("Parakeet (local)", "parakeet"),
+                        ("Deepgram Nova 3 (cloud, best quality)", "deepgram"),
+                        ("ElevenLabs (cloud)", "elevenlabs"),
+                        ("Whisper (local, no API key)", "whisper"),
+                        ("Parakeet (local, no API key)", "parakeet"),
                     ],
                     value=self.settings["defaults"]["provider"],
                     id="provider-select",
@@ -134,6 +142,10 @@ class ConfigScreen(Screen):
             # Language selection
             with Container(classes="config-group"):
                 yield Label("Language", classes="config-label")
+                yield Label(
+                    "[dim]Primary language of the audio content[/dim]",
+                    classes="config-help",
+                )
                 yield Select(
                     options=[
                         ("English", "en"),
@@ -150,10 +162,14 @@ class ConfigScreen(Screen):
             # Analysis style
             with Container(classes="config-group"):
                 yield Label("Analysis Style", classes="config-label")
+                yield Label(
+                    "[dim]Output format: concise = 1 file, full = 5 detailed files[/dim]",
+                    classes="config-help",
+                )
                 yield Select(
                     options=[
-                        ("Concise (single file)", "concise"),
-                        ("Full (5 detailed files)", "full"),
+                        ("Concise (single comprehensive file)", "concise"),
+                        ("Full (5 detailed analysis files)", "full"),
                     ],
                     value=self.settings["defaults"]["analysis_style"],
                     id="analysis-select",
@@ -162,8 +178,12 @@ class ConfigScreen(Screen):
             # Output directory
             with Container(classes="config-group"):
                 yield Label("Output Directory", classes="config-label")
+                yield Label(
+                    "[dim]Where to save output files (default: ./output)[/dim]",
+                    classes="config-help",
+                )
                 yield Input(
-                    placeholder="Output directory path",
+                    placeholder="./output (or specify custom path)",
                     value=self.settings["last_output_dir"],
                     id="output-input",
                 )
@@ -171,8 +191,18 @@ class ConfigScreen(Screen):
             # Export options
             with Container(classes="config-group"):
                 yield Label("Export Options", classes="config-label")
-                yield Checkbox("Export Markdown transcript", value=True, id="export-md-checkbox")
-                yield Checkbox("Generate HTML dashboard", value=False, id="html-dashboard-checkbox")
+                yield Label(
+                    "[dim]Additional output formats[/dim]",
+                    classes="config-help",
+                )
+                yield Checkbox(
+                    "Export Markdown transcript (recommended)", value=True, id="export-md-checkbox"
+                )
+                yield Checkbox(
+                    "Generate HTML dashboard (interactive)",
+                    value=False,
+                    id="html-dashboard-checkbox",
+                )
 
         with Horizontal(id="button-row"):
             yield Button("Start Run", variant="primary", id="start-btn")

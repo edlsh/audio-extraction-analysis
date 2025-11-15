@@ -14,6 +14,7 @@ from textual.widgets import Button, Footer, Header, Label, Static
 from ...models.events import Event, QueueEventSink
 from .state import AppState
 from .views.config import ConfigScreen
+from .views.help import HelpScreen
 from .views.home import HomeScreen
 from .views.run import RunScreen
 
@@ -31,13 +32,37 @@ class WelcomeScreen(Static):
             Label("Welcome to the interactive TUI!", classes="welcome-text"),
             Label(""),
             Label(
-                "This interface provides live progress updates, "
-                "provider health checks, and artifact management.",
+                "Transform audio/video files into analyzed transcripts with ease.",
                 classes="welcome-text",
             ),
             Label(""),
+            Label("[dim]Features:[/dim]", classes="welcome-text"),
+            Label(
+                "  • Live progress monitoring with ETAs",
+                classes="welcome-text feature-item",
+            ),
+            Label(
+                "  • Real-time log streaming and filtering",
+                classes="welcome-text feature-item",
+            ),
+            Label(
+                "  • Multiple transcription providers (Deepgram, ElevenLabs, Whisper, Parakeet)",
+                classes="welcome-text feature-item",
+            ),
+            Label(
+                "  • Provider health monitoring",
+                classes="welcome-text feature-item",
+            ),
+            Label(
+                "  • Auto-save configuration and recent files",
+                classes="welcome-text feature-item",
+            ),
+            Label(""),
+            Label("[dim]Press 'h' or '?' anytime for help[/dim]", classes="welcome-text"),
+            Label(""),
             Horizontal(
                 Button("Start Processing", variant="primary", id="start-btn"),
+                Button("Help", variant="default", id="help-btn"),
                 Button("Exit", variant="error", id="exit-btn"),
                 classes="button-row",
             ),
@@ -54,6 +79,7 @@ class AudioExtractionApp(App):
     SCREENS = {
         "home": HomeScreen,
         "config": ConfigScreen,
+        "help": HelpScreen,
         # Note: RunScreen is not registered here as it requires parameters
         # and is pushed directly from ConfigScreen
     }
@@ -95,6 +121,7 @@ class AudioExtractionApp(App):
     BINDINGS = [
         ("q", "quit", "Quit"),
         ("d", "toggle_dark", "Toggle Dark Mode"),
+        ("h,?", "help", "Help"),
     ]
 
     def __init__(
@@ -130,10 +157,17 @@ class AudioExtractionApp(App):
         elif event.button.id == "start-btn":
             # Navigate to home screen for file selection
             self.push_screen("home")
+        elif event.button.id == "help-btn":
+            # Show help screen
+            self.push_screen("help")
 
     def action_toggle_dark(self) -> None:
         """Toggle dark mode."""
         self.dark = not self.dark
+
+    def action_help(self) -> None:
+        """Show help screen."""
+        self.push_screen("help")
 
     async def _run_pipeline(self) -> None:
         """Run the pipeline with event streaming.

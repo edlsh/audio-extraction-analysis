@@ -7,10 +7,11 @@ __all__ = []
 # Conditionally import screens if textual is available
 try:
     from .config import ConfigScreen
+    from .help import HelpScreen
     from .home import HomeScreen
     from .run import RunScreen
 
-    __all__.extend(["ConfigScreen", "HomeScreen", "RunScreen"])
+    __all__.extend(["ConfigScreen", "HelpScreen", "HomeScreen", "RunScreen"])
 except ImportError:
     # Textual not installed
     pass
