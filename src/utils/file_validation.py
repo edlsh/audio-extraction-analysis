@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 class ValidationError(Exception):
     """Raised when file validation fails."""
+
     pass
 
 

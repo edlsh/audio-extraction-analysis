@@ -48,7 +48,6 @@ class TestProvidersPackage:
             "CircuitBreakerConfig",
             "CircuitBreakerError",
             "CircuitBreakerMixin",
-            "CircuitState",
             "TranscriptionProviderFactory",
         ]
 
@@ -100,6 +99,7 @@ class TestProvidersPackage:
 
         assert src.providers.CircuitBreakerMixin is CircuitBreakerMixin
 
+    @pytest.mark.skip(reason="CircuitState removed in favor of boolean _is_open flag")
     def test_circuit_state_exported(self):
         """Test that CircuitState is properly exported."""
         import src.providers
@@ -154,13 +154,10 @@ class TestProvidersPackage:
         assert hasattr(CircuitBreakerMixin, "__name__")
         assert CircuitBreakerMixin.__name__ == "CircuitBreakerMixin"
 
+    @pytest.mark.skip(reason="CircuitState removed in favor of boolean _is_open flag")
     def test_direct_import_circuit_state(self):
         """Test that CircuitState can be imported directly."""
-        from src.providers import CircuitState
-
-        assert CircuitState is not None
-        assert hasattr(CircuitState, "__name__")
-        assert CircuitState.__name__ == "CircuitState"
+        pass
 
     def test_direct_import_transcription_provider_factory(self):
         """Test that TranscriptionProviderFactory can be imported directly."""
@@ -183,7 +180,6 @@ class TestProvidersPackage:
             "CircuitBreakerConfig",
             "CircuitBreakerError",
             "CircuitBreakerMixin",
-            "CircuitState",
             "TranscriptionProviderFactory",
         ]
 
@@ -205,7 +201,6 @@ class TestProvidersPackage:
             "CircuitBreakerConfig",
             "CircuitBreakerError",
             "CircuitBreakerMixin",
-            "CircuitState",
             "TranscriptionProviderFactory",
             "base",
             "deepgram",
@@ -227,7 +222,6 @@ class TestProvidersPackage:
             CircuitBreakerConfig,
             CircuitBreakerError,
             CircuitBreakerMixin,
-            CircuitState,
             TranscriptionProviderFactory,
         )
 
@@ -250,11 +244,6 @@ class TestProvidersPackage:
         # CircuitBreakerMixin should be a class
         assert isinstance(CircuitBreakerMixin, type), "CircuitBreakerMixin should be a class"
 
-        # CircuitState should be an Enum
-        from enum import EnumMeta
-
-        assert isinstance(CircuitState, EnumMeta), "CircuitState should be an Enum"
-
         # TranscriptionProviderFactory should be a class
         assert isinstance(
             TranscriptionProviderFactory, type
@@ -267,37 +256,24 @@ class TestProvidersPackage:
         except Exception as e:
             pytest.fail(f"Importing src.providers should not raise exceptions: {e}")
 
+    @pytest.mark.skip(reason="CircuitState removed in favor of boolean _is_open flag")
     def test_circuit_state_enum_values(self):
         """Test that CircuitState enum has expected values."""
-        from src.providers import CircuitState
-
-        # Check that the enum has the expected members
-        assert hasattr(CircuitState, "CLOSED")
-        assert hasattr(CircuitState, "OPEN")
-        assert hasattr(CircuitState, "HALF_OPEN")
-
-        # Verify the values
-        assert CircuitState.CLOSED.value == "closed"
-        assert CircuitState.OPEN.value == "open"
-        assert CircuitState.HALF_OPEN.value == "half_open"
+        pass
 
     def test_circuit_breaker_error_is_exception(self):
         """Test that CircuitBreakerError can be raised and caught."""
-        import time
-
         from src.providers import CircuitBreakerError
 
-        # Test that it can be raised with required arguments
+        # Test that it can be raised as a simple exception
         with pytest.raises(CircuitBreakerError):
-            raise CircuitBreakerError("Test error", failure_count=5, last_failure_time=time.time())
+            raise CircuitBreakerError("Test error")
 
         # Test that it can be caught as Exception
         try:
-            raise CircuitBreakerError("Test error", failure_count=3, last_failure_time=time.time())
+            raise CircuitBreakerError("Test error")
         except Exception as e:
             assert isinstance(e, CircuitBreakerError)
-            assert e.failure_count == 3
-            assert hasattr(e, "last_failure_time")
 
     def test_circuit_breaker_config_dataclass(self):
         """Test that CircuitBreakerConfig is a valid dataclass."""
@@ -307,7 +283,7 @@ class TestProvidersPackage:
         config = CircuitBreakerConfig()
         assert hasattr(config, "failure_threshold")
         assert hasattr(config, "recovery_timeout")
-        assert hasattr(config, "expected_exception_types")
+        assert hasattr(config, "enabled")
 
         # Test that values can be overridden
         custom_config = CircuitBreakerConfig(failure_threshold=10, recovery_timeout=120.0)

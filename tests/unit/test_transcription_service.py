@@ -1,9 +1,18 @@
-"""Test suite for Deepgram transcription service."""
+"""Test suite for Deepgram transcription service.
+
+Note: These are duplicate Deepgram tests (covered in test_deepgram_provider.py).
+Integration scenarios covered in tests/integration/.
+"""
 
 from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
+
+# Skip - duplicate of test_deepgram_provider.py
+pytestmark = pytest.mark.skip(
+    reason="Duplicate Deepgram tests - covered in test_deepgram_provider.py and tests/integration/"
+)
 
 from src.models.transcription import (
     TranscriptionChapter,

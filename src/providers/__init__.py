@@ -5,7 +5,6 @@ from .base import (
     CircuitBreakerConfig,
     CircuitBreakerError,
     CircuitBreakerMixin,
-    CircuitState,
 )
 from .factory import TranscriptionProviderFactory
 
@@ -14,6 +13,5 @@ __all__ = [
     "CircuitBreakerConfig",
     "CircuitBreakerError",
     "CircuitBreakerMixin",
-    "CircuitState",
     "TranscriptionProviderFactory",
 ]
