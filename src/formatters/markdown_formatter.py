@@ -1,9 +1,4 @@
-"""Markdown formatting module for transcription results.
-
-This module provides functionality to format transcription results into
-professionally structured markdown documents with configurable templates,
-metadata headers, and optional speaker identification and timestamps.
-"""
+"""Markdown formatting for transcription results."""
 
 from __future__ import annotations
 
@@ -29,24 +24,9 @@ class TemplateNotFoundError(Exception):
 
 
 class MarkdownFormatter:
-    """Formats transcription results as professionally structured markdown.
-
-    This class provides comprehensive markdown formatting for transcription results,
-    including metadata headers, speaker identification, timestamps, and confidence
-    scores. Supports multiple templates for different output styles.
-
-    Attributes:
-        config: Configuration object or Config class for accessing default settings.
-    """
+    """Formats transcription results as markdown documents."""
 
     def __init__(self, config: Config | None = None):
-        """Initialize the markdown formatter.
-
-        Args:
-            config: Optional configuration object. If None, uses the Config class
-                   with default class-level settings.
-        """
-        # Config is a class with class variables; keep reference for defaults
         self.config = config or Config
 
     def format_transcript(
@@ -59,25 +39,7 @@ class MarkdownFormatter:
         include_confidence: bool = False,
         template: str = "default",
     ) -> str:
-        """Generate markdown-formatted transcript with metadata.
-
-        Formats a transcription result into a markdown document with a header
-        containing metadata (source, duration, provider, etc.) and formatted
-        transcript segments with optional timestamps, speaker labels, and
-        confidence scores.
-
-        Args:
-            result: The transcription result containing utterances and metadata.
-            source_info: Dictionary with source metadata including:
-                - source: Source file or URL
-                - total_duration: Duration in seconds
-                - processed_at: ISO format timestamp
-                - provider: Transcription provider name
-                - avg_confidence: Average confidence score
-            output_path: Target path for the output file (used for directory creation).
-            include_timestamps: Whether to include timestamps for each segment.
-            include_speakers: Whether to include speaker labels for each segment.
-            include_confidence: Whether to include confidence scores (currently N/A).
+        """Generate markdown transcript with metadata and formatting options.
             template: Template name to use from TEMPLATES dict (default: "default").
 
         Returns:
