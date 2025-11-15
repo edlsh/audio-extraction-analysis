@@ -1,20 +1,4 @@
-"""Consolidated file validation utilities for the audio extraction pipeline.
-
-This module provides centralized validation logic, consolidating what was previously
-spread across common_validation.py, validation.py, and file_validation.py.
-
-The module offers two validation styles:
-1. **Standard validators** (validate_*): Raise ValidationError on failure
-2. **Safe validators** (safe_validate_*): Return None on failure
-
-Use standard validators when you want explicit error handling and detailed
-exception information. Use safe validators when you prefer None-checking
-over exception handling, particularly for optional file processing.
-
-Provider-specific size limits:
-- ElevenLabs: 50MB
-- Deepgram: 2GB
-"""
+"""File validation utilities for audio/video files."""
 
 from __future__ import annotations
 
@@ -27,22 +11,12 @@ logger = logging.getLogger(__name__)
 
 
 class ValidationError(Exception):
-    """Custom exception for validation failures.
-
-    This exception wraps underlying errors (FileNotFoundError, PermissionError,
-    ValueError) to provide a consistent error handling interface. The original
-    exception is preserved in the exception chain for debugging.
-
-    All validation functions in this module raise ValidationError on failure,
-    allowing calling code to catch a single exception type while still having
-    access to the underlying cause via exception chaining.
-    """
-
+    """Raised when file validation fails."""
     pass
 
 
 class FileValidator:
-    """Centralized file validation utilities."""
+    """File validation utilities for audio/video files."""
 
     # Common audio/video extensions
     AUDIO_EXTENSIONS = {".wav", ".mp3", ".flac", ".aac", ".ogg", ".m4a", ".wma"}

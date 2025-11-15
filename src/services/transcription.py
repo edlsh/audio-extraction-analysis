@@ -18,47 +18,23 @@ logger = logging.getLogger(__name__)
 
 
 class TranscriptionService:
-    """Core transcription orchestration service.
-
-    This service coordinates transcription operations using various providers
-    without implementing the providers directly.
-    """
+    """Coordinates transcription operations across providers."""
 
     def __init__(self):
-        """Initialize the transcription service."""
         self.factory = TranscriptionProviderFactory
 
     def get_available_providers(self) -> list[str]:
-        """Get list of available transcription providers.
-
-        Returns:
-            List of provider names that are registered
-        """
+        """List all registered providers."""
         return self.factory.get_available_providers()
 
     def get_configured_providers(self) -> list[str]:
-        """Get list of configured transcription providers.
-
-        Returns:
-            List of provider names that have valid configuration
-        """
+        """List providers with valid configuration."""
         return self.factory.get_configured_providers()
 
     def auto_select_provider(
         self, audio_file_path: Path | None = None, preferred_features: list[str] | None = None
     ) -> str:
-        """Automatically select the best provider for transcription.
-
-        Args:
-            audio_file_path: Optional path to audio file for selection criteria
-            preferred_features: Optional list of required features
-
-        Returns:
-            Name of the selected provider
-
-        Raises:
-            ValueError: If no providers are configured
-        """
+        """Select best provider for transcription."""
         return self.factory.auto_select_provider(audio_file_path, preferred_features)
 
     def _prepare_transcription(
