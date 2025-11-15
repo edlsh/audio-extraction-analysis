@@ -1,36 +1,7 @@
-"""Full transcript analyzer that generates 5 structured markdown files.
+"""Full transcript analyzer generating 5 detailed markdown files.
 
-This module provides the FullAnalyzer class for comprehensive transcription analysis.
-It takes a TranscriptionResult object and produces structured documentation across
-five interconnected markdown files.
-
-Output Files
-------------
-The analyzer produces the following files in the output directory:
-1. 01_executive_summary.md - High-level session overview with metadata and quick links
-2. 02_chapter_overview.md - Detailed chapter breakdown with time ranges and topics
-3. 03_key_topics_and_intents.md - Topic frequency, intent detection, and sentiment analysis
-4. 04_full_transcript_with_timestamps.md - Complete transcript with speaker attribution
-5. 05_key_insights_and_takeaways.md - Strategic insights with actionable recommendations
-
-Usage Example
--------------
-    from pathlib import Path
-    from analysis.full_analyzer import FullAnalyzer
-    from models.transcription import TranscriptionResult
-
-    # Assuming you have a TranscriptionResult object
-    analyzer = FullAnalyzer()
-    output_paths = analyzer.analyze_and_save(
-        result=transcription_result,
-        output_dir=Path("./analysis_output"),
-        filename_base="meeting_2024"
-    )
-
-References
-----------
-The structure broadly follows docs/transcription_formatting_prompts.md
-and examples in the examples/ and data/output/ folders.
+Generates: executive summary, chapter overview, topics/intents,
+full transcript, and key insights.
 """
 
 from __future__ import annotations
@@ -44,58 +15,12 @@ logger = logging.getLogger(__name__)
 
 
 class FullAnalyzer:
-    """Generates 5 detailed analysis files from a TranscriptionResult.
-
-    The FullAnalyzer processes rich transcription data and creates a comprehensive
-    documentation suite including executive summaries, chapter breakdowns, topic analysis,
-    timestamped transcripts, and actionable insights.
-
-    Features
-    --------
-    - Executive summary with session metadata and structure overview
-    - Chapter-by-chapter analysis with time ranges and percentage breakdowns
-    - Topic frequency analysis and intent detection
-    - Full speaker-attributed transcript with timestamps
-    - Strategic insights extraction using action-word heuristics
-    - Cross-linked markdown files for easy navigation
-
-    Attributes
-    ----------
-    None - This class is stateless and can be reused for multiple analyses.
-
-    Methods
-    -------
-    analyze_and_save(result, output_dir, filename_base)
-        Generate all 5 analysis markdown files from a TranscriptionResult.
-
-    Examples
-    --------
-    >>> analyzer = FullAnalyzer()
-    >>> paths = analyzer.analyze_and_save(
-    ...     result=transcription_result,
-    ...     output_dir=Path("./output"),
-    ...     filename_base="session_001"
-    ... )
-    >>> print(paths["executive_summary"])
-    Path('./output/01_executive_summary.md')
-    """
-
-    def __init__(self) -> None:
-        """Initialize the FullAnalyzer.
-
-        The analyzer is stateless and ready to process transcription results
-        immediately after initialization.
-        """
-        pass
+    """Generates 5 detailed markdown files from transcription results."""
 
     def analyze_and_save(
         self, result: TranscriptionResult, output_dir: Path, filename_base: str
     ) -> dict[str, Path]:
-        """Generate all 5 analysis files and return their paths.
-
-        This method orchestrates the creation of all five markdown files by calling
-        the respective rendering methods. The output directory is created if it doesn't
-        exist. All files are written with UTF-8 encoding.
+        """Generate 5 analysis markdown files and return their paths.
 
         Args:
             result: Rich transcription result containing transcript, speakers, chapters,
