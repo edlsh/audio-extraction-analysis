@@ -291,9 +291,13 @@ class TestEventConsumerIntegration:
     @pytest.mark.asyncio
     async def test_event_consumer_processes_all_event_types(self):
         """Test that EventConsumer handles all event types correctly."""
-        from src.ui.tui.events import EventConsumer
+        from src.ui.tui.events import EventConsumer, EventConsumerConfig
 
-        consumer = EventConsumer()
+        queue = EventConsumer.create_queue(EventConsumerConfig(throttle_ms=25))
+        processed: list[Event] = []
+
+        consumer = EventConsumer(queue, lambda batch: processed.extend(batch))
+        consumer_task = asyncio.create_task(consumer.run())
 
         # Queue various event types
         events = [
@@ -308,59 +312,44 @@ class TestEventConsumerIntegration:
         ]
 
         for event in events:
-            await consumer.queue.put(event)
-
-        # Start consuming (with timeout)
-        consume_task = asyncio.create_task(consumer.start_consuming())
+            await queue.put(event)
 
         # Let it process
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(0.2)
+        await consumer.stop()
+        await consumer_task
 
-        # Stop consuming
-        consume_task.cancel()
-
-        try:
-            await consume_task
-        except asyncio.CancelledError:
-            pass
-
-        # Verify state was updated
-        state = consumer.state
-        assert state.current_stage is not None or "extract" in state.stage_durations
-        assert len(state.logs) > 0
-        assert len(state.artifacts) > 0
-        assert len(state.errors) > 0
+        event_types = {event.type for event in processed}
+        assert {"stage_start", "stage_progress", "stage_end", "artifact", "log", "error"}.issubset(
+            event_types
+        )
+        assert any(event.stage == "extract" for event in processed)
 
     @pytest.mark.asyncio
     async def test_event_consumer_throttling(self):
         """Test that EventConsumer throttles rapid events."""
-        from src.ui.tui.events import EventConsumer
+        from src.ui.tui.events import EventConsumer, EventConsumerConfig
 
-        consumer = EventConsumer()
+        queue = EventConsumer.create_queue(EventConsumerConfig(throttle_ms=25))
+        processed: list[Event] = []
+        consumer = EventConsumer(queue, lambda batch: processed.extend(batch))
+        consumer_task = asyncio.create_task(consumer.run())
 
         # Queue 100 progress events rapidly
         for i in range(100):
-            await consumer.queue.put(
+            await queue.put(
                 Event(type="stage_progress", stage="extract", data={"completed": i, "total": 100})
             )
-
-        # Start consuming
-        consume_task = asyncio.create_task(consumer.start_consuming())
 
         # Let it process with throttling
         await asyncio.sleep(0.3)
 
-        # Stop
-        consume_task.cancel()
-        try:
-            await consume_task
-        except asyncio.CancelledError:
-            pass
+        await consumer.stop()
+        await consumer_task
 
-        # Progress should be updated (throttling should still process)
-        state = consumer.state
-        # Some progress should have been recorded
-        assert state.stage_completed.get("extract", 0) > 0
+        progress_updates = [event for event in processed if event.type == "stage_progress"]
+        assert progress_updates, "Expected throttled progress events to be emitted"
+        assert progress_updates[-1].data.get("completed", 0) >= 99
 
 
 class TestPersistenceIntegration:
@@ -393,7 +382,7 @@ class TestPersistenceIntegration:
     @pytest.mark.asyncio
     async def test_recent_files_tracking(self, tmp_path: Path):
         """Test that recent files are tracked correctly."""
-        from src.ui.tui.persistence import add_recent_file, get_recent_files
+        from src.ui.tui.persistence import add_recent_file, load_recent_files
 
         # Add some files
         file1 = tmp_path / "audio1.mp3"
@@ -404,17 +393,21 @@ class TestPersistenceIntegration:
         file2.touch()
         file3.touch()
 
-        add_recent_file(str(file1))
-        add_recent_file(str(file2))
-        add_recent_file(str(file3))
+        config_dir = tmp_path / "config"
+        config_dir.mkdir()
 
-        # Get recent files
-        recent = get_recent_files()
+        with patch("src.ui.tui.persistence.get_config_dir", return_value=config_dir):
+            add_recent_file(file1)
+            add_recent_file(file2)
+            add_recent_file(file3)
+
+            # Get recent files
+            recent = load_recent_files()
 
         # Should have all 3 files (most recent first)
         assert len(recent) >= 3
         recent_paths = [item["path"] for item in recent]
-        assert str(file3) in recent_paths  # Most recent
+        assert str(file3.resolve()) in recent_paths  # Most recent
 
 
 @pytest.fixture

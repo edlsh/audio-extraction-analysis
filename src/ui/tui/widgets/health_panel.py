@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import asyncio
 
+from rich.console import Group
 from rich.table import Table
+from rich.text import Text
 from textual.app import ComposeResult
 from textual.widgets import Static
 
@@ -63,28 +65,36 @@ class HealthPanel(Static):
     async def _check_health(self) -> None:
         """Check health status asynchronously."""
         try:
-            # Check each provider
-            providers = ["deepgram", "elevenlabs", "whisper", "parakeet"]
+            results = await self._health_service.check_all_providers()
+        except Exception as exc:  # pragma: no cover - defensive logging only
+            self.update(f"[red]Error checking health: {exc}[/red]")
+            return
 
-            for provider in providers:
-                try:
-                    health = await self._health_service.check_health(provider)
-                    self._health_status[provider] = health
-                except Exception as e:
-                    self._health_status[provider] = {
-                        "healthy": False,
-                        "response_time": None,
-                        "error": str(e),
-                    }
+        # Normalize status structure for rendering
+        normalized: dict[str, dict[str, str | bool | None]] = {}
+        for provider, status in results.items():
+            provider_status = status or {}
+            state = str(provider_status.get("status", "")).lower()
+            healthy = state in {"ok", "healthy", "available"}
+            normalized[provider] = {
+                "healthy": healthy,
+                "response_time": provider_status.get("response_time"),
+                "message": provider_status.get("message")
+                or provider_status.get("details")
+                or provider_status.get("error")
+                or ("OK" if healthy else "Unknown"),
+                "error": provider_status.get("error"),
+            }
 
-            # Update display
-            self._update_display()
-
-        except Exception as e:
-            self.update(f"[red]Error checking health: {e}[/red]")
+        self._health_status = normalized
+        self._update_display()
 
     def _update_display(self) -> None:
         """Update the health status display."""
+        if not self._health_status:
+            self.update("[dim]No provider health data available.[/dim]")
+            return
+
         table = Table(title="Provider Health Status", show_header=True)
         table.add_column("Provider", style="cyan", width=12)
         table.add_column("Status", width=10)
@@ -92,7 +102,6 @@ class HealthPanel(Static):
         table.add_column("Details", no_wrap=False)
 
         for provider, status in self._health_status.items():
-            # Determine status color and text
             if status.get("healthy"):
                 status_text = "[green]✓ Healthy[/green]"
             elif status.get("error"):
@@ -115,16 +124,14 @@ class HealthPanel(Static):
                 time_text = "[dim]--[/dim]"
 
             # Get details
-            details = status.get("error", "OK")
+            details = status.get("message") or status.get("error", "OK")
             if len(details) > 40:
                 details = details[:37] + "..."
 
             table.add_row(provider.capitalize(), status_text, time_text, details)
 
-        # Add refresh info
-        footer = "\n[dim]Auto-refreshes every 30s. Press 'r' to refresh manually.[/dim]"
-
-        self.update(table.render() + footer)
+        footer = Text("Auto-refreshes every 30s. Press 'r' to refresh manually.", style="dim")
+        self.update(Group(table, footer))
 
     def action_refresh(self) -> None:
         """Manual refresh action."""
