@@ -29,14 +29,16 @@ try:
     from .utils.paths import ensure_subpath, safe_write_json, sanitize_dirname
     from .utils.sanitization import PathSanitizer
 except ImportError:  # pragma: no cover - fallback for installed package layout
-    from formatters.markdown_formatter import MarkdownFormatter
-    from pipeline.simple_pipeline import process_pipeline
-    from services.audio_extraction import AudioExtractor, AudioQuality
-    from services.transcription import TranscriptionService
-    from ui.console import ConsoleManager
-    from utils.file_validation import ValidationError, validate_audio_file
-    from utils.paths import ensure_subpath, safe_write_json, sanitize_dirname
-    from utils.sanitization import PathSanitizer
+    from src.config import Config
+    from src.formatters.markdown_formatter import MarkdownFormatter
+    from src.pipeline.audio_pipeline import AudioProcessingPipeline
+    from src.pipeline.simple_pipeline import process_pipeline
+    from src.services.audio_extraction import AudioExtractor, AudioQuality
+    from src.services.transcription import TranscriptionService
+    from src.ui.console import ConsoleManager
+    from src.utils.file_validation import ValidationError, validate_audio_file
+    from src.utils.paths import ensure_subpath, safe_write_json, sanitize_dirname
+    from src.utils.sanitization import PathSanitizer
 
 __version__ = "1.0.0+emergency"
 

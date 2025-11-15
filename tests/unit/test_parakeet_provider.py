@@ -7,7 +7,10 @@ from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-import torch
+
+# Skip all tests if Parakeet dependencies are not available
+torch = pytest.importorskip("torch", reason="PyTorch not installed (optional Parakeet dependency)")
+pytest.importorskip("nemo", reason="NeMo not installed (optional Parakeet dependency)")
 
 from src.models.transcription import TranscriptionResult
 from src.providers.parakeet import (

@@ -8,7 +8,7 @@ Provides persistent caching of transcription results with:
 
 Example:
     cache = TranscriptionCache(max_size_mb=500, enable_compression=True)
-    
+
     result = cache.get(Path("audio.mp3"), "whisper", {"model": "base"})
     if result is None:
         result = transcribe_audio(...)
@@ -36,9 +36,26 @@ from .eviction import select_lru_victim, select_ttl_victim
 
 
 @dataclass
+class CachePolicy:
+    """Configuration for cache behavior.
+
+    Attributes:
+        ttl_seconds: Time to live for cache entries in seconds (default: 1 hour)
+        max_size_mb: Maximum cache size in megabytes (default: 500 MB)
+        enable_compression: Whether to compress cached values (default: True)
+        eviction_strategy: Strategy for cache eviction (default: "lru")
+    """
+
+    ttl_seconds: int = 3600
+    max_size_mb: int = 500
+    enable_compression: bool = True
+    eviction_strategy: str = "lru"
+
+
+@dataclass
 class CacheKey:
     """Content-based cache key: (file_hash, provider, settings_hash).
-    
+
     Ensures cache hits only when file content, provider, and settings match exactly.
     """
 
@@ -459,10 +476,11 @@ class TranscriptionCache:
         """
         if backends is None:
             from .backends import InMemoryCache
+
             self.backends = [InMemoryCache()]
         else:
             self.backends = backends
-            
+
         self.max_size_bytes = max_size_mb * 1024 * 1024
         self.max_entries = max_entries
         self.default_ttl = default_ttl

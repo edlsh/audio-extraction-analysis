@@ -62,10 +62,6 @@ class ProviderInitializer:
             circuit_config = CircuitBreakerConfig(
                 failure_threshold=config.CIRCUIT_BREAKER_FAILURE_THRESHOLD,
                 recovery_timeout=config.CIRCUIT_BREAKER_RECOVERY_TIMEOUT,
-                expected_exception_types=(
-                    ConnectionError,
-                    TimeoutError,
-                ),
             )
         return circuit_config
 

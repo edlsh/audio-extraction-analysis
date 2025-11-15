@@ -11,7 +11,6 @@ from src.ui.console import (
     FallbackProgressTracker,
     JsonProgressTracker,
     RichProgressTracker,
-    ThreadSafeConsole,
 )
 
 
@@ -227,45 +226,6 @@ class TestConsoleManager:
         assert len(result) <= 100
 
 
-class TestThreadSafeConsole:
-    """Test thread-safe console wrapper."""
-
-    def test_thread_safe_print(self):
-        """Test thread-safe print method."""
-        mock_console = Mock()
-        ts_console = ThreadSafeConsole(mock_console)
-
-        ts_console.print("test message")
-        mock_console.print.assert_called_once_with("test message")
-
-    def test_thread_safe_log(self):
-        """Test thread-safe log method."""
-        mock_console = Mock()
-        ts_console = ThreadSafeConsole(mock_console)
-
-        ts_console.log("log message")
-        mock_console.log.assert_called_once_with("log message")
-
-    def test_concurrent_access(self):
-        """Test thread safety with concurrent access."""
-        mock_console = Mock()
-        ts_console = ThreadSafeConsole(mock_console)
-        results = []
-
-        def print_task(message):
-            ts_console.print(message)
-            results.append(message)
-
-        threads = [threading.Thread(target=print_task, args=(f"msg{i}",)) for i in range(10)]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
-
-        assert len(results) == 10
-        assert mock_console.print.call_count == 10
-
-
 class TestJsonProgressTracker:
     """Test JSON progress tracker."""
 
@@ -381,10 +341,9 @@ class TestRichProgressTracker:
     def test_rich_progress_update(self):
         """Test Rich progress tracker updates."""
         mock_progress = Mock()
-        mock_lock = threading.RLock()
         task_id = "test_task"
 
-        tracker = RichProgressTracker(mock_progress, task_id, mock_lock)
+        tracker = RichProgressTracker(mock_progress, task_id)
         tracker.update(50, 100)
 
         mock_progress.update.assert_called_with(task_id, completed=50, total=100)
@@ -392,10 +351,9 @@ class TestRichProgressTracker:
     def test_rich_progress_throttling(self):
         """Test Rich progress tracker throttles updates."""
         mock_progress = Mock()
-        mock_lock = threading.RLock()
         task_id = "test_task"
 
-        tracker = RichProgressTracker(mock_progress, task_id, mock_lock)
+        tracker = RichProgressTracker(mock_progress, task_id)
 
         # First update at 15% should go through (>10% change from 0)
         tracker.update(15, 100)
@@ -412,10 +370,9 @@ class TestRichProgressTracker:
     def test_rich_progress_description_update(self):
         """Test Rich progress tracker with description."""
         mock_progress = Mock()
-        mock_lock = threading.RLock()
         task_id = "test_task"
 
-        tracker = RichProgressTracker(mock_progress, task_id, mock_lock)
+        tracker = RichProgressTracker(mock_progress, task_id)
         tracker.update(50, 100, description="New Description")
 
         mock_progress.update.assert_called_with(
@@ -425,10 +382,9 @@ class TestRichProgressTracker:
     def test_rich_progress_thread_safety(self):
         """Test Rich progress tracker thread safety."""
         mock_progress = Mock()
-        mock_lock = threading.RLock()
         task_id = "test_task"
 
-        tracker = RichProgressTracker(mock_progress, task_id, mock_lock)
+        tracker = RichProgressTracker(mock_progress, task_id)
 
         def update_task(value):
             tracker.update(value, 100)

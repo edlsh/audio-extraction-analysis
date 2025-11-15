@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class CircuitBreakerConfig:
     """Circuit breaker configuration (optional, disabled by default)."""
-    
+
     enabled: bool = False  # Disabled by default for CLI use
     failure_threshold: int = 5
     recovery_timeout: float = 60.0
@@ -33,6 +33,7 @@ class CircuitBreakerConfig:
 
 class CircuitBreakerError(Exception):
     """Raised when circuit breaker is open (too many failures)."""
+
     pass
 
 
@@ -58,22 +59,20 @@ class CircuitBreakerMixin:
         """Track failures and open circuit if threshold exceeded."""
         if not self._circuit_config.enabled:
             return
-        
+
         with self._lock:
             self._failure_count += 1
             self._last_failure_time = time.time()
 
             if self._failure_count >= self._circuit_config.failure_threshold:
                 self._is_open = True
-                logger.warning(
-                    f"Circuit breaker opened after {self._failure_count} failures"
-                )
+                logger.warning(f"Circuit breaker opened after {self._failure_count} failures")
 
     def _check_circuit_state(self) -> None:
         """Raise if circuit is open (unless recovery timeout passed)."""
         if not self._circuit_config.enabled:
             return
-            
+
         with self._lock:
             if self._is_open:
                 if time.time() - self._last_failure_time >= self._circuit_config.recovery_timeout:
@@ -139,7 +138,7 @@ class CircuitBreakerMixin:
 
         Returns:
             Dictionary containing:
-                - state (str): Current circuit state ('closed', 'open', or 'half_open')
+                - state (str): Current circuit state ('closed' or 'open')
                 - failure_count (int): Number of consecutive failures recorded
                 - failure_threshold (int): Threshold before circuit opens
                 - last_failure_time (float): Timestamp of most recent failure
@@ -148,7 +147,7 @@ class CircuitBreakerMixin:
         """
         with self._lock:
             return {
-                "state": self._circuit_state.value,
+                "state": "open" if self._is_open else "closed",
                 "failure_count": self._failure_count,
                 "failure_threshold": self._circuit_config.failure_threshold,
                 "last_failure_time": self._last_failure_time,
@@ -160,7 +159,7 @@ class CircuitBreakerMixin:
                         + self._circuit_config.recovery_timeout
                         - time.time(),
                     )
-                    if self._circuit_state == CircuitState.OPEN
+                    if self._is_open
                     else 0
                 ),
             }
@@ -191,11 +190,6 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
     DEFAULT_CIRCUIT_CONFIG = CircuitBreakerConfig(
         failure_threshold=5,
         recovery_timeout=60.0,
-        expected_exception_types=(
-            ConnectionError,
-            TimeoutError,
-            OSError,
-        ),
     )
 
     def __init__(
