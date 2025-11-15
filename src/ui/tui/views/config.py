@@ -264,9 +264,23 @@ class ConfigScreen(Screen):
         # Save current settings
         save_settings(self.settings)
 
-        # Navigate to run screen
+        # Build config dict from settings
+        config = {
+            "output_dir": str(self.app.state.output_dir),
+            "quality": self.settings["defaults"]["quality"],
+            "provider": self.settings["defaults"]["provider"],
+            "language": self.settings["defaults"]["language"],
+            "analysis_style": self.settings["defaults"]["analysis_style"],
+            "export_markdown": self.settings["exports"]["markdown"],
+            "export_html": self.settings["exports"]["html"],
+        }
+
+        # Create and push run screen with config
+        from .run import RunScreen
+
         logger.info("Starting pipeline run")
-        self.app.push_screen("run")
+        run_screen = RunScreen(input_file=self.app.state.input_path, config=config)
+        self.app.push_screen(run_screen)
 
     def action_reset_defaults(self) -> None:
         """Reset configuration to defaults."""

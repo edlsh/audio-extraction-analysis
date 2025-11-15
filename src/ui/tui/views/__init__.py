@@ -8,8 +8,9 @@ __all__ = []
 try:
     from .config import ConfigScreen
     from .home import HomeScreen
+    from .run import RunScreen
 
-    __all__.extend(["ConfigScreen", "HomeScreen"])
+    __all__.extend(["ConfigScreen", "HomeScreen", "RunScreen"])
 except ImportError:
     # Textual not installed
     pass

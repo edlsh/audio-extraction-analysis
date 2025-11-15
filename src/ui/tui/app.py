@@ -15,6 +15,7 @@ from ...models.events import Event, QueueEventSink
 from .state import AppState
 from .views.config import ConfigScreen
 from .views.home import HomeScreen
+from .views.run import RunScreen
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +54,8 @@ class AudioExtractionApp(App):
     SCREENS = {
         "home": HomeScreen,
         "config": ConfigScreen,
+        # Note: RunScreen is not registered here as it requires parameters
+        # and is pushed directly from ConfigScreen
     }
 
     CSS = """
