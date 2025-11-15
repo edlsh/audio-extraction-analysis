@@ -80,8 +80,7 @@ class AudioExtractionApp(App):
         "home": HomeScreen,
         "config": ConfigScreen,
         "help": HelpScreen,
-        # Note: RunScreen is not registered here as it requires parameters
-        # and is pushed directly from ConfigScreen
+        "run": RunScreen,
     }
 
     CSS = """

@@ -11,6 +11,7 @@ import pytest
 # Skip all tests if textual is not available
 textual = pytest.importorskip("textual")
 
+from src.ui.tui.state import AppState
 from src.ui.tui.views.run import RunScreen
 
 
@@ -254,6 +255,31 @@ class TestRunScreen:
 
         # Back action should work
         screen.action_back()
+
+    def test_resolve_runtime_context_from_state(self, mock_config):
+        """RunScreen pulls missing context from app state."""
+        screen = RunScreen()
+        app_state = AppState(
+            input_path=Path("/tmp/input.mp3"),
+            output_dir=Path("/tmp/output"),
+        )
+        app_state.pending_run_config = mock_config.copy()
+        screen.app = MagicMock(state=app_state)
+
+        screen._ensure_runtime_context()
+
+        assert screen.input_file == Path("/tmp/input.mp3")
+        assert screen.config == mock_config
+        assert app_state.pending_run_config is None
+
+    def test_resolve_runtime_context_missing_config(self):
+        """RunScreen raises when config isn't available."""
+        screen = RunScreen()
+        app_state = AppState(input_path=Path("/tmp/input.mp3"))
+        screen.app = MagicMock(state=app_state)
+
+        with pytest.raises(RuntimeError):
+            screen._ensure_runtime_context()
 
 
 class TestRunScreenIntegration:

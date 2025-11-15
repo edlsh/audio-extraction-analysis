@@ -101,7 +101,7 @@ class RunScreen(Screen):
     }
     """
 
-    def __init__(self, input_file: str | Path, config: dict, **kwargs):
+    def __init__(self, input_file: str | Path | None = None, config: dict | None = None, **kwargs):
         """Initialize run screen.
 
         Args:
@@ -110,8 +110,8 @@ class RunScreen(Screen):
             **kwargs: Additional screen arguments
         """
         super().__init__(**kwargs)
-        self.input_file = Path(input_file)
-        self.config = config
+        self.input_file = Path(input_file) if input_file else None
+        self.config = dict(config) if config else None
         self._event_consumer: EventConsumer | None = None
         self._pipeline_task: asyncio.Task | None = None
         self._monitor_task: asyncio.Task | None = None
@@ -153,6 +153,7 @@ class RunScreen(Screen):
         import uuid
         from ..state import apply_event
 
+        self._ensure_runtime_context()
         self._running = True
 
         consumer_config = EventConsumerConfig()
@@ -315,3 +316,17 @@ class RunScreen(Screen):
             return
 
         self.app.pop_screen()
+
+    def _ensure_runtime_context(self) -> None:
+        """Ensure the run screen has input and config before starting."""
+        if self.input_file is None:
+            if self.app.state.input_path is None:
+                raise RuntimeError("No input file available for RunScreen")
+            self.input_file = Path(self.app.state.input_path)
+
+        if self.config is None:
+            config = getattr(self.app.state, "pending_run_config", None)
+            if config is None:
+                raise RuntimeError("No pipeline configuration available for RunScreen")
+            self.config = dict(config)
+            self.app.state.pending_run_config = None

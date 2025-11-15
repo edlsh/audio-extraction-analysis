@@ -146,10 +146,10 @@ class HomeScreen(Screen):
         elif self._active_pane == "recent":
             table = self.query_one("#recent-files", DataTable)
             if table.cursor_row is not None:
-                row_key = table.get_row_at(table.cursor_row)
-                if row_key:
-                    # The key is the file path (string)
-                    selected_path = Path(str(table.get_row_key(table.cursor_row)))
+                key = table.get_row_key(table.cursor_row)
+                if key:
+                    key_value = getattr(key, "value", key)
+                    selected_path = Path(str(key_value))
                     self._select_file(selected_path)
 
     def _select_file(self, path: Path) -> None:

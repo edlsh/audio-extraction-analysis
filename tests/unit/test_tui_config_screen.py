@@ -116,8 +116,9 @@ class TestConfigScreenActions:
         config_screen.action_start_run()
 
         config_screen.notify.assert_called_with(
-            "Please select an input file first",
-            severity="error"
+            "No input file selected!",
+            severity="error",
+            timeout=3,
         )
 
     def test_action_start_run_missing_output_dir(self, config_screen):
@@ -128,8 +129,9 @@ class TestConfigScreenActions:
         config_screen.action_start_run()
 
         config_screen.notify.assert_called_with(
-            "Please select an output directory first",
-            severity="error"
+            "Output directory not set!",
+            severity="error",
+            timeout=3,
         )
 
     @patch("src.ui.tui.views.config.save_settings")
@@ -165,10 +167,8 @@ class TestConfigScreenActions:
         }
 
         # Verify screen was pushed with correct args
-        config_screen.app.push_screen.assert_called_once()
-        call_args = config_screen.app.push_screen.call_args[0]
-        assert str(call_args[0].input_file) == str(config_screen.app.state.input_path)
-        assert call_args[0].config == expected_config
+        config_screen.app.push_screen.assert_called_once_with("run")
+        assert config_screen.app.state.pending_run_config == expected_config
 
     def test_action_reset_defaults(self, config_screen):
         """Test reset to defaults action."""

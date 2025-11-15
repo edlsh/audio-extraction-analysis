@@ -61,6 +61,7 @@ class AppState:
 
     # Run ID for event tracking
     run_id: str | None = None
+    pending_run_config: dict[str, Any] | None = None
 
     def reset_run_state(self) -> None:
         """Reset state for a new run."""
@@ -77,6 +78,7 @@ class AppState:
         self.logs.clear()
         self.summary.clear()
         self.run_id = None
+        self.pending_run_config = None
 
 
 def _append_to_ring(items: list[Any], item: Any, max_size: int) -> list[Any]:

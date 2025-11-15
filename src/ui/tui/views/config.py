@@ -305,12 +305,10 @@ class ConfigScreen(Screen):
             "export_html": self.settings["exports"]["html"],
         }
 
-        # Create and push run screen with config
-        from .run import RunScreen
-
+        # Store config and navigate to run screen
         logger.info("Starting pipeline run")
-        run_screen = RunScreen(input_file=self.app.state.input_path, config=config)
-        self.app.push_screen(run_screen)
+        self.app.state.pending_run_config = config
+        self.app.push_screen("run")
 
     def action_reset_defaults(self) -> None:
         """Reset configuration to defaults."""

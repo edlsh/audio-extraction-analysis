@@ -141,7 +141,7 @@ class TestHomeScreenActions:
         """Test selecting a file from the recent files table."""
         home_screen.app.push_screen = AsyncMock()
         home_screen.notify = Mock()
-        home_screen._current_pane = "recent"
+        home_screen._active_pane = "recent"
 
         # Mock table with selected file
         mock_table = Mock(spec=DataTable)
@@ -158,6 +158,24 @@ class TestHomeScreenActions:
         mock_add_recent.assert_called_once_with(Path("/test/recent.mp3"))
 
         # Verify navigation to config screen
+        home_screen.app.push_screen.assert_called_once()
+
+    @patch("src.ui.tui.views.home.add_recent_file")
+    def test_action_select_file_from_table_row_key_object(self, mock_add_recent, home_screen):
+        """Test selecting a file when row keys expose value attribute."""
+        home_screen.app.push_screen = AsyncMock()
+        home_screen.notify = Mock()
+        home_screen._active_pane = "recent"
+
+        mock_table = Mock(spec=DataTable)
+        mock_table.cursor_row = 0
+        mock_table.get_row_key = Mock(return_value=Mock(value="/test/rowkey.mp3"))
+        home_screen.query_one = Mock(return_value=mock_table)
+
+        home_screen.action_select_file()
+
+        assert home_screen.app.state.input_path == Path("/test/rowkey.mp3")
+        mock_add_recent.assert_called_once_with(Path("/test/rowkey.mp3"))
         home_screen.app.push_screen.assert_called_once()
 
     def test_action_select_file_no_selection(self, home_screen):
@@ -197,7 +215,7 @@ class TestHomeScreenActions:
     def test_action_select_file_not_found(self, home_screen):
         """Test selecting a file that doesn't exist."""
         home_screen.notify = Mock()
-        home_screen._current_pane = "recent"
+        home_screen._active_pane = "recent"
 
         # Mock table with non-existent file
         mock_table = Mock(spec=DataTable)
@@ -217,7 +235,7 @@ class TestHomeScreenActions:
     def test_action_switch_pane(self, home_screen):
         """Test switching between panes."""
         # Start with tree pane
-        home_screen._current_pane = "tree"
+        home_screen._active_pane = "tree"
 
         # Mock widgets
         mock_tree = Mock(spec=DirectoryTree)
@@ -230,13 +248,13 @@ class TestHomeScreenActions:
         # Switch to recent pane
         home_screen.action_switch_pane()
 
-        assert home_screen._current_pane == "recent"
+        assert home_screen._active_pane == "recent"
         mock_table.focus.assert_called_once()
 
         # Switch back to tree pane
         home_screen.action_switch_pane()
 
-        assert home_screen._current_pane == "tree"
+        assert home_screen._active_pane == "tree"
         mock_tree.focus.assert_called_once()
 
     def test_action_filter(self, home_screen):
@@ -429,20 +447,20 @@ class TestHomeScreenIntegration:
             await pilot.pause()
 
             # Start with tree pane
-            assert screen._current_pane == "tree"
+            assert screen._active_pane == "tree"
 
             # Switch panes with Tab
             await pilot.press("tab")
             await pilot.pause()
 
             # Should be on recent pane
-            assert screen._current_pane == "recent"
+            assert screen._active_pane == "recent"
 
             # Switch back
             await pilot.press("tab")
             await pilot.pause()
 
-            assert screen._current_pane == "tree"
+            assert screen._active_pane == "tree"
 
     @pytest.mark.asyncio
     async def test_filter_input_focus(self):
