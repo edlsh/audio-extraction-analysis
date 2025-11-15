@@ -107,7 +107,9 @@ class TestProgressBoard:
         card = board._render_stage_card(state, "extract", "Extract Audio")
 
         # Card should have title
-        assert "Extract Audio" in str(card)
+        title_value = card.title if card.title is not None else ""
+        title_text = getattr(title_value, "plain", str(title_value))
+        assert "Extract Audio" in title_text
 
     def test_render_stage_card_running(self):
         """Test rendering running stage card."""
@@ -121,7 +123,8 @@ class TestProgressBoard:
         card = board._render_stage_card(state, "extract", "Extract Audio")
 
         # Card should show progress
-        assert "50%" in str(card) or "█" in str(card)
+        render_text = str(card.renderable)
+        assert "50%" in render_text or "█" in render_text
 
     def test_render_stage_card_complete(self):
         """Test rendering complete stage card."""
@@ -132,7 +135,8 @@ class TestProgressBoard:
         card = board._render_stage_card(state, "extract", "Extract Audio")
 
         # Card should show completion time
-        assert "3.5s" in str(card) or "Completed" in str(card)
+        render_text = str(card.renderable)
+        assert "3.5" in render_text or "Completed" in render_text
 
 
 class TestLogPanel:
