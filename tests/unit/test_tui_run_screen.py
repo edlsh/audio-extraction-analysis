@@ -96,11 +96,10 @@ class TestRunScreen:
         output_dir.mkdir()
         screen._output_dir = output_dir
 
-        # Mock os_open
-        with patch("src.ui.tui.views.run.os_open") as mock_open:
-            mock_open.return_value = asyncio.coroutine(lambda: None)()
-
+        # Mock open_path
+        with patch("src.ui.tui.views.run.open_path", return_value=True) as mock_open:
             await screen.action_open_output()
+            mock_open.assert_called_once_with(output_dir)
 
     @pytest.mark.asyncio
     async def test_open_output_action_with_missing_dir(

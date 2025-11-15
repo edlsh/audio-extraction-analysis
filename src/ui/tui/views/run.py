@@ -248,6 +248,8 @@ class RunScreen(Screen):
             await self._event_consumer.stop()
         if self._consume_task:
             await self._consume_task
+        self._consume_task = None
+        self._event_consumer = None
 
         # Update UI one final time
         self._update_display()
@@ -295,7 +297,8 @@ class RunScreen(Screen):
 
     async def action_open_output(self) -> None:
         """Open output directory."""
-        if not self._output_dir or not self._output_dir.exists():
+        output_dir = self._output_dir
+        if not output_dir or not output_dir.exists():
             self.notify("Output directory not found", severity="error")
             return
 
@@ -304,8 +307,11 @@ class RunScreen(Screen):
 
         try:
             # open_path is sync, no await needed
-            open_path(str(self._output_dir))
-            self.notify(f"Opened {self._output_dir}", severity="information")
+            opened = open_path(output_dir)
+            if opened:
+                self.notify(f"Opened {output_dir}", severity="information")
+            else:
+                self.notify("Failed to open output folder", severity="error")
         except Exception as e:
             self.notify(f"Failed to open output: {e}", severity="error")
 
