@@ -1,16 +1,7 @@
-"""Abstract base class for transcription service providers.
+"""Base class for transcription providers.
 
-This module provides the foundation for all transcription providers, implementing:
-- Circuit breaker pattern to prevent cascading failures
-- Retry logic with exponential backoff
-- Async and sync transcription interfaces
-- Health checking and feature detection
-- Thread-safe state management
-
-The circuit breaker protects against overwhelming failing services by:
-1. CLOSED state: Normal operation, requests pass through
-2. OPEN state: After threshold failures, requests fail fast
-3. HALF_OPEN state: After timeout, allows test requests to check recovery
+Provides async/sync transcription interfaces with optional circuit breaker
+for production environments. Circuit breaker disabled by default for CLI use.
 """
 
 from __future__ import annotations
@@ -31,157 +22,65 @@ from ..utils.retry import RetryConfig, retry_async
 logger = logging.getLogger(__name__)
 
 
-class CircuitState(Enum):
-    """Circuit breaker states."""
-
-    CLOSED = "closed"  # Normal operation
-    OPEN = "open"  # Circuit is open, requests fail fast
-    HALF_OPEN = "half_open"  # Testing if service has recovered
-
-
 @dataclass
 class CircuitBreakerConfig:
-    """Configuration for circuit breaker behavior.
-
-    Attributes:
-        failure_threshold: Number of failures before opening circuit
-        recovery_timeout: Time in seconds before attempting recovery
-        expected_exception_types: Exception types that count as failures
-    """
-
+    """Circuit breaker configuration (optional, disabled by default)."""
+    
+    enabled: bool = False  # Disabled by default for CLI use
     failure_threshold: int = 5
     recovery_timeout: float = 60.0
-    expected_exception_types: tuple = (
-        ConnectionError,
-        TimeoutError,
-        OSError,
-    )
 
 
 class CircuitBreakerError(Exception):
-    """Raised when circuit breaker is open and prevents operation execution.
-
-    This exception indicates that the circuit breaker has detected too many failures
-    and is preventing additional requests to protect the failing service and prevent
-    cascading failures. The circuit will automatically attempt recovery after the
-    configured timeout period.
-
-    Attributes:
-        failure_count: Number of consecutive failures that triggered the circuit
-        last_failure_time: Timestamp (from time.time()) of the most recent failure
-    """
-
-    def __init__(self, message: str, failure_count: int, last_failure_time: float) -> None:
-        self.failure_count = failure_count
-        self.last_failure_time = last_failure_time
-        super().__init__(message)
+    """Raised when circuit breaker is open (too many failures)."""
+    pass
 
 
 class CircuitBreakerMixin:
-    """Mixin class that provides circuit breaker functionality for providers.
-
-    This mixin implements the circuit breaker pattern to prevent cascading failures
-    when external services are unavailable or degraded. It automatically tracks
-    failures and successes, transitioning between states to protect both the client
-    and the failing service.
-
-    Thread Safety:
-        All state mutations are protected by an internal lock, making this mixin
-        safe for use in multi-threaded environments.
-
-    Usage:
-        class MyProvider(CircuitBreakerMixin):
-            def __init__(self):
-                super().__init__(circuit_config=CircuitBreakerConfig())
-
-            async def my_operation(self):
-                return await self.circuit_breaker_call_async(self._do_work)
-    """
+    """Optional circuit breaker for providers (disabled by default)."""
 
     def __init__(self, circuit_config: CircuitBreakerConfig | None = None) -> None:
-        """Initialize circuit breaker state.
-
-        Args:
-            circuit_config: Configuration for circuit breaker behavior
-        """
         self._circuit_config = circuit_config or CircuitBreakerConfig()
-        self._circuit_state = CircuitState.CLOSED
         self._failure_count = 0
         self._last_failure_time = 0.0
+        self._is_open = False
         self._lock = Lock()
 
-    def _should_attempt_reset(self) -> bool:
-        """Check if circuit should attempt to reset to half-open state.
-
-        This method is thread-safe and checks both the current circuit state and
-        whether the recovery timeout has elapsed since the last failure.
-
-        Returns:
-            True if circuit is open and recovery timeout has passed, False otherwise
-        """
-        with self._lock:  # Add lock protection for thread safety
-            return (
-                self._circuit_state == CircuitState.OPEN
-                and time.time() - self._last_failure_time >= self._circuit_config.recovery_timeout
-            )
-
     def _record_success(self) -> None:
-        """Record a successful operation and reset circuit to healthy state.
-
-        When an operation succeeds, this resets the failure counter to zero and
-        transitions the circuit to CLOSED state, indicating normal operation.
-        This allows the circuit to recover from HALF_OPEN state after a successful
-        test request.
-        """
+        """Reset failure count on success."""
+        if not self._circuit_config.enabled:
+            return
         with self._lock:
             self._failure_count = 0
-            self._circuit_state = CircuitState.CLOSED
+            self._is_open = False
 
     def _record_failure(self, exception: Exception) -> None:
-        """Record a failed operation and update circuit state if threshold exceeded.
-
-        Only counts failures from expected exception types (configured in
-        CircuitBreakerConfig.expected_exception_types). Other exceptions are
-        ignored as they may represent application errors rather than service
-        unavailability.
-
-        Args:
-            exception: The exception that caused the failure
-        """
-        # Only count expected exception types as failures
-        if not isinstance(exception, self._circuit_config.expected_exception_types):
+        """Track failures and open circuit if threshold exceeded."""
+        if not self._circuit_config.enabled:
             return
-
+        
         with self._lock:
             self._failure_count += 1
             self._last_failure_time = time.time()
 
             if self._failure_count >= self._circuit_config.failure_threshold:
-                self._circuit_state = CircuitState.OPEN
+                self._is_open = True
                 logger.warning(
-                    f"Circuit breaker opened after {self._failure_count} failures. "
-                    f"Will attempt recovery in {self._circuit_config.recovery_timeout}s"
+                    f"Circuit breaker opened after {self._failure_count} failures"
                 )
 
     def _check_circuit_state(self) -> None:
-        """Check circuit state and raise exception if open.
-
-        Raises:
-            CircuitBreakerError: If circuit is open and recovery timeout hasn't passed
-        """
+        """Raise if circuit is open (unless recovery timeout passed)."""
+        if not self._circuit_config.enabled:
+            return
+            
         with self._lock:
-            if self._circuit_state == CircuitState.OPEN:
-                # Check reset condition within the same lock to avoid race condition
+            if self._is_open:
                 if time.time() - self._last_failure_time >= self._circuit_config.recovery_timeout:
-                    self._circuit_state = CircuitState.HALF_OPEN
-                    logger.info("Circuit breaker entering half-open state")
+                    self._is_open = False
+                    logger.info("Circuit breaker reset, retrying")
                 else:
-                    raise CircuitBreakerError(
-                        f"Circuit breaker is open. {self._failure_count} consecutive failures. "
-                        f"Will retry after {self._circuit_config.recovery_timeout}s",
-                        self._failure_count,
-                        self._last_failure_time,
-                    )
+                    raise CircuitBreakerError("Too many failures, circuit open")
 
     def circuit_breaker_call(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """Execute a function with circuit breaker protection.
