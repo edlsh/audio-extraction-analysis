@@ -1,35 +1,18 @@
-"""Comprehensive caching system for transcription results.
+"""Caching system for transcription results.
 
-This module provides a multi-level caching system for transcription results with:
+Provides persistent caching of transcription results with:
 - Content-based cache keys (file hash + provider + settings)
-- Multiple eviction policies (LRU, LFU, TTL, SIZE, FIFO, RANDOM)
-- Hierarchical backend support (in-memory, disk, distributed)
+- LRU eviction with optional TTL expiration
+- In-memory and disk backend support
 - Optional compression for storage efficiency
-- Cache warming for pre-loading frequently used data
-- Thread-safe operations with fine-grained locking
-
-Architecture:
-    TranscriptionCache (main interface)
-    ├── CacheBackend[] (hierarchical backends, L1->L2->L3)
-    ├── CacheKey (content-based addressing)
-    ├── CacheEntry (value + metadata + stats)
-    └── CacheStats (hit/miss/eviction metrics)
 
 Example:
-    ```python
-    from pathlib import Path
-    cache = TranscriptionCache(
-        policy=CachePolicy.LRU,
-        max_size_mb=500,
-        enable_compression=True
-    )
-
-    # Check cache
+    cache = TranscriptionCache(max_size_mb=500, enable_compression=True)
+    
     result = cache.get(Path("audio.mp3"), "whisper", {"model": "base"})
     if result is None:
         result = transcribe_audio(...)
         cache.put(Path("audio.mp3"), "whisper", {"model": "base"}, result)
-    ```
 """
 
 from __future__ import annotations
@@ -49,53 +32,14 @@ logger = logging.getLogger(__name__)
 
 # Extracted helpers
 from .compression import compress_value, decompress_value
-from .eviction import (
-    select_fifo_victim,
-    select_lfu_victim,
-    select_lru_victim,
-    select_size_victim,
-    select_ttl_victim,
-)
-
-
-class CachePolicy(Enum):
-    """Cache eviction policies.
-
-    Defines strategies for selecting which cache entries to remove when space is needed:
-
-    - LRU: Best for workloads with temporal locality (recent files accessed again)
-    - LFU: Best for workloads with frequency patterns (popular files accessed repeatedly)
-    - TTL: Best when data freshness matters (expire old transcriptions)
-    - SIZE: Best for optimizing storage efficiency (remove largest items first)
-    - FIFO: Simple queue-based eviction (predictable, no access tracking overhead)
-    - RANDOM: Fastest eviction (no metadata tracking, minimal overhead)
-    """
-
-    LRU = "lru"  # Least Recently Used - evict oldest access time
-    LFU = "lfu"  # Least Frequently Used - evict lowest access count
-    TTL = "ttl"  # Time To Live - evict closest to expiration
-    SIZE = "size"  # Size-based eviction - evict largest entries
-    FIFO = "fifo"  # First In First Out - evict oldest creation time
-    RANDOM = "random"  # Random eviction - no priority logic
+from .eviction import select_lru_victim, select_ttl_victim
 
 
 @dataclass
 class CacheKey:
-    """Content-based cache key for deterministic transcription result lookup.
-
-    Uses a composite key of (file_hash, provider, settings_hash) to ensure:
-    - Same file + provider + settings → same cache key (cache hit)
-    - Any change in file content, provider, or settings → different key (cache miss)
-
-    This prevents serving stale results when:
-    - Audio file is modified (detected via content hash)
-    - Provider is changed (e.g., whisper → google)
-    - Settings are changed (e.g., language, model, quality)
-
-    Attributes:
-        file_hash: SHA256 hash of file content (first 32 chars)
-        provider: Transcription provider name (e.g., 'whisper', 'google')
-        settings_hash: SHA256 hash of provider settings dict (first 16 chars)
+    """Content-based cache key: (file_hash, provider, settings_hash).
+    
+    Ensures cache hits only when file content, provider, and settings match exactly.
     """
 
     file_hash: str
@@ -212,23 +156,7 @@ class CacheKey:
 
 @dataclass
 class CacheEntry:
-    """Cache entry with metadata for tracking usage and expiration.
-
-    Stores a cached value along with metadata needed for:
-    - Eviction policy decisions (access time, access count, age, size)
-    - Expiration handling (TTL)
-    - Cache analytics (metadata dict for custom tracking)
-
-    Attributes:
-        key: Content-based cache key
-        value: Cached transcription result (may be compressed bytes)
-        size: Entry size in bytes (for size-based eviction)
-        created_at: Entry creation timestamp (for FIFO, TTL policies)
-        accessed_at: Last access timestamp (for LRU policy)
-        access_count: Number of times accessed (for LFU policy)
-        ttl: Time-to-live in seconds (None = no expiration)
-        metadata: Additional metadata dict for custom tracking
-    """
+    """Cache entry with access tracking and optional TTL expiration."""
 
     key: CacheKey
     value: Any
@@ -515,45 +443,37 @@ class TranscriptionCache:
     def __init__(
         self,
         backends: list[CacheBackend] | None = None,
-        policy: CachePolicy = CachePolicy.LRU,
         max_size_mb: int = 1000,
         max_entries: int = 10000,
         default_ttl: int | None = 3600,
         enable_compression: bool = True,
-        enable_warming: bool = False,
     ):
-        """Initialize transcription cache.
+        """Initialize cache with LRU eviction and optional TTL expiration.
 
         Args:
-            backends: List of cache backends (hierarchical)
-            policy: Eviction policy
+            backends: Cache backends (defaults to in-memory)
             max_size_mb: Maximum cache size in MB
             max_entries: Maximum number of entries
-            default_ttl: Default TTL in seconds
+            default_ttl: Default TTL in seconds (None = no expiration)
             enable_compression: Enable value compression
-            enable_warming: Enable cache warming
         """
         if backends is None:
-            # Import here to avoid circular import
             from .backends import InMemoryCache
-
             self.backends = [InMemoryCache()]
         else:
             self.backends = backends
-        self.policy = policy
+            
         self.max_size_bytes = max_size_mb * 1024 * 1024
         self.max_entries = max_entries
         self.default_ttl = default_ttl
         self.enable_compression = enable_compression
-        self.enable_warming = enable_warming
 
         self.stats = CacheStats()
         self._lock = RLock()
-        self._warm_keys: set[str] = set()
 
         logger.info(
-            f"Initialized TranscriptionCache with {len(self.backends)} backend(s), "
-            f"policy={policy.value}, max_size={max_size_mb}MB"
+            f"Initialized TranscriptionCache: {len(self.backends)} backend(s), "
+            f"max_size={max_size_mb}MB, ttl={default_ttl}s"
         )
 
     def get(self, file_path: Path, provider: str, settings: dict[str, Any]) -> Any | None:
@@ -768,19 +688,10 @@ class TranscriptionCache:
                 break  # No more entries to evict
 
     def _evict_one(self) -> bool:
-        """Evict one entry based on configured eviction policy.
-
-        Selects a victim entry using the configured policy (LRU, LFU, TTL, etc.)
-        and removes it from the primary backend. Warm entries (pre-loaded via warm())
-        are protected from eviction when possible.
-
-        Eviction process:
-        1. Select victim based on policy (delegate to policy-specific selector)
-        2. Protect warm entries (skip if non-warm alternatives exist)
-        3. Delete from backend and update stats
+        """Evict least recently used entry from cache.
 
         Returns:
-            True if an entry was evicted, False if cache is empty
+            True if evicted, False if cache empty
         """
         backend = self.backends[0]
         keys = backend.keys()
@@ -788,31 +699,10 @@ class TranscriptionCache:
         if not keys:
             return False
 
-        # Select victim based on policy
-        if self.policy == CachePolicy.LRU:
-            victim_key = self._select_lru_victim(backend, keys)
-        elif self.policy == CachePolicy.LFU:
-            victim_key = self._select_lfu_victim(backend, keys)
-        elif self.policy == CachePolicy.TTL:
-            victim_key = self._select_ttl_victim(backend, keys)
-        elif self.policy == CachePolicy.SIZE:
-            victim_key = self._select_size_victim(backend, keys)
-        elif self.policy == CachePolicy.FIFO:
-            victim_key = self._select_fifo_victim(backend, keys)
-        else:  # RANDOM
-            import random
+        # Use LRU eviction (simple and effective)
+        victim_key = select_lru_victim(backend, keys)
 
-            victim_key = random.choice(list(keys))
-
-        # Protect warm entries from eviction if non-warm alternatives exist
-        if victim_key in self._warm_keys and len(keys) > len(self._warm_keys):
-            # Try to find non-warm victim (simple linear search)
-            for key in keys:
-                if key not in self._warm_keys:
-                    victim_key = key
-                    break
-
-        # Evict victim
+        # Evict
         entry = backend.get(victim_key)
         if entry and backend.delete(victim_key):
             self.stats.evictions += 1
@@ -822,66 +712,6 @@ class TranscriptionCache:
             return True
 
         return False
-
-    def _select_lru_victim(self, backend: CacheBackend, keys: set[str]) -> str:
-        """Select LRU victim.
-
-        Args:
-            backend: Cache backend
-            keys: Available keys
-
-        Returns:
-            Victim key
-        """
-        return select_lru_victim(backend, keys)
-
-    def _select_lfu_victim(self, backend: CacheBackend, keys: set[str]) -> str:
-        """Select LFU victim.
-
-        Args:
-            backend: Cache backend
-            keys: Available keys
-
-        Returns:
-            Victim key
-        """
-        return select_lfu_victim(backend, keys)
-
-    def _select_ttl_victim(self, backend: CacheBackend, keys: set[str]) -> str:
-        """Select TTL victim (closest to expiration).
-
-        Args:
-            backend: Cache backend
-            keys: Available keys
-
-        Returns:
-            Victim key
-        """
-        return select_ttl_victim(backend, keys)
-
-    def _select_size_victim(self, backend: CacheBackend, keys: set[str]) -> str:
-        """Select largest entry as victim.
-
-        Args:
-            backend: Cache backend
-            keys: Available keys
-
-        Returns:
-            Victim key
-        """
-        return select_size_victim(backend, keys)
-
-    def _select_fifo_victim(self, backend: CacheBackend, keys: set[str]) -> str:
-        """Select FIFO victim (oldest creation time).
-
-        Args:
-            backend: Cache backend
-            keys: Available keys
-
-        Returns:
-            Victim key
-        """
-        return select_fifo_victim(backend, keys)
 
     def _promote_entry(self, key: str, entry: CacheEntry, from_level: int):
         """Promote entry to higher (faster) cache levels after a cache hit.
