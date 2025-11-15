@@ -81,12 +81,12 @@ def _ensure_whisper_available() -> bool:
 
         try:
             # get_writer is optional and may not be available in all Whisper versions
-            from whisper.utils import get_writer as _get_writer  # type: ignore
+            from whisper.utils import get_writer as get_writer_  # type: ignore
         except Exception:
-            _get_writer = None
+            get_writer_ = None
         torch = _torch
         whisper = _whisper
-        get_writer = _get_writer
+        get_writer = get_writer_
         PROVIDER_AVAILABLE = True
     except Exception as e:
         logger.warning(f"Whisper provider dependencies not installed: {e}")

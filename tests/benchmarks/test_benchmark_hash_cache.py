@@ -131,19 +131,19 @@ class TestBenchmarkHashPerformance:
 
     def test_uncached_time_positive(self, test_file: Path):
         """Test that uncached time is greater than zero."""
-        uncached, cached, speedup = benchmark_hash_performance(test_file, iterations=3)
+        uncached, _cached, _speedup = benchmark_hash_performance(test_file, iterations=3)
 
         assert uncached > 0, "Uncached time should be positive"
 
     def test_cached_time_positive(self, test_file: Path):
         """Test that cached time is greater than zero."""
-        uncached, cached, speedup = benchmark_hash_performance(test_file, iterations=3)
+        _uncached, cached, _speedup = benchmark_hash_performance(test_file, iterations=3)
 
         assert cached > 0, "Cached time should be positive"
 
     def test_speedup_greater_than_one(self, test_file: Path):
         """Test that cache provides speedup (cached should be faster)."""
-        uncached, cached, speedup = benchmark_hash_performance(test_file, iterations=5)
+        _uncached, _cached, speedup = benchmark_hash_performance(test_file, iterations=5)
 
         assert speedup > 1.0, f"Cache should provide speedup, got {speedup:.2f}x"
 
@@ -179,7 +179,7 @@ class TestBenchmarkHashPerformance:
         assert len(CacheKey._file_hash_cache) > 0, "Cache should be populated"
 
         # Run benchmark (should clear cache internally)
-        uncached, cached, speedup = benchmark_hash_performance(test_file, iterations=3)
+        uncached, _cached, _speedup = benchmark_hash_performance(test_file, iterations=3)
 
         # Verify it measured uncached time correctly (not instant)
         assert uncached > 0.00001, "Uncached time should reflect actual hashing, not cache hit"
@@ -197,7 +197,7 @@ class TestBenchmarkHashPerformance:
 
     def test_cached_faster_than_uncached(self, test_file: Path):
         """Test that cached operations are faster than uncached."""
-        uncached, cached, speedup = benchmark_hash_performance(test_file, iterations=5)
+        uncached, cached, _speedup = benchmark_hash_performance(test_file, iterations=5)
 
         assert (
             cached < uncached
@@ -280,7 +280,7 @@ class TestBenchmarkIntegration:
                 test_file = create_test_file(size_mb)
                 files.append(test_file)
 
-                uncached, cached, speedup = benchmark_hash_performance(test_file, iterations=5)
+                _uncached, _cached, speedup = benchmark_hash_performance(test_file, iterations=5)
                 results.append((size_mb, speedup))
 
             # Verify all show speedup (larger files typically show more speedup)

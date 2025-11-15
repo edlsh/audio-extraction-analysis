@@ -7,6 +7,7 @@ import json
 import logging
 import re
 import sys
+import threading
 import time
 from contextlib import contextmanager
 from datetime import datetime
@@ -261,11 +262,12 @@ class RichProgressTracker:
     def __init__(self, progress: Progress, task_id: Any):
         self.progress = progress
         self.task_id = task_id
+        self._last_percentage = 0.0
 
     def update(
         self, completed: int, total: int | None = None, description: str | None = None
     ) -> None:
-        """Update progress position."""
+        """Update progress position with 10% throttling."""
         kwargs = {}
         if completed is not None:
             kwargs["completed"] = completed
@@ -273,8 +275,17 @@ class RichProgressTracker:
             kwargs["total"] = total
         if description is not None:
             kwargs["description"] = description
-        
-        self.progress.update(self.task_id, **kwargs)
+
+        # Throttle updates: only update if change >= 10% or description changed
+        should_update = description is not None
+        if total and total > 0:
+            current_percentage = (completed / total) * 100
+            if abs(current_percentage - self._last_percentage) >= 10:
+                should_update = True
+                self._last_percentage = current_percentage
+
+        if should_update or not hasattr(self, "_last_percentage"):
+            self.progress.update(self.task_id, **kwargs)
 
 
 class JsonProgressTracker:
@@ -283,6 +294,7 @@ class JsonProgressTracker:
     def __init__(self, description: str):
         self.description = description
         self.start_time = time.time()
+        self._lock = threading.Lock()
 
     def update(
         self, completed: int, total: int | None = None, description: str | None = None

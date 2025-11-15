@@ -89,6 +89,7 @@ line-length = 100
 
 [tool.ruff]
 line-length = 100
+preview = true
 
 [tool.ruff.lint]
 select = ["E","F","I","UP","N","B","S","RUF"]
@@ -98,6 +99,7 @@ ignore = [
   "S108",  # hardcoded-temp-file (acceptable in tests)
   "S110",  # try-except-pass (acceptable in cleanup code)
   "S311",  # suspicious-non-cryptographic-random-usage (not used for crypto)
+  "S404",  # subprocess module import (used safely in controlled contexts)
   "S602",  # subprocess-popen-with-shell-equals-true (careful usage in scripts)
   "S603",  # subprocess-without-shell-equals-true (acceptable in scripts)
   "S607",  # start-process-with-partial-path (system binaries like pytest)
@@ -114,6 +116,7 @@ ignore = [
   "F401",  # unused-import (many are for availability checks, not actual imports)
   "F821",  # undefined-name (false positives in dynamic contexts)
   "RUF012", # mutable-class-default (acceptable with dataclasses)
+  "RUF029", # async function without await (acceptable for test mocks)
   "RUF034", # useless-if-else (false positive)
 ]
 

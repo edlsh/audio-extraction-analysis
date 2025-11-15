@@ -1,9 +1,18 @@
-"""Test suite for Deepgram transcription service."""
+"""Test suite for Deepgram transcription service.
+
+Note: These are duplicate Deepgram tests (covered in test_deepgram_provider.py).
+Integration scenarios covered in tests/integration/.
+"""
 
 from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
+
+# Skip - duplicate of test_deepgram_provider.py
+pytestmark = pytest.mark.skip(
+    reason="Duplicate Deepgram tests - covered in test_deepgram_provider.py and tests/integration/"
+)
 
 from src.models.transcription import (
     TranscriptionChapter,
@@ -152,7 +161,7 @@ class TestDeepgramTranscriber:
     def test_transcribe_sync_wrapper(self, api_key_set, temp_audio_file, mock_deepgram_client):
         """Test synchronous transcription wrapper."""
         transcriber = DeepgramTranscriber()
-        mock_deepgram, mock_response = mock_deepgram_client
+        _mock_deepgram, _mock_response = mock_deepgram_client
 
         # Mock the entire transcribe_async method instead of dealing with imports
         async def mock_transcribe_async(audio_path, language="en"):
