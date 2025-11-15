@@ -6,10 +6,11 @@ __all__ = []
 
 # Conditionally import widgets if textual is available
 try:
+    from .health_panel import HealthPanel
     from .log_panel import LogPanel
     from .progress_board import ProgressBoard
 
-    __all__.extend(["LogPanel", "ProgressBoard"])
+    __all__.extend(["HealthPanel", "LogPanel", "ProgressBoard"])
 except ImportError:
     # Textual not installed
     pass
