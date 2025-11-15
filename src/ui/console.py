@@ -1,10 +1,4 @@
-"""Console management with Rich and TQDM integration.
-
-This module provides a ConsoleManager that gracefully adapts output to:
-- Rich-rendered color output and progress bars when in a TTY
-- JSON-only output for machine-readable logs (CI/CD)
-- Plain-text fallback for non-TTY environments
-"""
+"""Console output with Rich formatting for CLI."""
 
 from __future__ import annotations
 
@@ -13,7 +7,6 @@ import json
 import logging
 import re
 import sys
-import threading
 import time
 from contextlib import contextmanager
 from datetime import datetime
@@ -32,33 +25,8 @@ from rich.progress import (
 from rich.table import Table
 
 
-class ThreadSafeConsole:
-    """Thread-safe wrapper around Rich Console."""
-
-    def __init__(self, console: Console):
-        self._console = console
-        self._lock = threading.RLock()  # Reentrant lock for nested calls
-
-    def print(self, *args, **kwargs):
-        """Thread-safe print method."""
-        with self._lock:
-            self._console.print(*args, **kwargs)
-
-    def log(self, *args, **kwargs):
-        """Thread-safe log method."""
-        with self._lock:
-            self._console.log(*args, **kwargs)
-
-    @contextmanager
-    def status(self, *args, **kwargs):
-        """Thread-safe status context manager."""
-        with self._lock:
-            with self._console.status(*args, **kwargs) as status:
-                yield status
-
-
 class ConsoleManager:
-    """Manages console output with Rich integration."""
+    """Console output with Rich formatting."""
 
     def __init__(self, verbose: bool = False, json_output: bool = False):
         self.verbose = verbose
@@ -70,11 +38,8 @@ class ConsoleManager:
         if self.json_output:
             self.console = None
         else:
-            raw_console = Console(stderr=True, force_terminal=True)
-            self.console = ThreadSafeConsole(raw_console)
+            self.console = Console(stderr=True, force_terminal=True)
 
-        # Add progress tracking with thread safety
-        self._progress_lock = threading.RLock()
         self._active_progress: Progress | None = None
 
     def setup_logging(self, logger: logging.Logger) -> None:
@@ -95,7 +60,7 @@ class ConsoleManager:
         else:
             if not _has_handler_of_type(RichHandler):
                 handler = RichHandler(
-                    console=self.console._console if self.console else None,
+                    console=self.console,
                     show_time=True,
                     show_path=self.verbose,
                     rich_tracebacks=True,
@@ -105,48 +70,44 @@ class ConsoleManager:
 
     @contextmanager
     def progress_context(self, description: str, total: int | None = None):
-        """Thread-safe progress context manager with cleanup."""
+        """Progress context manager with cleanup."""
         task_id = None
         progress = None
 
         try:
-            with self._progress_lock:
-                if self.json_output:
-                    tracker = JsonProgressTracker(description)
-                    yield tracker
-                    return
-                elif self.is_tty and self.console is not None:
-                    progress = Progress(
-                        SpinnerColumn(),
-                        TextColumn("[progress.description]{task.description}"),
-                        BarColumn(),
-                        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-                        TimeRemainingColumn(),
-                        console=self.console._console,
-                    )
-                    progress.start()
-                    self._active_progress = progress
-                    task_id = progress.add_task(description, total=total or 100)
-                    tracker = RichProgressTracker(progress, task_id, self._progress_lock)
-                else:
-                    tracker = FallbackProgressTracker(description)
+            if self.json_output:
+                tracker = JsonProgressTracker(description)
+                yield tracker
+                return
+            elif self.is_tty and self.console is not None:
+                progress = Progress(
+                    SpinnerColumn(),
+                    TextColumn("[progress.description]{task.description}"),
+                    BarColumn(),
+                    TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+                    TimeRemainingColumn(),
+                    console=self.console,
+                )
+                progress.start()
+                self._active_progress = progress
+                task_id = progress.add_task(description, total=total or 100)
+                tracker = RichProgressTracker(progress, task_id)
+            else:
+                tracker = FallbackProgressTracker(description)
 
             yield tracker
 
         except Exception as e:
-            # Ensure cleanup happens even on exceptions
             self._log_error(f"Progress context failed: {e}")
             raise
         finally:
-            # Cleanup progress
-            with self._progress_lock:
-                if progress and self._active_progress:
-                    try:
-                        progress.stop()
-                    except Exception:
-                        pass  # Ignore cleanup errors
-                    finally:
-                        self._active_progress = None
+            if progress and self._active_progress:
+                try:
+                    progress.stop()
+                except Exception:
+                    pass
+                finally:
+                    self._active_progress = None
 
     def print_stage(self, stage: str, status: str = "starting") -> None:
         """Print stage information with appropriate renderer."""
@@ -297,57 +258,39 @@ class ConsoleManager:
 class RichProgressTracker:
     """Progress tracker using Rich progress bars."""
 
-    def __init__(self, progress: Progress, task_id: Any, lock: threading.RLock):
+    def __init__(self, progress: Progress, task_id: Any):
         self.progress = progress
         self.task_id = task_id
-        self._lock = lock
-        self._last_update = 0
-        self._update_threshold = 0.1  # Minimum 10% change before update
 
     def update(
         self, completed: int, total: int | None = None, description: str | None = None
     ) -> None:
-        """Update progress position.
-
-        If `total` is provided, sets the absolute completed/total;
-        otherwise, advances by `completed` units.
-        """
-        if total and completed > 0:
-            current_pct = completed / total
-            # Throttle updates to reduce lock contention
-            if abs(current_pct - self._last_update) < self._update_threshold and completed < total:
-                return
-            self._last_update = current_pct
-
-        with self._lock:
-            if self.progress and self.task_id is not None:
-                kwargs = {}
-                if completed is not None:
-                    kwargs["completed"] = completed
-                if total is not None:
-                    kwargs["total"] = total
-                if description is not None:
-                    kwargs["description"] = description
-
-                self.progress.update(self.task_id, **kwargs)
+        """Update progress position."""
+        kwargs = {}
+        if completed is not None:
+            kwargs["completed"] = completed
+        if total is not None:
+            kwargs["total"] = total
+        if description is not None:
+            kwargs["description"] = description
+        
+        self.progress.update(self.task_id, **kwargs)
 
 
 class JsonProgressTracker:
-    """Progress tracker for JSON output (stderr)."""
+    """Progress tracker for JSON output."""
 
     def __init__(self, description: str):
         self.description = description
         self.start_time = time.time()
-        self._lock = threading.Lock()
 
     def update(
         self, completed: int, total: int | None = None, description: str | None = None
     ) -> None:
         """Update progress as JSON lines on stderr."""
-        # Sanitize field values for JSON output
         sanitized_description = self._sanitize_json_field(description or self.description)
-        sanitized_completed = max(0, min(completed or 0, total or 100))  # Clamp values
-        sanitized_total = max(1, total or 100)  # Avoid division by zero
+        sanitized_completed = max(0, min(completed or 0, total or 100))
+        sanitized_total = max(1, total or 100)
 
         progress_data: dict[str, Any] = {
             "timestamp": datetime.now().isoformat(),
