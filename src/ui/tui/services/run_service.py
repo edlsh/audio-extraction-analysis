@@ -63,8 +63,17 @@ async def run_pipeline(
     set_event_sink(event_sink)
 
     try:
-        # Convert quality string to enum
-        quality_enum = AudioQuality[quality.upper()]
+        # Convert quality string to enum with validation
+        try:
+            quality_enum = AudioQuality[quality.upper()]
+        except KeyError:
+            valid_qualities = [q.name.lower() for q in AudioQuality]
+            emit_event(
+                "error",
+                data={"message": f"Invalid quality '{quality}'. Must be one of: {', '.join(valid_qualities)}"},
+                run_id=run_id,
+            )
+            raise ValueError(f"Invalid quality '{quality}'. Must be one of: {', '.join(valid_qualities)}")
 
         # Run pipeline
         result = await process_pipeline(
