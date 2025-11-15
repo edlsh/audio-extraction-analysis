@@ -67,6 +67,10 @@ redis = [
     "redis>=5.0",
 ]
 
+tui = [
+    "textual>=0.47.0",
+]
+
 [project.urls]
 Homepage = "https://github.com/edlsh/audio-extraction-analysis"
 Repository = "https://github.com/edlsh/audio-extraction-analysis.git"
@@ -150,4 +154,22 @@ name = "No circular imports in utils"
 type = "independence"
 modules = [
     "src.utils",
+]
+
+[[tool.importlinter.contracts]]
+name = "TUI must not import CLI"
+type = "forbidden"
+source_modules = [
+    "src.ui.tui",
+]
+forbidden_modules = [
+    "src.cli",
+]
+
+[[tool.importlinter.contracts]]
+name = "TUI uses provider factory only"
+type = "layers"
+layers = [
+    "src.ui.tui",
+    "src.providers.factory",
 ]
