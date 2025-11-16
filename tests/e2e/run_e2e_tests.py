@@ -19,7 +19,6 @@ import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional
 
 # Add project root to path for imports
 project_root = Path(__file__).parent.parent.parent

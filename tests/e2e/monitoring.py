@@ -41,7 +41,6 @@ import sqlite3
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional
 
 
 @dataclass

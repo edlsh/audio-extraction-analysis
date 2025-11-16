@@ -64,7 +64,7 @@ async def run_pipeline(
                 )
                 raise ValueError("URL ingestion is disabled by configuration.")
 
-            emit_event(
+            event_models.emit_event(
                 "stage_start",
                 stage="url_download",
                 data={"description": "Downloading media from URL", "total": 100},

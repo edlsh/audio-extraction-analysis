@@ -188,3 +188,55 @@ class TestRunService:
                     # Should still unset event sink in finally block
                     assert mock_set.call_count == 2
                     mock_set.assert_any_call(None)
+
+    @pytest.mark.asyncio
+    async def test_run_pipeline_url_download_emits_stage_events(self):
+        """URL ingestion path should emit url_download stage events exactly once."""
+        queue = asyncio.Queue()
+        sink = QueueEventSink(queue)
+
+        class DummyConfig:
+            url_ingest_enabled = True
+            url_ingest_download_dir = Path("./data/url_downloads")
+            url_ingest_prefer_audio_only = True
+            url_ingest_keep_video_default = False
+
+        with patch("src.pipeline.simple_pipeline.process_pipeline", new_callable=AsyncMock) as mock_pipeline:
+            mock_pipeline.return_value = {"status": "success"}
+
+            with patch("src.config.get_config", return_value=DummyConfig()):
+                with patch("src.ui.tui.services.run_service.UrlIngestionService") as mock_ingestion_cls:
+                    mock_ingestion_instance = mock_ingestion_cls.return_value
+                    mock_ingestion_instance.ingest.return_value = type(
+                        "Result",
+                        (),
+                        {"audio_path": Path("downloaded.wav"), "source_video_path": None},
+                    )()
+
+                    with patch("src.models.events.emit_event") as mock_emit:
+                        await run_pipeline(
+                            input_path=None,
+                            output_dir=Path("output"),
+                            quality="speech",
+                            language="en",
+                            provider="auto",
+                            analysis_style="concise",
+                            event_sink=sink,
+                            run_id="test-123",
+                            url="https://example.com/video",
+                        )
+
+                        url_download_starts = [
+                            call
+                            for call in mock_emit.call_args_list
+                            if call.args[0] == "stage_start"
+                            and call.kwargs.get("stage") == "url_download"
+                        ]
+
+                        assert len(url_download_starts) == 1
+                        mock_emit.assert_any_call(
+                            "stage_start",
+                            stage="url_download",
+                            data={"description": "Downloading media from URL", "total": 100},
+                            run_id="test-123",
+                        )

@@ -17,7 +17,7 @@ These tests ensure cache functionality remains correct post-fix.
 import tempfile
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 
