@@ -145,7 +145,8 @@ class TestConfigValidate:
 
     def test_validate_parakeet_import_error(self):
         """Test validation fails when Parakeet import raises ImportError."""
-        with temporarily_remove_modules("nemo", "torch"):
+        # Use patch.dict to ensure modules are not available (works even if already imported)
+        with patch.dict("sys.modules", {"nemo": None, "torch": None}):
             with pytest.raises(ValueError) as exc_info:
                 Config.validate("parakeet")
 

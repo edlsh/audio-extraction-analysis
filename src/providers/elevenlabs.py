@@ -217,10 +217,10 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
             response = await asyncio.wait_for(
                 asyncio.get_event_loop().run_in_executor(
                     None,
-                    lambda: client.speech_to_text(
-                        audio=audio_data,
+                    lambda: client.speech_to_text.convert(
+                        file=audio_data,
                         model_id="eleven_multilingual_sts_v2",  # Latest model
-                        language=language if language else None,
+                        language_code=language if language else None,
                         # Add more parameters as they become available
                     ),
                 ),
@@ -230,9 +230,9 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
             logger.info("Transcription completed successfully")
 
             # Extract transcript text
-            if hasattr(response, "text"):
+            if hasattr(response, "text") and response.text is not None:
                 transcript = response.text
-            elif hasattr(response, "transcript"):
+            elif hasattr(response, "transcript") and response.transcript is not None:
                 transcript = response.transcript
             else:
                 transcript = str(response)

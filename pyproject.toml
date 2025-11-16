@@ -177,8 +177,6 @@ unfixable = []
 "src/services/audio_extraction_async.py" = ["TC003"]  # Path used in file operations
 # Event is used at runtime in state.py (accessing event.type, event.stage, etc.)
 "src/ui/tui/state.py" = ["TC001"]  # Event used at runtime, not just type annotation
-# TUI files: __init__ and __del__ methods return None implicitly
-"src/ui/tui/**/*.py" = ["ANN204"]  # __init__/__del__ return None implicitly
 # Test files can use additional patterns
 "tests/**/*.py" = [
     "S101",  # asserts are standard in tests

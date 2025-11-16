@@ -40,6 +40,9 @@ def mock_elevenlabs_client():
     """Mock the ElevenLabs client to prevent external API calls during testing."""
     mock_client = Mock()
 
+    # Mock speech_to_text as a client object with convert method
+    mock_speech_to_text_client = Mock()
+    
     # Mock a successful response
     mock_response = Mock()
     mock_response.text = "This is a test transcription from ElevenLabs."
@@ -48,7 +51,8 @@ def mock_elevenlabs_client():
         Mock(start=15.0, end=30.0, text="from ElevenLabs."),
     ]
 
-    mock_client.speech_to_text.return_value = mock_response
+    mock_speech_to_text_client.convert.return_value = mock_response
+    mock_client.speech_to_text = mock_speech_to_text_client
     return mock_client, mock_response
 
 
@@ -193,7 +197,7 @@ class TestElevenLabsTranscriberTranscription:
 
         assert result is None
 
-    @patch("elevenlabs.client.ElevenLabs")
+    @patch("src.providers.elevenlabs.ElevenLabsClient")
     def test_transcribe_async_elevenlabs_not_installed(
         self, mock_elevenlabs_class, temp_audio_file
     ):
@@ -206,11 +210,13 @@ class TestElevenLabsTranscriberTranscription:
 
         assert result is None
 
-    @patch("elevenlabs.client.ElevenLabs")
+    @patch("src.providers.elevenlabs.ElevenLabsClient")
     def test_transcribe_async_api_error(self, mock_elevenlabs_class, temp_audio_file):
         """Test transcription with API error."""
         mock_client = Mock()
-        mock_client.speech_to_text.side_effect = Exception("API Error")
+        mock_speech_to_text_client = Mock()
+        mock_speech_to_text_client.convert.side_effect = Exception("API Error")
+        mock_client.speech_to_text = mock_speech_to_text_client
         mock_elevenlabs_class.return_value = mock_client
 
         transcriber = ElevenLabsTranscriber(api_key="test_key")
@@ -220,7 +226,7 @@ class TestElevenLabsTranscriberTranscription:
 
         assert result is None
 
-    @patch("elevenlabs.client.ElevenLabs")
+    @patch("src.providers.elevenlabs.ElevenLabsClient")
     def test_transcribe_async_response_variations(self, mock_elevenlabs_class, temp_audio_file):
         """Test transcription with different response formats."""
         mock_client = Mock()
@@ -234,7 +240,10 @@ class TestElevenLabsTranscriberTranscription:
         mock_response.segments = []
         # Set hasattr properly by defining the attribute
         del mock_response.segments  # Remove the segments attribute to test fallback
-        mock_client.speech_to_text.return_value = mock_response
+        mock_speech_to_text_client = Mock()
+        mock_speech_to_text_client.convert.return_value = mock_response
+        mock_client.speech_to_text = mock_speech_to_text_client
+        # Patch returns the mock client directly (ElevenLabsClient is the class)
         mock_elevenlabs_class.return_value = mock_client
 
         transcriber = ElevenLabsTranscriber(api_key="test_key")
@@ -245,14 +254,17 @@ class TestElevenLabsTranscriberTranscription:
         assert result is not None
         assert result.transcript == "Test with transcript attribute"
 
-    @patch("elevenlabs.client.ElevenLabs")
+    @patch("src.providers.elevenlabs.ElevenLabsClient")
     def test_transcribe_async_no_segments(self, mock_elevenlabs_class, temp_audio_file):
         """Test transcription with response that has no segments."""
         mock_client = Mock()
         mock_response = Mock()
         mock_response.text = "Simple transcription without segments"
         mock_response.segments = None
-        mock_client.speech_to_text.return_value = mock_response
+        mock_speech_to_text_client = Mock()
+        mock_speech_to_text_client.convert.return_value = mock_response
+        mock_client.speech_to_text = mock_speech_to_text_client
+        # Patch returns the mock client directly (ElevenLabsClient is the class)
         mock_elevenlabs_class.return_value = mock_client
 
         transcriber = ElevenLabsTranscriber(api_key="test_key")
@@ -386,7 +398,7 @@ class TestElevenLabsTranscriberHealthCheck:
     """Test ElevenLabsTranscriber health check functionality."""
 
     @pytest.mark.asyncio
-    @patch("elevenlabs.client.ElevenLabs")
+    @patch("src.providers.elevenlabs.ElevenLabsClient")
     async def test_health_check_success(self, mock_elevenlabs_class):
         """Test successful health check with valid API credentials."""
         mock_client = Mock()
@@ -414,7 +426,7 @@ class TestElevenLabsTranscriberHealthCheck:
             ElevenLabsTranscriber(api_key="test_key")
 
     @pytest.mark.asyncio
-    @patch("elevenlabs.client.ElevenLabs")
+    @patch("src.providers.elevenlabs.ElevenLabsClient")
     async def test_health_check_api_error(self, mock_elevenlabs_class):
         """Test health check with API error."""
         mock_client = Mock()
@@ -432,7 +444,7 @@ class TestElevenLabsTranscriberHealthCheck:
         assert result["details"]["error_type"] == "Exception"
 
     @pytest.mark.asyncio
-    @patch("elevenlabs.client.ElevenLabs")
+    @patch("src.providers.elevenlabs.ElevenLabsClient")
     async def test_health_check_timeout(self, mock_elevenlabs_class):
         """Test health check with timeout."""
 
@@ -450,7 +462,7 @@ class TestElevenLabsTranscriberHealthCheck:
         transcriber = ElevenLabsTranscriber(api_key="test_key")
 
         # Use a short timeout for testing
-        with patch("src.config.config.Config.HEALTH_CHECK_TIMEOUT", 0.1):
+        with patch("src.config.Config.HEALTH_CHECK_TIMEOUT", 0.1):
             result = await transcriber.health_check_async()
 
         assert result["healthy"] is False
@@ -525,33 +537,57 @@ class TestElevenLabsTranscriberChunkedReading:
 class TestElevenLabsTranscriberMemoryManagement:
     """Test ElevenLabsTranscriber memory management edge cases."""
 
-    @patch("elevenlabs.client.ElevenLabs")
-    def test_transcribe_streaming_approach(self, mock_elevenlabs_class, tmp_path):
+    @patch("src.providers.elevenlabs.ElevenLabsClient")
+    @patch("src.providers.elevenlabs.safe_validate_audio_file")
+    def test_transcribe_streaming_approach(
+        self, mock_validate, mock_elevenlabs_class, tmp_path
+    ):
         """Test transcription uses streaming approach for large files."""
-        # Create file just above MAX_MEMORY_SIZE to trigger streaming
+        # Note: MAX_FILE_SIZE_MB = MAX_MEMORY_SIZE = 50MB
+        # Since chunked reading only triggers when file_size_mb * 1024 * 1024 > MAX_MEMORY_SIZE,
+        # and files > MAX_FILE_SIZE_MB are rejected, chunked reading won't trigger for valid files.
+        # This test verifies the chunked reading path by mocking the file size check.
         large_file = tmp_path / "streaming_test.mp3"
-        # Create 40MB file (under 50MB limit but would trigger streaming check)
-        large_file.write_bytes(b"x" * (40 * 1024 * 1024))
+        # Create a small file (will be mocked to appear larger)
+        large_file.write_bytes(b"x" * 1000)
+
+        # Mock validation to pass (return the file path)
+        mock_validate.return_value = large_file
 
         mock_client = Mock()
         mock_response = Mock()
         mock_response.text = "Streaming test transcription"
         mock_response.segments = []
-        mock_client.speech_to_text.return_value = mock_response
+        mock_speech_to_text_client = Mock()
+        mock_speech_to_text_client.convert.return_value = mock_response
+        mock_client.speech_to_text = mock_speech_to_text_client
+        # Patch returns the mock client directly (ElevenLabsClient is the class)
         mock_elevenlabs_class.return_value = mock_client
 
         transcriber = ElevenLabsTranscriber(api_key="test_key")
 
-        # Mock the chunked reading to verify it's called
-        with patch.object(
-            transcriber, "_read_file_chunked", return_value=b"mocked_data"
-        ) as mock_read:
-            transcriber.transcribe(large_file, "en")
+        # Mock Path.stat() to return a size that's > MAX_MEMORY_SIZE but < MAX_FILE_SIZE_MB
+        # This allows us to test the chunked reading path
+        mock_stat_result = Mock()
+        # Use 49MB to be under MAX_FILE_SIZE_MB but we'll mock it to trigger chunked reading
+        # Actually, since MAX_FILE_SIZE_MB = MAX_MEMORY_SIZE, we need to mock MAX_FILE_SIZE_MB too
+        mock_stat_result.st_size = 49 * 1024 * 1024  # 49MB (under both limits)
+        
+        # Mock MAX_FILE_SIZE_MB to be higher so the file passes the size check
+        # but mock the actual file size to be > MAX_MEMORY_SIZE to trigger chunked reading
+        with patch.object(transcriber, "MAX_FILE_SIZE_MB", 60):  # Increase limit to 60MB
+            # Now mock stat to return 52MB (over MAX_MEMORY_SIZE but under mocked MAX_FILE_SIZE_MB)
+            mock_stat_result.st_size = 52 * 1024 * 1024
+            with patch("pathlib.Path.stat", return_value=mock_stat_result):
+                with patch.object(
+                    transcriber, "_read_file_chunked", return_value=b"mocked_data"
+                ) as mock_read:
+                    transcriber.transcribe(large_file, "en")
 
-        # Verify streaming approach was used
-        assert mock_read.called
+                # Verify streaming approach was used
+                assert mock_read.called
 
-    @patch("elevenlabs.client.ElevenLabs")
+    @patch("src.providers.elevenlabs.ElevenLabsClient")
     @patch("src.providers.elevenlabs.safe_validate_audio_file")
     def test_transcribe_validation_failure(
         self, mock_validate, mock_elevenlabs_class, temp_audio_file
@@ -569,14 +605,17 @@ class TestElevenLabsTranscriberMemoryManagement:
 class TestElevenLabsTranscriberEdgeCases:
     """Test ElevenLabsTranscriber edge cases in transcription."""
 
-    @patch("elevenlabs.client.ElevenLabs")
+    @patch("src.providers.elevenlabs.ElevenLabsClient")
     def test_transcribe_language_none(self, mock_elevenlabs_class, temp_audio_file):
         """Test transcription with language=None."""
         mock_client = Mock()
         mock_response = Mock()
         mock_response.text = "Language auto-detected"
         mock_response.segments = []
-        mock_client.speech_to_text.return_value = mock_response
+        mock_speech_to_text_client = Mock()
+        mock_speech_to_text_client.convert.return_value = mock_response
+        mock_client.speech_to_text = mock_speech_to_text_client
+        # Patch returns the mock client directly (ElevenLabsClient is the class)
         mock_elevenlabs_class.return_value = mock_client
 
         transcriber = ElevenLabsTranscriber(api_key="test_key")
@@ -585,15 +624,17 @@ class TestElevenLabsTranscriberEdgeCases:
             result = transcriber.transcribe(temp_audio_file, None)
 
         assert result is not None
-        # Verify language was passed as None
-        call_args = mock_client.speech_to_text.call_args
-        assert call_args[1]["language"] is None
+        # Verify language_code was passed as None
+        call_args = mock_speech_to_text_client.convert.call_args
+        assert call_args[1]["language_code"] is None
 
-    @patch("elevenlabs.client.ElevenLabs")
+    @patch("src.providers.elevenlabs.ElevenLabsClient")
     def test_transcribe_permission_error(self, mock_elevenlabs_class, temp_audio_file):
         """Test transcription with permission error."""
         mock_client = Mock()
-        mock_client.speech_to_text.side_effect = PermissionError("Permission denied")
+        mock_speech_to_text_client = Mock()
+        mock_speech_to_text_client.convert.side_effect = PermissionError("Permission denied")
+        mock_client.speech_to_text = mock_speech_to_text_client
         mock_elevenlabs_class.return_value = mock_client
 
         transcriber = ElevenLabsTranscriber(api_key="test_key")
@@ -603,11 +644,13 @@ class TestElevenLabsTranscriberEdgeCases:
 
         assert result is None
 
-    @patch("elevenlabs.client.ElevenLabs")
+    @patch("src.providers.elevenlabs.ElevenLabsClient")
     def test_transcribe_memory_error(self, mock_elevenlabs_class, temp_audio_file):
         """Test transcription with memory error."""
         mock_client = Mock()
-        mock_client.speech_to_text.side_effect = MemoryError("Out of memory")
+        mock_speech_to_text_client = Mock()
+        mock_speech_to_text_client.convert.side_effect = MemoryError("Out of memory")
+        mock_client.speech_to_text = mock_speech_to_text_client
         mock_elevenlabs_class.return_value = mock_client
 
         transcriber = ElevenLabsTranscriber(api_key="test_key")
@@ -617,11 +660,13 @@ class TestElevenLabsTranscriberEdgeCases:
 
         assert result is None
 
-    @patch("elevenlabs.client.ElevenLabs")
+    @patch("src.providers.elevenlabs.ElevenLabsClient")
     def test_transcribe_os_error(self, mock_elevenlabs_class, temp_audio_file):
         """Test transcription with OS error."""
         mock_client = Mock()
-        mock_client.speech_to_text.side_effect = OSError("Disk I/O error")
+        mock_speech_to_text_client = Mock()
+        mock_speech_to_text_client.convert.side_effect = OSError("Disk I/O error")
+        mock_client.speech_to_text = mock_speech_to_text_client
         mock_elevenlabs_class.return_value = mock_client
 
         transcriber = ElevenLabsTranscriber(api_key="test_key")
@@ -631,11 +676,13 @@ class TestElevenLabsTranscriberEdgeCases:
 
         assert result is None
 
-    @patch("elevenlabs.client.ElevenLabs")
+    @patch("src.providers.elevenlabs.ElevenLabsClient")
     def test_transcribe_value_error(self, mock_elevenlabs_class, temp_audio_file):
         """Test transcription with value error."""
         mock_client = Mock()
-        mock_client.speech_to_text.side_effect = ValueError("Invalid audio format")
+        mock_speech_to_text_client = Mock()
+        mock_speech_to_text_client.convert.side_effect = ValueError("Invalid audio format")
+        mock_client.speech_to_text = mock_speech_to_text_client
         mock_elevenlabs_class.return_value = mock_client
 
         transcriber = ElevenLabsTranscriber(api_key="test_key")
@@ -645,7 +692,8 @@ class TestElevenLabsTranscriberEdgeCases:
 
         assert result is None
 
-    @patch("elevenlabs.client.ElevenLabs")
+    @pytest.mark.asyncio
+    @patch("src.providers.elevenlabs.ElevenLabsClient")
     async def test_transcribe_async_timeout(self, mock_elevenlabs_class, temp_audio_file):
         """Test async transcription with timeout."""
 
@@ -657,13 +705,17 @@ class TestElevenLabsTranscriberEdgeCases:
             time.sleep(10)  # Simulate slow transcription
             return Mock()
 
-        mock_client.speech_to_text = slow_transcribe
+        mock_speech_to_text_client = Mock()
+        mock_speech_to_text_client.convert = slow_transcribe
+        mock_client.speech_to_text = mock_speech_to_text_client
         mock_elevenlabs_class.return_value = mock_client
 
         transcriber = ElevenLabsTranscriber(api_key="test_key")
 
-        # Use short timeout for testing
-        with patch("src.config.config.Config.ELEVENLABS_TIMEOUT", 0.1):
+        # Use short timeout for testing - patch get_config() to return a config with short timeout
+        mock_config = Mock()
+        mock_config.ELEVENLABS_TIMEOUT = 0.1
+        with patch("src.providers.elevenlabs.get_config", return_value=mock_config):
             with patch("builtins.open", mock_open(read_data=b"test_audio")):
                 result = transcriber.transcribe(temp_audio_file, "en")
 
@@ -673,7 +725,7 @@ class TestElevenLabsTranscriberEdgeCases:
 class TestElevenLabsTranscriberIntegration:
     """Integration tests for ElevenLabsTranscriber."""
 
-    @patch("elevenlabs.client.ElevenLabs")
+    @patch("src.providers.elevenlabs.ElevenLabsClient")
     def test_full_transcription_workflow(self, mock_elevenlabs_class, temp_audio_file, tmp_path):
         """Test complete transcription workflow from audio file to saved result."""
         # Setup mock
@@ -684,7 +736,10 @@ class TestElevenLabsTranscriberIntegration:
             Mock(start=0.0, end=20.0, text="Complete integration test"),
             Mock(start=20.0, end=40.0, text="transcription"),
         ]
-        mock_client.speech_to_text.return_value = mock_response
+        mock_speech_to_text_client = Mock()
+        mock_speech_to_text_client.convert.return_value = mock_response
+        mock_client.speech_to_text = mock_speech_to_text_client
+        # Patch returns the mock client directly (ElevenLabsClient is the class)
         mock_elevenlabs_class.return_value = mock_client
 
         transcriber = ElevenLabsTranscriber(api_key="integration_test_key")
