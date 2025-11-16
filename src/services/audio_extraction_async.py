@@ -160,7 +160,10 @@ class AsyncAudioExtractor(AudioExtractor):
         # Parse progress from stdout
         assert proc.stdout is not None, "stdout should be PIPE"
         while True:
-            line = await proc.stdout.readline()
+            if proc.stdout is not None:
+                line = await proc.stdout.readline()
+            else:
+                break
             if not line:
                 break
 
@@ -186,6 +189,5 @@ class AsyncAudioExtractor(AudioExtractor):
         await proc.wait()
 
         if proc.returncode != 0:
-            assert proc.stderr is not None, "stderr should be PIPE"
-            stderr = await proc.stderr.read()
+            stderr = await proc.stderr.read() if proc.stderr is not None else b""
             raise RuntimeError(f"FFmpeg failed with code {proc.returncode}: {stderr.decode()}")
