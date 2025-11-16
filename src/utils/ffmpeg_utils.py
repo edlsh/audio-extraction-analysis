@@ -16,7 +16,9 @@ P = ParamSpec("P")
 T = TypeVar("T")
 
 
-def handle_ffmpeg_errors(operation_name: str = "FFmpeg operation") -> Any:  # Callable[[Callable[P, T | None]], Callable[P, T | None]]
+def handle_ffmpeg_errors(
+    operation_name: str = "FFmpeg operation",
+) -> Any:  # Callable[[Callable[P, T | None]], Callable[P, T | None]]
     """Decorator to handle common FFmpeg errors consistently.
 
     Args:
@@ -55,7 +57,9 @@ def handle_ffmpeg_errors(operation_name: str = "FFmpeg operation") -> Any:  # Ca
     return decorator
 
 
-def handle_ffmpeg_errors_async(operation_name: str = "FFmpeg operation") -> Any:  # Callable[[Callable[P, T | None]], Callable[P, T | None]]
+def handle_ffmpeg_errors_async(
+    operation_name: str = "FFmpeg operation",
+) -> Any:  # Callable[[Callable[P, T | None]], Callable[P, T | None]]
     """Async decorator to handle common FFmpeg errors consistently.
 
     Args:

@@ -311,7 +311,10 @@ class EventSinkContext:
         return self.sink
 
     def __exit__(
-        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: object | None
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object | None,
     ) -> None:
         """Exit context and restore previous sink."""
         if self.sink:

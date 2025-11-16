@@ -55,7 +55,9 @@ class AudioProcessingPipeline:
     is supplied.
     """
 
-    def __init__(self, temp_dir: Path | None = None, console_manager: ConsoleManager | None = None) -> None:
+    def __init__(
+        self, temp_dir: Path | None = None, console_manager: ConsoleManager | None = None
+    ) -> None:
         """Initialize pipeline with optional temporary directory.
 
         DEPRECATED: Use `process_pipeline()` instead.
@@ -257,7 +259,9 @@ class AudioProcessingPipeline:
             logger.info(f"Audio saved to: {final_audio_path}")
 
     # ---------------------- Async Progress-Enabled API ----------------------
-    async def process_file(self, input_path: str, output_dir: str, **kwargs: object) -> dict[str, object]:
+    async def process_file(
+        self, input_path: str, output_dir: str, **kwargs: object
+    ) -> dict[str, object]:
         """Async processing with rich progress.
 
         This method performs extraction → transcription → analysis while emitting

@@ -243,7 +243,9 @@ def _create_process_subparser(subparsers: _SubParsersAction[argparse.ArgumentPar
     _add_markdown_export_options(process_parser)
 
 
-def _create_export_markdown_subparser(subparsers: _SubParsersAction[argparse.ArgumentParser]) -> None:
+def _create_export_markdown_subparser(
+    subparsers: _SubParsersAction[argparse.ArgumentParser],
+) -> None:
     """Create the export-markdown subcommand parser.
 
     Args:

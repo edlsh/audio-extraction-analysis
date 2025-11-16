@@ -87,9 +87,7 @@ class CircuitBreakerMixin:
                 else:
                     raise CircuitBreakerError("Too many failures, circuit open")
 
-    def circuit_breaker_call(
-        self, func: Callable[..., T], *args: object, **kwargs: object
-    ) -> T:
+    def circuit_breaker_call(self, func: Callable[..., T], *args: object, **kwargs: object) -> T:
         """Execute a function with circuit breaker protection.
 
         Args:
@@ -268,9 +266,7 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
             logger.error(f"Transcription failed: {e}")
             return None
 
-    def transcribe(
-        self, audio_file_path: Path, language: str = "en"
-    ) -> TranscriptionResult | None:
+    def transcribe(self, audio_file_path: Path, language: str = "en") -> TranscriptionResult | None:
         """Transcribe audio file synchronously with retry and circuit breaker.
 
         This is a convenience wrapper around transcribe_async() for synchronous

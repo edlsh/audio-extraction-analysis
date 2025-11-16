@@ -57,6 +57,7 @@ if TYPE_CHECKING:
         results: Any  # PrerecordedResponseResults
         metadata: Any  # PrerecordedResponseMetadata
 
+
 logger = logging.getLogger(__name__)
 
 # Check for Deepgram SDK availability
