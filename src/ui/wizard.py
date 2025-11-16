@@ -9,9 +9,9 @@ remaining a thin wrapper around the existing argparse-powered commands.
 from __future__ import annotations
 
 import sys
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
 
 from rich.panel import Panel
 

@@ -407,9 +407,10 @@ class TestCLIProcessCommand(E2ETestBase, CLITestMixin, MockProviderMixin):
         ]
 
         # Mock the transcription and analysis services to avoid API calls
-        with patch("src.services.transcription.TranscriptionService") as mock_transcription, patch(
-            "src.analysis.full_analyzer.FullAnalyzer"
-        ) as mock_analyzer:
+        with (
+            patch("src.services.transcription.TranscriptionService") as mock_transcription,
+            patch("src.analysis.full_analyzer.FullAnalyzer") as mock_analyzer,
+        ):
             mock_transcription.return_value.transcribe.return_value = (
                 self.mock_successful_transcription()
             )
@@ -448,9 +449,10 @@ class TestCLIProcessCommand(E2ETestBase, CLITestMixin, MockProviderMixin):
         custom_output_dir = self.temp_dir / "custom_output"
 
         # Mock services
-        with patch("src.services.transcription.TranscriptionService") as mock_transcription, patch(
-            "src.analysis.full_analyzer.FullAnalyzer"
-        ) as mock_analyzer:
+        with (
+            patch("src.services.transcription.TranscriptionService") as mock_transcription,
+            patch("src.analysis.full_analyzer.FullAnalyzer") as mock_analyzer,
+        ):
             mock_transcription.return_value.transcribe.return_value = (
                 self.mock_successful_transcription()
             )
@@ -487,9 +489,10 @@ class TestCLIProcessCommand(E2ETestBase, CLITestMixin, MockProviderMixin):
         input_file = self.test_files["medium"]
 
         # Mock services for faster execution and to avoid API costs
-        with patch("src.services.transcription.TranscriptionService") as mock_transcription, patch(
-            "src.analysis.full_analyzer.FullAnalyzer"
-        ) as mock_analyzer:
+        with (
+            patch("src.services.transcription.TranscriptionService") as mock_transcription,
+            patch("src.analysis.full_analyzer.FullAnalyzer") as mock_analyzer,
+        ):
             mock_transcription.return_value.transcribe.return_value = (
                 self.mock_successful_transcription()
             )
@@ -562,9 +565,10 @@ class TestCLIProcessCommand(E2ETestBase, CLITestMixin, MockProviderMixin):
         input_file = self.test_files["short"]
 
         # Mock services
-        with patch("src.services.transcription.TranscriptionService") as mock_transcription, patch(
-            "src.analysis.full_analyzer.FullAnalyzer"
-        ) as mock_analyzer:
+        with (
+            patch("src.services.transcription.TranscriptionService") as mock_transcription,
+            patch("src.analysis.full_analyzer.FullAnalyzer") as mock_analyzer,
+        ):
             mock_transcription.return_value.transcribe.return_value = (
                 self.mock_successful_transcription()
             )

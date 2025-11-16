@@ -6,8 +6,8 @@ import asyncio
 import json
 import logging
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 from ..utils.file_validation import safe_validate_media_file
 from .audio_extraction import AudioExtractor, AudioQuality
@@ -73,7 +73,7 @@ class AsyncAudioExtractor(AudioExtractor):
             if len(cmds) == 2:
                 stage_names = ["Extracting audio", "Normalizing audio"]
 
-            for cmd, stage in zip(cmds, stage_names):
+            for cmd, stage in zip(cmds, stage_names, strict=False):
                 await self._run_ffmpeg_with_progress(cmd, duration, progress_callback, stage=stage)
 
             # Log success

@@ -4,7 +4,7 @@ import os
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 
 def _parse_bool(value: str | bool | None) -> bool:
@@ -18,7 +18,7 @@ def _parse_bool(value: str | bool | None) -> bool:
     return bool(value)
 
 
-def _parse_list(value: str | List[str] | None, delimiter: str = ",") -> List[str]:
+def _parse_list(value: str | list[str] | None, delimiter: str = ",") -> list[str]:
     """Parse list value from string or return as-is if already a list."""
     if isinstance(value, list):
         return value
@@ -96,7 +96,7 @@ class Config:
 
     # ========== File Handling ==========
     max_file_size: int = field(default_factory=lambda: _getenv_int("MAX_FILE_SIZE", 100000000))
-    allowed_extensions: List[str] = field(
+    allowed_extensions: list[str] = field(
         default_factory=lambda: _parse_list(
             _getenv("ALLOWED_EXTENSIONS", ".mp3,.wav,.m4a,.flac,.ogg,.aac")
         )
@@ -109,7 +109,7 @@ class Config:
             "LOG_FORMAT", "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
         )
     )
-    log_file: Optional[str] = field(default_factory=lambda: _getenv("LOG_FILE") or None)
+    log_file: str | None = field(default_factory=lambda: _getenv("LOG_FILE") or None)
     log_to_console: bool = field(
         default_factory=lambda: _parse_bool(_getenv("LOG_TO_CONSOLE", "true"))
     )
@@ -118,13 +118,13 @@ class Config:
     default_provider: str = field(
         default_factory=lambda: _getenv("DEFAULT_TRANSCRIPTION_PROVIDER", "deepgram")
     )
-    fallback_providers: List[str] = field(
+    fallback_providers: list[str] = field(
         default_factory=lambda: _parse_list(_getenv("FALLBACK_PROVIDERS", "elevenlabs,whisper"))
     )
 
     # ========== Language Settings ==========
     default_language: str = field(default_factory=lambda: _getenv("DEFAULT_LANGUAGE", "en"))
-    supported_languages: List[str] = field(
+    supported_languages: list[str] = field(
         default_factory=lambda: _parse_list(
             _getenv("SUPPORTED_LANGUAGES", "en,es,fr,de,it,pt,ru,ja,ko,zh")
         )
@@ -145,15 +145,15 @@ class Config:
     )
 
     # ========== API Keys ==========
-    DEEPGRAM_API_KEY: Optional[str] = field(
+    DEEPGRAM_API_KEY: str | None = field(
         default_factory=lambda: _getenv("DEEPGRAM_API_KEY") or None
     )
-    ELEVENLABS_API_KEY: Optional[str] = field(
+    ELEVENLABS_API_KEY: str | None = field(
         default_factory=lambda: _getenv("ELEVENLABS_API_KEY") or None
     )
-    GEMINI_API_KEY: Optional[str] = field(default_factory=lambda: _getenv("GEMINI_API_KEY") or None)
-    OPENAI_API_KEY: Optional[str] = field(default_factory=lambda: _getenv("OPENAI_API_KEY") or None)
-    ANTHROPIC_API_KEY: Optional[str] = field(
+    GEMINI_API_KEY: str | None = field(default_factory=lambda: _getenv("GEMINI_API_KEY") or None)
+    OPENAI_API_KEY: str | None = field(default_factory=lambda: _getenv("OPENAI_API_KEY") or None)
+    ANTHROPIC_API_KEY: str | None = field(
         default_factory=lambda: _getenv("ANTHROPIC_API_KEY") or None
     )
 
@@ -428,7 +428,7 @@ class Config:
         return self.default_provider
 
     @property
-    def AVAILABLE_PROVIDERS(self) -> List[str]:
+    def AVAILABLE_PROVIDERS(self) -> list[str]:
         """Get available providers."""
         return ["deepgram", "elevenlabs", "whisper", "parakeet", "auto"]
 
@@ -539,7 +539,7 @@ class Config:
             except ImportError:
                 raise ValueError(
                     "Parakeet dependencies not installed. Install with: "
-                    "uv add \"nemo-toolkit[asr]@1.20.0\" torch --extra parakeet"
+                    'uv add "nemo-toolkit[asr]@1.20.0" torch --extra parakeet'
                 )
         else:
             raise ValueError(f"Unknown provider: {provider}")
@@ -569,7 +569,7 @@ class Config:
         return config.GEMINI_API_KEY
 
     @classmethod
-    def is_configured(cls, provider: Optional[str] = None) -> bool:
+    def is_configured(cls, provider: str | None = None) -> bool:
         """Check if provider is configured."""
         config = cls()
 
@@ -597,7 +597,7 @@ class Config:
             return config.DEEPGRAM_API_KEY is not None or config.ELEVENLABS_API_KEY is not None
 
     @classmethod
-    def get_available_providers(cls) -> List[str]:
+    def get_available_providers(cls) -> list[str]:
         """Get list of configured providers."""
         config = cls()
         available = []
@@ -633,7 +633,7 @@ class Config:
 
 
 # Singleton instance with thread-safe initialization
-_config_instance: Optional[Config] = None
+_config_instance: Config | None = None
 _config_lock = threading.Lock()
 
 

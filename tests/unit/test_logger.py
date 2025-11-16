@@ -144,7 +144,7 @@ class TestConfigureLogger:
         levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
         expected = [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL]
 
-        for level_str, level_const in zip(levels, expected):
+        for level_str, level_const in zip(levels, expected, strict=False):
             # Reset logger for each iteration
             root = logging.getLogger()
             root.handlers.clear()

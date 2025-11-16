@@ -12,8 +12,9 @@ from __future__ import annotations
 
 import random
 import time
+from collections.abc import Callable
 from datetime import datetime, timedelta
-from typing import Any, Callable
+from typing import Any
 
 from src.cache.backends import InMemoryCache
 from src.cache.eviction import (

@@ -113,11 +113,10 @@ class TestPipelineErrorHandling:
         audio_file.write_bytes(b"fake audio data" * 1000)
 
         # Mock extraction to succeed but transcription to fail
-        with patch(
-            "src.pipeline.simple_pipeline.AsyncAudioExtractor"
-        ) as mock_extractor_class, patch(
-            "src.pipeline.simple_pipeline.TranscriptionService"
-        ) as mock_transcription_class:
+        with (
+            patch("src.pipeline.simple_pipeline.AsyncAudioExtractor") as mock_extractor_class,
+            patch("src.pipeline.simple_pipeline.TranscriptionService") as mock_transcription_class,
+        ):
             # Setup extraction mock to succeed
             mock_extractor = AsyncMock()
             mock_extractor_class.return_value = mock_extractor
@@ -245,13 +244,11 @@ class TestPipelineErrorHandling:
         audio_file.write_bytes(b"fake audio" * 1000)
 
         # Mock extraction and transcription to succeed, analysis to fail
-        with patch(
-            "src.pipeline.simple_pipeline.AsyncAudioExtractor"
-        ) as mock_extractor_class, patch(
-            "src.pipeline.simple_pipeline.TranscriptionService"
-        ) as mock_transcription_class, patch(
-            "src.pipeline.simple_pipeline.ConciseAnalyzer"
-        ) as mock_analyzer_class:
+        with (
+            patch("src.pipeline.simple_pipeline.AsyncAudioExtractor") as mock_extractor_class,
+            patch("src.pipeline.simple_pipeline.TranscriptionService") as mock_transcription_class,
+            patch("src.pipeline.simple_pipeline.ConciseAnalyzer") as mock_analyzer_class,
+        ):
             # Extraction succeeds
             mock_extractor = AsyncMock()
             mock_extractor_class.return_value = mock_extractor
@@ -463,11 +460,10 @@ class TestPipelineStageResults:
         output_dir.mkdir()
 
         # Mock to succeed extraction, fail transcription
-        with patch(
-            "src.pipeline.simple_pipeline.AsyncAudioExtractor"
-        ) as mock_extractor_class, patch(
-            "src.pipeline.simple_pipeline.TranscriptionService"
-        ) as mock_transcription_class:
+        with (
+            patch("src.pipeline.simple_pipeline.AsyncAudioExtractor") as mock_extractor_class,
+            patch("src.pipeline.simple_pipeline.TranscriptionService") as mock_transcription_class,
+        ):
             mock_extractor = AsyncMock()
             mock_extractor_class.return_value = mock_extractor
             temp_audio = tmp_path / "extracted.mp3"
@@ -539,11 +535,10 @@ class TestPipelineFileOperations:
         output_dir.mkdir()
 
         # Mock extraction and transcription to succeed
-        with patch(
-            "src.pipeline.simple_pipeline.AsyncAudioExtractor"
-        ) as mock_extractor_class, patch(
-            "src.pipeline.simple_pipeline.TranscriptionService"
-        ) as mock_transcription_class:
+        with (
+            patch("src.pipeline.simple_pipeline.AsyncAudioExtractor") as mock_extractor_class,
+            patch("src.pipeline.simple_pipeline.TranscriptionService") as mock_transcription_class,
+        ):
             mock_extractor = AsyncMock()
             mock_extractor_class.return_value = mock_extractor
             temp_audio = tmp_path / "extracted.mp3"
@@ -580,11 +575,10 @@ class TestPipelineFileOperations:
         output_dir = tmp_path / "output"
         output_dir.mkdir()
 
-        with patch(
-            "src.pipeline.simple_pipeline.AsyncAudioExtractor"
-        ) as mock_extractor_class, patch(
-            "src.pipeline.simple_pipeline.TranscriptionService"
-        ) as mock_transcription_class:
+        with (
+            patch("src.pipeline.simple_pipeline.AsyncAudioExtractor") as mock_extractor_class,
+            patch("src.pipeline.simple_pipeline.TranscriptionService") as mock_transcription_class,
+        ):
             # Extraction succeeds
             mock_extractor = AsyncMock()
             mock_extractor_class.return_value = mock_extractor
@@ -669,13 +663,11 @@ class TestPipelineAnalysisStyles:
         output_dir = tmp_path / "output"
         output_dir.mkdir()
 
-        with patch(
-            "src.pipeline.simple_pipeline.AsyncAudioExtractor"
-        ) as mock_extractor_class, patch(
-            "src.pipeline.simple_pipeline.TranscriptionService"
-        ) as mock_transcription_class, patch(
-            "src.pipeline.simple_pipeline.FullAnalyzer"
-        ) as mock_analyzer_class:
+        with (
+            patch("src.pipeline.simple_pipeline.AsyncAudioExtractor") as mock_extractor_class,
+            patch("src.pipeline.simple_pipeline.TranscriptionService") as mock_transcription_class,
+            patch("src.pipeline.simple_pipeline.FullAnalyzer") as mock_analyzer_class,
+        ):
             # Extraction succeeds
             mock_extractor = AsyncMock()
             mock_extractor_class.return_value = mock_extractor
@@ -727,11 +719,10 @@ class TestPipelineCleanupResilience:
         # Track temp directories
         initial_temp_dirs = set(Path(tempfile.gettempdir()).glob("audio_pipeline_*"))
 
-        with patch(
-            "src.pipeline.simple_pipeline.AsyncAudioExtractor"
-        ) as mock_extractor_class, patch(
-            "src.pipeline.simple_pipeline.TranscriptionService"
-        ) as mock_transcription_class:
+        with (
+            patch("src.pipeline.simple_pipeline.AsyncAudioExtractor") as mock_extractor_class,
+            patch("src.pipeline.simple_pipeline.TranscriptionService") as mock_transcription_class,
+        ):
             mock_extractor = AsyncMock()
             mock_extractor_class.return_value = mock_extractor
             temp_audio = tmp_path / "extracted.mp3"
@@ -798,9 +789,10 @@ class TestPipelineCleanupResilience:
         output_dir = tmp_path / "output"
         output_dir.mkdir()
 
-        with patch(
-            "src.pipeline.simple_pipeline.AsyncAudioExtractor"
-        ) as mock_extractor_class, patch("shutil.rmtree") as mock_rmtree:
+        with (
+            patch("src.pipeline.simple_pipeline.AsyncAudioExtractor") as mock_extractor_class,
+            patch("shutil.rmtree") as mock_rmtree,
+        ):
             mock_extractor = AsyncMock()
             mock_extractor_class.return_value = mock_extractor
             mock_extractor.extract_audio_async.side_effect = RuntimeError("Fail")

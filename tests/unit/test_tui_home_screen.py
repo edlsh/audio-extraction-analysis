@@ -75,7 +75,9 @@ def test_on_mount_configures_table(mock_load, home_screen: HomeScreen) -> None: 
 
 
 @patch("src.ui.tui.views.home.add_recent_file")
-def test_action_select_file_from_tree(mock_add_recent, tmp_path: Path, home_screen: HomeScreen) -> None:
+def test_action_select_file_from_tree(
+    mock_add_recent, tmp_path: Path, home_screen: HomeScreen
+) -> None:
     file_path = tmp_path / "input.mp3"
     file_path.write_text("data")
 
@@ -91,7 +93,9 @@ def test_action_select_file_from_tree(mock_add_recent, tmp_path: Path, home_scre
 
 
 @patch("src.ui.tui.views.home.add_recent_file")
-def test_action_select_file_from_recent(mock_add_recent, tmp_path: Path, home_screen: HomeScreen) -> None:
+def test_action_select_file_from_recent(
+    mock_add_recent, tmp_path: Path, home_screen: HomeScreen
+) -> None:
     file_path = tmp_path / "recent.mp3"
     file_path.write_text("data")
 
@@ -119,7 +123,9 @@ def test_action_select_file_directory_warns(tmp_path: Path, home_screen: HomeScr
 
     home_screen.action_select_file()
 
-    home_screen.notify.assert_called_with("Please select a file, not a directory", severity="warning")
+    home_screen.notify.assert_called_with(
+        "Please select a file, not a directory", severity="warning"
+    )
 
 
 @patch("src.ui.tui.views.home.load_recent_files", return_value=[])

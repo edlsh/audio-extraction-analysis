@@ -19,6 +19,7 @@ class LogEntry:
         message: Log message content
         logger: Logger name
     """
+
     type: str = "log"
     timestamp: float = 0.0
     level: str = "INFO"
@@ -56,7 +57,9 @@ class AppState:
     # Results
     artifacts: list[dict[str, str]] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
-    logs: list[LogEntry | dict[str, Any]] = field(default_factory=list)  # LogEntry or truncation marker dict
+    logs: list[LogEntry | dict[str, Any]] = field(
+        default_factory=list
+    )  # LogEntry or truncation marker dict
     summary: dict[str, Any] = field(default_factory=dict)
 
     # Run ID for event tracking

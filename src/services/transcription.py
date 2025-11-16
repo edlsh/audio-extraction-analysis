@@ -7,8 +7,9 @@ import json
 import logging
 import math
 import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from ..models.transcription import TranscriptionResult
 from ..providers.factory import TranscriptionProviderFactory

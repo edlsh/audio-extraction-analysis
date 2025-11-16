@@ -15,8 +15,9 @@ These tests ensure cache functionality remains correct post-fix.
 """
 
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Dict
+from typing import Any, Dict
 
 import pytest
 
@@ -41,7 +42,7 @@ class TestCacheFunctionality:
         path.unlink(missing_ok=True)
 
     @pytest.fixture
-    def sample_settings(self) -> Dict[str, Any]:
+    def sample_settings(self) -> dict[str, Any]:
         """Standard settings for cache tests.
 
         Returns:
@@ -50,7 +51,7 @@ class TestCacheFunctionality:
         return {"model": "whisper", "language": "en"}
 
     @pytest.fixture
-    def sample_transcription(self) -> Dict[str, Any]:
+    def sample_transcription(self) -> dict[str, Any]:
         """Sample transcription result.
 
         Returns:
@@ -71,7 +72,7 @@ class TestCacheFunctionality:
 
         shutil.rmtree(temp_dir, ignore_errors=True)
 
-    def test_cache_key_generation(self, test_file: Path, sample_settings: Dict[str, Any]) -> None:
+    def test_cache_key_generation(self, test_file: Path, sample_settings: dict[str, Any]) -> None:
         """Cache key should be generated with correct components from file.
 
         Verifies:
@@ -88,7 +89,7 @@ class TestCacheFunctionality:
         assert len(cache_key.file_hash) > 0
 
     def test_in_memory_cache_put_operation(
-        self, test_file: Path, sample_settings: Dict[str, Any], sample_transcription: Dict[str, Any]
+        self, test_file: Path, sample_settings: dict[str, Any], sample_transcription: dict[str, Any]
     ) -> None:
         """In-memory cache should successfully store values.
 
@@ -102,7 +103,7 @@ class TestCacheFunctionality:
         assert success, "Cache put operation should succeed"
 
     def test_in_memory_cache_get_operation(
-        self, test_file: Path, sample_settings: Dict[str, Any], sample_transcription: Dict[str, Any]
+        self, test_file: Path, sample_settings: dict[str, Any], sample_transcription: dict[str, Any]
     ) -> None:
         """In-memory cache should retrieve stored values correctly.
 
@@ -119,7 +120,7 @@ class TestCacheFunctionality:
             cached_result == sample_transcription
         ), "Cached result should match original transcription"
 
-    def test_cache_miss_before_put(self, test_file: Path, sample_settings: Dict[str, Any]) -> None:
+    def test_cache_miss_before_put(self, test_file: Path, sample_settings: dict[str, Any]) -> None:
         """Cache get should return None for non-existent key.
 
         Verifies:
@@ -132,7 +133,7 @@ class TestCacheFunctionality:
         assert result is None, "Cache should return None on miss"
 
     def test_cache_statistics_tracking(
-        self, test_file: Path, sample_settings: Dict[str, Any], sample_transcription: Dict[str, Any]
+        self, test_file: Path, sample_settings: dict[str, Any], sample_transcription: dict[str, Any]
     ) -> None:
         """Cache should track hits and misses correctly.
 
@@ -161,8 +162,8 @@ class TestCacheFunctionality:
         self,
         test_file: Path,
         temp_cache_dir: Path,
-        sample_settings: Dict[str, Any],
-        sample_transcription: Dict[str, Any],
+        sample_settings: dict[str, Any],
+        sample_transcription: dict[str, Any],
     ) -> None:
         """Disk cache should persist values to disk.
 
@@ -181,8 +182,8 @@ class TestCacheFunctionality:
         self,
         test_file: Path,
         temp_cache_dir: Path,
-        sample_settings: Dict[str, Any],
-        sample_transcription: Dict[str, Any],
+        sample_settings: dict[str, Any],
+        sample_transcription: dict[str, Any],
     ) -> None:
         """Disk cache should retrieve persisted values.
 
@@ -211,8 +212,8 @@ class TestCacheFunctionality:
     def test_cache_backends_consistency(
         self,
         test_file: Path,
-        sample_settings: Dict[str, Any],
-        sample_transcription: Dict[str, Any],
+        sample_settings: dict[str, Any],
+        sample_transcription: dict[str, Any],
         backend_factory: Callable[[], Any],
     ) -> None:
         """Both cache backends should behave consistently.
@@ -253,7 +254,7 @@ class TestCacheFunctionality:
             CacheKey.from_file(non_existent, "openai", {})
 
     def test_cache_different_settings_different_keys(
-        self, test_file: Path, sample_transcription: Dict[str, Any]
+        self, test_file: Path, sample_transcription: dict[str, Any]
     ) -> None:
         """Different settings should produce different cache keys.
 
@@ -274,7 +275,7 @@ class TestCacheFunctionality:
         assert result is None, "Different settings should not retrieve same cached value"
 
     def test_cache_different_providers_different_keys(
-        self, test_file: Path, sample_settings: Dict[str, Any], sample_transcription: Dict[str, Any]
+        self, test_file: Path, sample_settings: dict[str, Any], sample_transcription: dict[str, Any]
     ) -> None:
         """Different providers should produce different cache keys.
 

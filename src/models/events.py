@@ -28,7 +28,7 @@ EventType = Literal[
 @dataclass
 class Event:
     """Typed event emitted during pipeline execution.
-    
+
     Attributes:
         type: Event type discriminator
         ts: ISO 8601 timestamp (UTC)
@@ -54,13 +54,13 @@ class Event:
 
 class EventSink(Protocol):
     """Protocol for event consumers.
-    
+
     Implementations can be synchronous or asynchronous; emit() should be non-blocking.
     """
 
     def emit(self, event: Event) -> None:
         """Emit an event to this sink.
-        
+
         Args:
             event: Event to emit
         """
@@ -73,13 +73,13 @@ class EventSink(Protocol):
 
 class QueueEventSink:
     """Event sink that pushes events to an asyncio.Queue.
-    
+
     Used by TUI to receive events from pipeline running in background task.
     """
 
     def __init__(self, queue: asyncio.Queue[Event]) -> None:
         """Initialize with target queue.
-        
+
         Args:
             queue: Asyncio queue to push events into
         """
@@ -110,13 +110,13 @@ class QueueEventSink:
 
 class JsonLinesSink:
     """Event sink that writes JSONL (newline-delimited JSON) to a file or stream.
-    
+
     Used for --jsonl CLI flag to stream events to stdout or file.
     """
 
     def __init__(self, file=None, path: str | None = None) -> None:
         """Initialize sink.
-        
+
         Args:
             file: File-like object to write to (default: sys.stdout)
             path: Path to file to open for writing (mutually exclusive with file)
@@ -143,13 +143,13 @@ class JsonLinesSink:
 
 class CompositeSink:
     """Event sink that forwards events to multiple child sinks.
-    
+
     Allows simultaneous streaming to JSONL and TUI queue.
     """
 
     def __init__(self, sinks: list[EventSink]) -> None:
         """Initialize with child sinks.
-        
+
         Args:
             sinks: List of sinks to forward events to
         """
@@ -174,13 +174,13 @@ class CompositeSink:
 
 class ConsoleEventSink:
     """Event sink that bridges events to existing ConsoleManager.
-    
+
     Preserves current CLI behavior while emitting events.
     """
 
     def __init__(self, console_manager) -> None:
         """Initialize with ConsoleManager instance.
-        
+
         Args:
             console_manager: ConsoleManager to forward events to
         """
@@ -198,8 +198,6 @@ class ConsoleEventSink:
 
         with self._lock:
             if event_type == "stage_start":
-                description = data.get("description", stage or "Processing")
-                total = data.get("total")
                 # Note: ConsoleManager.progress_context is a context manager;
                 # we can't directly call it here. Instead, just log the stage start.
                 self.console.print_stage(stage or "stage", "starting")
@@ -246,7 +244,7 @@ _thread_local = threading.local()
 
 def set_event_sink(sink: EventSink | None) -> None:
     """Set the global event sink for the current thread.
-    
+
     Args:
         sink: EventSink instance or None to disable event emission
     """
@@ -255,7 +253,7 @@ def set_event_sink(sink: EventSink | None) -> None:
 
 def get_event_sink() -> EventSink | None:
     """Get the current thread's event sink.
-    
+
     Returns:
         Current EventSink or None if not set
     """
@@ -270,7 +268,7 @@ def emit_event(
     run_id: str | None = None,
 ) -> None:
     """Emit an event to the current thread's sink.
-    
+
     Args:
         event_type: Type of event
         stage: Optional stage identifier
@@ -296,7 +294,7 @@ class EventSinkContext:
 
     def __init__(self, sink: EventSink | None):
         """Initialize with sink.
-        
+
         Args:
             sink: Event sink to set for this context
         """

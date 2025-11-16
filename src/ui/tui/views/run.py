@@ -124,13 +124,13 @@ class RunScreen(Screen):
         self._app_override: AudioExtractionApp | None = None
 
     @property
-    def app(self) -> "AudioExtractionApp":
+    def app(self) -> AudioExtractionApp:
         if self._app_override is not None:
             return self._app_override
         return cast("AudioExtractionApp", super().app)
 
     @app.setter
-    def app(self, value: "AudioExtractionApp") -> None:
+    def app(self, value: AudioExtractionApp) -> None:
         self._app_override = value
         active_app.set(value)
 
@@ -158,11 +158,12 @@ class RunScreen(Screen):
 
     def _start_pipeline_async(self) -> None:
         """Create async task to start pipeline."""
-        asyncio.create_task(self._start_pipeline())
+        self._pipeline_task = asyncio.create_task(self._start_pipeline())
 
     async def _start_pipeline(self) -> None:
         """Start the pipeline in background."""
         import uuid
+
         from ..state import apply_event
 
         self._ensure_runtime_context()
@@ -225,7 +226,7 @@ class RunScreen(Screen):
             event_sink = QueueEventSink(queue)
 
             # Run pipeline with correct parameters
-            result = await run_pipeline(
+            await run_pipeline(
                 input_path=self.input_file,
                 output_dir=Path(self.config["output_dir"]),
                 quality=self.config.get("quality", "speech"),

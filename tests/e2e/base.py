@@ -67,9 +67,9 @@ class TestFile:
 
     name: str
     path: Path
-    duration: Optional[float] = None
-    size: Optional[int] = None
-    format: Optional[str] = None
+    duration: float | None = None
+    size: int | None = None
+    format: str | None = None
     description: str = ""
 
 
@@ -139,7 +139,7 @@ class E2ETestBase:
             shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def run_cli_command(
-        self, command: List[str], timeout: int = 300, env_vars: Optional[Dict[str, str]] = None
+        self, command: list[str], timeout: int = 300, env_vars: dict[str, str] | None = None
     ) -> TestResult:
         """
         Execute CLI command and return results.
@@ -194,7 +194,7 @@ class E2ETestBase:
                 success=False, output="", error=str(e), duration=duration, exit_code=-1
             )
 
-    def validate_output_files(self, expected_files: List[str]) -> Dict[str, bool]:
+    def validate_output_files(self, expected_files: list[str]) -> dict[str, bool]:
         """
         Validate that expected output files exist and are non-empty.
 
@@ -212,7 +212,7 @@ class E2ETestBase:
             results[filename] = exists and non_empty
         return results
 
-    def assert_files_exist(self, expected_files: List[str]):
+    def assert_files_exist(self, expected_files: list[str]):
         """
         Assert that all expected files exist and are non-empty.
 
@@ -273,10 +273,10 @@ class CLITestMixin:
 
     def run_extract_command(
         self,
-        input_file: Union[str, Path],
+        input_file: str | Path,
         quality: str = "high",
-        output_file: Optional[Union[str, Path]] = None,
-        additional_args: Optional[List[str]] = None,
+        output_file: str | Path | None = None,
+        additional_args: list[str] | None = None,
     ) -> TestResult:
         """
         Run audio extraction command.
@@ -302,11 +302,11 @@ class CLITestMixin:
 
     def run_transcribe_command(
         self,
-        input_file: Union[str, Path],
+        input_file: str | Path,
         provider: str = "auto",
         language: str = "en",
-        output_file: Optional[Union[str, Path]] = None,
-        additional_args: Optional[List[str]] = None,
+        output_file: str | Path | None = None,
+        additional_args: list[str] | None = None,
     ) -> TestResult:
         """
         Run transcription command.
@@ -341,11 +341,11 @@ class CLITestMixin:
 
     def run_process_command(
         self,
-        input_file: Union[str, Path],
-        output_dir: Optional[Union[str, Path]] = None,
+        input_file: str | Path,
+        output_dir: str | Path | None = None,
         provider: str = "auto",
         quality: str = "high",
-        additional_args: Optional[List[str]] = None,
+        additional_args: list[str] | None = None,
     ) -> TestResult:
         """
         Run full processing pipeline command (extraction + transcription).
@@ -503,7 +503,7 @@ class SecurityTestMixin:
         }
         return attacks.get(attack_type, "safe_test.mp4")
 
-    def validate_output_sanitization(self, output: str) -> Dict[str, bool]:
+    def validate_output_sanitization(self, output: str) -> dict[str, bool]:
         """
         Validate that output is properly sanitized against common vulnerabilities.
 

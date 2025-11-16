@@ -232,10 +232,10 @@ class TestApplyEventLogs:
         new_state = apply_event(state, event)
 
         assert len(new_state.logs) == 1
-        assert new_state.logs[0]["type"] == "log"
-        assert new_state.logs[0]["message"] == "Test log"
-        assert new_state.logs[0]["level"] == "INFO"
-        assert new_state.logs[0]["timestamp"] == "2025-11-15T18:00:00Z"
+        assert new_state.logs[0].type == "log"
+        assert new_state.logs[0].message == "Test log"
+        assert new_state.logs[0].level == "INFO"
+        assert new_state.logs[0].timestamp == "2025-11-15T18:00:00Z"
 
     def test_warning_event(self):
         """Test warning event creates warning log entry."""
@@ -249,8 +249,8 @@ class TestApplyEventLogs:
         new_state = apply_event(state, event)
 
         assert len(new_state.logs) == 1
-        assert new_state.logs[0]["type"] == "warning"
-        assert new_state.logs[0]["level"] == "WARNING"
+        assert new_state.logs[0].type == "warning"
+        assert new_state.logs[0].level == "WARNING"
 
     def test_error_event_adds_to_logs_and_errors(self):
         """Test error event adds to both logs and errors list."""
@@ -264,8 +264,8 @@ class TestApplyEventLogs:
         new_state = apply_event(state, event)
 
         assert len(new_state.logs) == 1
-        assert new_state.logs[0]["type"] == "error"
-        assert new_state.logs[0]["level"] == "ERROR"
+        assert new_state.logs[0].type == "error"
+        assert new_state.logs[0].level == "ERROR"
 
         assert len(new_state.errors) == 1
         assert new_state.errors[0] == "Test error"
@@ -281,8 +281,8 @@ class TestApplyEventLogs:
 
         # Should be capped at 2000
         assert len(state.logs) <= 2000
-        # Should have truncation marker
-        assert any(log.get("truncated") for log in state.logs)
+        # Should have truncation marker (which is a dict, not a LogEntry)
+        assert any(isinstance(log, dict) and log.get("truncated") for log in state.logs)
 
 
 class TestApplyEventSummary:

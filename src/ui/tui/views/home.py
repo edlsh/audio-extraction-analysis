@@ -114,7 +114,7 @@ class HomeScreen(Screen):
         self.initial_path = value
 
     @property
-    def app(self) -> "AudioExtractionApp":
+    def app(self) -> AudioExtractionApp:
         """Return the strongly typed application instance."""
 
         if self._app_override is not None:
@@ -122,7 +122,7 @@ class HomeScreen(Screen):
         return cast("AudioExtractionApp", super().app)
 
     @app.setter
-    def app(self, value: "AudioExtractionApp") -> None:
+    def app(self, value: AudioExtractionApp) -> None:
         self._app_override = value
         active_app.set(value)
 

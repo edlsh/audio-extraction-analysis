@@ -70,10 +70,14 @@ async def run_pipeline(
             valid_qualities = [q.name.lower() for q in AudioQuality]
             emit_event(
                 "error",
-                data={"message": f"Invalid quality '{quality}'. Must be one of: {', '.join(valid_qualities)}"},
+                data={
+                    "message": f"Invalid quality '{quality}'. Must be one of: {', '.join(valid_qualities)}"
+                },
                 run_id=run_id,
             )
-            raise ValueError(f"Invalid quality '{quality}'. Must be one of: {', '.join(valid_qualities)}")
+            raise ValueError(
+                f"Invalid quality '{quality}'. Must be one of: {', '.join(valid_qualities)}"
+            )
 
         # Run pipeline
         result = await process_pipeline(

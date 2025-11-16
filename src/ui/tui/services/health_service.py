@@ -78,7 +78,7 @@ class HealthService:
                 if not isinstance(result, Exception)
                 else {"status": "error", "message": str(result)}
             )
-            for name, result in zip(providers, results)
+            for name, result in zip(providers, results, strict=False)
         }
 
     async def _check_provider(self, name: str) -> dict[str, Any]:

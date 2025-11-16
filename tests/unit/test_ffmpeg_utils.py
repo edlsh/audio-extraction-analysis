@@ -35,7 +35,7 @@ class TestHandleFfmpegErrorsDecorator:
         """Test CalledProcessError is caught and returns None."""
 
         @handle_ffmpeg_errors("FFmpeg extraction")
-        def failing_func() -> Optional[str]:
+        def failing_func() -> str | None:
             raise subprocess.CalledProcessError(1, ["ffmpeg"], stderr="FFmpeg error")
 
         result = failing_func()
@@ -45,7 +45,7 @@ class TestHandleFfmpegErrorsDecorator:
         """Test TimeoutExpired is caught and returns None."""
 
         @handle_ffmpeg_errors("FFmpeg timeout test")
-        def timeout_func() -> Optional[str]:
+        def timeout_func() -> str | None:
             raise subprocess.TimeoutExpired(["ffmpeg"], 30)
 
         result = timeout_func()
@@ -55,7 +55,7 @@ class TestHandleFfmpegErrorsDecorator:
         """Test FileNotFoundError is caught and returns None."""
 
         @handle_ffmpeg_errors("File operation")
-        def file_not_found_func() -> Optional[str]:
+        def file_not_found_func() -> str | None:
             raise FileNotFoundError("Input file missing")
 
         result = file_not_found_func()
@@ -65,7 +65,7 @@ class TestHandleFfmpegErrorsDecorator:
         """Test PermissionError is caught and returns None."""
 
         @handle_ffmpeg_errors("Permission test")
-        def permission_func() -> Optional[str]:
+        def permission_func() -> str | None:
             raise PermissionError("No write access")
 
         result = permission_func()
@@ -75,7 +75,7 @@ class TestHandleFfmpegErrorsDecorator:
         """Test OSError is caught and returns None."""
 
         @handle_ffmpeg_errors("OS operation")
-        def os_error_func() -> Optional[str]:
+        def os_error_func() -> str | None:
             raise OSError("System error occurred")
 
         result = os_error_func()
@@ -85,7 +85,7 @@ class TestHandleFfmpegErrorsDecorator:
         """Test ValueError is caught and returns None."""
 
         @handle_ffmpeg_errors("Input validation")
-        def value_error_func() -> Optional[str]:
+        def value_error_func() -> str | None:
             raise ValueError("Invalid input parameter")
 
         result = value_error_func()
@@ -96,7 +96,7 @@ class TestHandleFfmpegErrorsDecorator:
         operation_name = "Custom audio extraction"
 
         @handle_ffmpeg_errors(operation_name)
-        def custom_name_func() -> Optional[str]:
+        def custom_name_func() -> str | None:
             raise ValueError("Test error")
 
         # Function should still return None despite the error
@@ -107,7 +107,7 @@ class TestHandleFfmpegErrorsDecorator:
         """Test that default operation name is used when not specified."""
 
         @handle_ffmpeg_errors()
-        def default_name_func() -> Optional[str]:
+        def default_name_func() -> str | None:
             raise ValueError("Test error")
 
         result = default_name_func()
@@ -117,7 +117,7 @@ class TestHandleFfmpegErrorsDecorator:
         """Test that None as operation name is handled gracefully."""
 
         @handle_ffmpeg_errors(None)
-        def none_name_func() -> Optional[str]:
+        def none_name_func() -> str | None:
             raise ValueError("Test error")
 
         result = none_name_func()
@@ -127,7 +127,7 @@ class TestHandleFfmpegErrorsDecorator:
         """Test that empty string as operation name is handled gracefully."""
 
         @handle_ffmpeg_errors("")
-        def empty_name_func() -> Optional[str]:
+        def empty_name_func() -> str | None:
             raise ValueError("Test error")
 
         result = empty_name_func()
@@ -171,7 +171,7 @@ class TestHandleFfmpegErrorsDecorator:
         """Test CalledProcessError with stderr attribute is handled."""
 
         @handle_ffmpeg_errors("Stderr test")
-        def func_with_stderr() -> Optional[str]:
+        def func_with_stderr() -> str | None:
             error = subprocess.CalledProcessError(1, ["ffmpeg"], stderr="Detailed error message")
             raise error
 
@@ -182,7 +182,7 @@ class TestHandleFfmpegErrorsDecorator:
         """Test CalledProcessError without stderr attribute is handled."""
 
         @handle_ffmpeg_errors("No stderr test")
-        def func_without_stderr() -> Optional[str]:
+        def func_without_stderr() -> str | None:
             error = subprocess.CalledProcessError(1, ["ffmpeg"])
             # Edge case: Ensure decorator handles CalledProcessError when stderr is missing
             # Some subprocess calls may not populate stderr, so we test this explicitly
@@ -207,7 +207,7 @@ class TestHandleFfmpegErrorsDecorator:
         """Test decorator with Optional return type returns None on error."""
 
         @handle_ffmpeg_errors("Type hint test")
-        def optional_return_func() -> Optional[str]:
+        def optional_return_func() -> str | None:
             raise ValueError("Error")
 
         result = optional_return_func()
@@ -219,7 +219,7 @@ class TestHandleFfmpegErrorsDecorator:
         with caplog.at_level(logging.ERROR):
 
             @handle_ffmpeg_errors("Logging test")
-            def logging_func() -> Optional[str]:
+            def logging_func() -> str | None:
                 raise FileNotFoundError("Test file missing")
 
             result = logging_func()
@@ -249,7 +249,7 @@ class TestHandleFfmpegErrorsAsyncDecorator:
         """Test async CalledProcessError is caught and returns None."""
 
         @handle_ffmpeg_errors_async("Async FFmpeg extraction")
-        async def failing_async_func() -> Optional[str]:
+        async def failing_async_func() -> str | None:
             raise subprocess.CalledProcessError(1, ["ffmpeg"], stderr="Async error")
 
         result = await failing_async_func()
@@ -260,7 +260,7 @@ class TestHandleFfmpegErrorsAsyncDecorator:
         """Test async TimeoutExpired is caught and returns None."""
 
         @handle_ffmpeg_errors_async("Async timeout test")
-        async def timeout_async_func() -> Optional[str]:
+        async def timeout_async_func() -> str | None:
             raise subprocess.TimeoutExpired(["ffmpeg"], 60)
 
         result = await timeout_async_func()
@@ -271,7 +271,7 @@ class TestHandleFfmpegErrorsAsyncDecorator:
         """Test async FileNotFoundError is caught and returns None."""
 
         @handle_ffmpeg_errors_async("Async file operation")
-        async def file_not_found_async_func() -> Optional[str]:
+        async def file_not_found_async_func() -> str | None:
             raise FileNotFoundError("Async input file missing")
 
         result = await file_not_found_async_func()
@@ -282,7 +282,7 @@ class TestHandleFfmpegErrorsAsyncDecorator:
         """Test async PermissionError is caught and returns None."""
 
         @handle_ffmpeg_errors_async("Async permission test")
-        async def permission_async_func() -> Optional[str]:
+        async def permission_async_func() -> str | None:
             raise PermissionError("Async no write access")
 
         result = await permission_async_func()
@@ -293,7 +293,7 @@ class TestHandleFfmpegErrorsAsyncDecorator:
         """Test async OSError is caught and returns None."""
 
         @handle_ffmpeg_errors_async("Async OS operation")
-        async def os_error_async_func() -> Optional[str]:
+        async def os_error_async_func() -> str | None:
             raise OSError("Async system error")
 
         result = await os_error_async_func()
@@ -304,7 +304,7 @@ class TestHandleFfmpegErrorsAsyncDecorator:
         """Test async ValueError is caught and returns None."""
 
         @handle_ffmpeg_errors_async("Async input validation")
-        async def value_error_async_func() -> Optional[str]:
+        async def value_error_async_func() -> str | None:
             raise ValueError("Async invalid input")
 
         result = await value_error_async_func()
@@ -316,7 +316,7 @@ class TestHandleFfmpegErrorsAsyncDecorator:
         operation_name = "Custom async audio extraction"
 
         @handle_ffmpeg_errors_async(operation_name)
-        async def custom_name_async_func() -> Optional[str]:
+        async def custom_name_async_func() -> str | None:
             raise ValueError("Async test error")
 
         result = await custom_name_async_func()
@@ -327,7 +327,7 @@ class TestHandleFfmpegErrorsAsyncDecorator:
         """Test that default operation name is used in async when not specified."""
 
         @handle_ffmpeg_errors_async()
-        async def default_name_async_func() -> Optional[str]:
+        async def default_name_async_func() -> str | None:
             raise ValueError("Async test error")
 
         result = await default_name_async_func()
@@ -338,7 +338,7 @@ class TestHandleFfmpegErrorsAsyncDecorator:
         """Test that None as operation name is handled gracefully in async."""
 
         @handle_ffmpeg_errors_async(None)
-        async def none_name_async_func() -> Optional[str]:
+        async def none_name_async_func() -> str | None:
             raise ValueError("Async test error")
 
         result = await none_name_async_func()
@@ -349,7 +349,7 @@ class TestHandleFfmpegErrorsAsyncDecorator:
         """Test that empty string as operation name is handled gracefully in async."""
 
         @handle_ffmpeg_errors_async("")
-        async def empty_name_async_func() -> Optional[str]:
+        async def empty_name_async_func() -> str | None:
             raise ValueError("Async test error")
 
         result = await empty_name_async_func()
@@ -409,7 +409,7 @@ class TestHandleFfmpegErrorsAsyncDecorator:
         with caplog.at_level(logging.ERROR):
 
             @handle_ffmpeg_errors_async("Async logging test")
-            async def logging_async_func() -> Optional[str]:
+            async def logging_async_func() -> str | None:
                 raise FileNotFoundError("Async test file missing")
 
             result = await logging_async_func()
@@ -428,11 +428,11 @@ class TestDecoratorComparison:
         """Test that both decorators handle the same error types."""
 
         @handle_ffmpeg_errors("Sync comparison")
-        def sync_func() -> Optional[str]:
+        def sync_func() -> str | None:
             raise ValueError("Sync error")
 
         @handle_ffmpeg_errors_async("Async comparison")
-        async def async_func() -> Optional[str]:
+        async def async_func() -> str | None:
             raise ValueError("Async error")
 
         # Both should return None
