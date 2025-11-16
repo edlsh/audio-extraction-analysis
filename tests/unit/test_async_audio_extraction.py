@@ -1,9 +1,9 @@
 """Test for async audio extraction functionality."""
 
 import asyncio
+import subprocess
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
-import subprocess
 
 import pytest
 
@@ -66,8 +66,6 @@ class TestAsyncAudioExtractor:
     @pytest.mark.asyncio
     async def test_extract_audio_async_handles_subprocess_timeout(self, tmp_path):
         """Test that subprocess.TimeoutExpired is properly caught and handled."""
-        import subprocess
-
         # Mock the FFmpeg check to prevent failures in CI environments
         with patch("subprocess.run") as mock_run:
             mock_run.return_value.returncode = 0
