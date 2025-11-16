@@ -24,14 +24,15 @@ from src.providers.parakeet import (
 from tests.conftest_helpers import skip_without_parakeet
 
 # Apply markers to all tests in this module
+# Note: skip_without_parakeet() is applied at class level to avoid import errors during collection
 pytestmark = [
     pytest.mark.unit,
     pytest.mark.fast,
     pytest.mark.parakeet,
-    skip_without_parakeet(),
 ]
 
 
+@skip_without_parakeet()
 class TestGPUManager:
     """Test GPU resource management functionality."""
 
@@ -112,6 +113,7 @@ class TestGPUManager:
                             mock_sync.assert_called()
 
 
+@skip_without_parakeet()
 class TestParakeetModelCache:
     """Test model caching functionality."""
 
@@ -215,6 +217,7 @@ class TestParakeetModelCache:
         assert not cache._is_valid_model_name("a" * 300)  # Too long
 
 
+@skip_without_parakeet()
 class TestParakeetTranscriber:
     """Test Parakeet transcription provider functionality."""
 
@@ -514,6 +517,7 @@ class TestParakeetTranscriber:
             assert not parakeet_transcriber._is_safe_path(Path("shadow.wav"))
 
 
+@skip_without_parakeet()
 class TestParakeetTranscriberEdgeCases:
     """Test edge cases and error conditions."""
 

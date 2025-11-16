@@ -36,7 +36,9 @@ def has_parakeet() -> bool:
         import nemo.collections.asr as nemo_asr  # noqa: F401
 
         return True
-    except ImportError:
+    except (ImportError, AttributeError, RuntimeError):
+        # Catch ImportError, AttributeError (from ml_dtypes issues), and RuntimeError
+        # to handle cases where dependencies are partially installed or incompatible
         return False
 
 

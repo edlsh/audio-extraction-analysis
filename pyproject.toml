@@ -181,7 +181,7 @@ unfixable = []
 "tests/**/*.py" = ["S101"]  # asserts are standard in tests
 
 [tool.pytest.ini_options]
-minversion = "9.0"
+minversion = "8.0"
 
 # Default test profile: Fast unit tests only
 # Override with: pytest -m "integration" for integration tests

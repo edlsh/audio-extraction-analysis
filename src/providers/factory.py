@@ -611,12 +611,13 @@ class TranscriptionProviderFactory:
         """Synchronous wrapper for async provider health check.
 
         This method handles event loop management for synchronous contexts,
-        automatically creating a new event loop if one doesn't exist.
+        using a thread pool executor when called from an async context to avoid
+        "event loop already running" errors.
 
         Event Loop Handling:
-            - Attempts to use existing event loop if available
-            - Creates new event loop if none exists (e.g., in threaded contexts)
-            - Closes the loop only if it's not currently running (prevents interference)
+            - Detects if there's a running event loop
+            - Uses thread pool executor if in async context (prevents conflicts)
+            - Uses asyncio.run() directly if in sync context (cleaner approach)
 
         Args:
             provider_name: Name of the provider to check (e.g., 'deepgram', 'whisper')
@@ -633,18 +634,19 @@ class TranscriptionProviderFactory:
             Prefer check_provider_health() (async) when in async context for better performance.
         """
         try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            # No event loop in current thread, create a new one
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+            # Check if there's a running event loop
+            asyncio.get_running_loop()
+            # We're in async context - use thread pool to avoid conflict
+            import concurrent.futures
 
-        try:
-            return loop.run_until_complete(cls.check_provider_health(provider_name, api_key))
-        finally:
-            # Only close if loop is not running (avoid breaking existing async contexts)
-            if not loop.is_running():
-                loop.close()
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(
+                    asyncio.run, cls.check_provider_health(provider_name, api_key)
+                )
+                return future.result(timeout=30)  # 30s timeout for health check
+        except RuntimeError:
+            # No running loop - safe to use asyncio.run()
+            return asyncio.run(cls.check_provider_health(provider_name, api_key))
 
     @classmethod
     def get_provider_status(cls) -> dict[str, Any]:

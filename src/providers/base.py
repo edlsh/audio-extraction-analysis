@@ -277,6 +277,9 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
         contexts. For async code, prefer using transcribe_async() directly to
         avoid blocking the event loop.
 
+        Handles nested event loops by running async code in a thread pool when
+        called from an async context.
+
         Args:
             audio_file_path: Path to the audio file to transcribe
             language: Language code for transcription (e.g., 'en', 'es')
@@ -285,7 +288,20 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
             TranscriptionResult object with all available features, or None if
             transcription failed or circuit breaker is open
         """
-        return asyncio.run(self.transcribe_async(audio_file_path, language))
+        try:
+            # Check if there's a running event loop
+            asyncio.get_running_loop()
+            # We're in async context - run in thread pool to avoid conflict
+            import concurrent.futures
+
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(
+                    asyncio.run, self.transcribe_async(audio_file_path, language)
+                )
+                return future.result(timeout=300)  # 5 min timeout for transcription
+        except RuntimeError:
+            # No running loop - safe to use asyncio.run()
+            return asyncio.run(self.transcribe_async(audio_file_path, language))
 
     @abstractmethod
     def validate_configuration(self) -> bool:
@@ -338,10 +354,24 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
         This is a convenience wrapper around health_check_async() for synchronous
         contexts. For async code, prefer using health_check_async() directly.
 
+        Handles nested event loops by running async code in a thread pool when
+        called from an async context.
+
         Returns:
             Dictionary containing health check results (see health_check_async for format)
         """
-        return asyncio.run(self.health_check_async())
+        try:
+            # Check if there's a running event loop
+            asyncio.get_running_loop()
+            # We're in async context - run in thread pool to avoid conflict
+            import concurrent.futures
+
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(asyncio.run, self.health_check_async())
+                return future.result(timeout=30)  # 30s timeout for health check
+        except RuntimeError:
+            # No running loop - safe to use asyncio.run()
+            return asyncio.run(self.health_check_async())
 
     def supports_feature(self, feature: str) -> bool:
         """Check if provider supports a specific feature.
