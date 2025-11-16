@@ -18,7 +18,7 @@ T = TypeVar("T")
 
 def handle_ffmpeg_errors(
     operation_name: str = "FFmpeg operation",
-) -> Any:  # Callable[[Callable[P, T | None]], Callable[P, T | None]]
+) -> Callable[[Callable[P, T]], Callable[P, T | None]]:
     """Decorator to handle common FFmpeg errors consistently.
 
     Args:
@@ -28,7 +28,7 @@ def handle_ffmpeg_errors(
         Decorated function that handles FFmpeg errors
     """
 
-    def decorator(func: Any) -> Any:  # Callable[P, T | None] -> Callable[P, T | None]
+    def decorator(func: Callable[P, T]) -> Callable[P, T | None]:
         @wraps(func)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T | None:
             try:
@@ -59,7 +59,7 @@ def handle_ffmpeg_errors(
 
 def handle_ffmpeg_errors_async(
     operation_name: str = "FFmpeg operation",
-) -> Any:  # Callable[[Callable[P, T | None]], Callable[P, T | None]]
+) -> Callable[[Callable[P, T]], Callable[P, T | None]]:
     """Async decorator to handle common FFmpeg errors consistently.
 
     Args:
@@ -69,7 +69,7 @@ def handle_ffmpeg_errors_async(
         Decorated async function that handles FFmpeg errors
     """
 
-    def decorator(func: Any) -> Any:  # Callable[P, T | None] -> Callable[P, T | None]
+    def decorator(func: Callable[P, T]) -> Callable[P, T | None]:
         @wraps(func)
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T | None:
             try:
