@@ -152,9 +152,10 @@ class TestPerformanceBenchmarks(E2ETestBase, CLITestMixin, PerformanceTestMixin,
         input_file = self.test_files["short"]
 
         # Mock services for consistent performance
-        with patch("src.services.transcription.TranscriptionService") as mock_transcription, patch(
-            "src.analysis.full_analyzer.FullAnalyzer"
-        ) as mock_analyzer:
+        with (
+            patch("src.services.transcription.TranscriptionService") as mock_transcription,
+            patch("src.analysis.full_analyzer.FullAnalyzer") as mock_analyzer,
+        ):
             mock_transcription.return_value.transcribe.return_value = (
                 self.mock_successful_transcription()
             )
@@ -207,9 +208,10 @@ class TestPerformanceBenchmarks(E2ETestBase, CLITestMixin, PerformanceTestMixin,
         stop_monitoring = threading.Event()
 
         # Mock services for faster execution
-        with patch("src.services.transcription.TranscriptionService") as mock_transcription, patch(
-            "src.analysis.full_analyzer.FullAnalyzer"
-        ) as mock_analyzer:
+        with (
+            patch("src.services.transcription.TranscriptionService") as mock_transcription,
+            patch("src.analysis.full_analyzer.FullAnalyzer") as mock_analyzer,
+        ):
             mock_transcription.return_value.transcribe.return_value = (
                 self.mock_successful_transcription()
             )

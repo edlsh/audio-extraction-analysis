@@ -10,11 +10,12 @@ import asyncio
 import logging
 import time
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from threading import Lock
-from typing import Any, Callable
+from typing import Any
 
 from ..models.transcription import TranscriptionResult
 from ..utils.retry import RetryConfig, retry_async

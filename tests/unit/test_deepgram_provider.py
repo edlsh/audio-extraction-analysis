@@ -103,16 +103,12 @@ class TestDeepgramTranscriber:
             mock_deepgram_response
         )
 
-        with patch.object(
-            deepgram_transcriber, "_create_client", return_value=mock_client
-        ), patch.object(
-            deepgram_transcriber, "_open_audio_file", return_value=mock_file_handle
-        ), patch.object(
-            deepgram_transcriber, "_build_options", return_value=Mock()
-        ), patch.object(
-            deepgram_transcriber, "_detect_mimetype", return_value=TEST_MIMETYPE
-        ), patch(
-            "src.providers.deepgram.safe_validate_audio_file", return_value=test_file
+        with (
+            patch.object(deepgram_transcriber, "_create_client", return_value=mock_client),
+            patch.object(deepgram_transcriber, "_open_audio_file", return_value=mock_file_handle),
+            patch.object(deepgram_transcriber, "_build_options", return_value=Mock()),
+            patch.object(deepgram_transcriber, "_detect_mimetype", return_value=TEST_MIMETYPE),
+            patch("src.providers.deepgram.safe_validate_audio_file", return_value=test_file),
         ):
             result = await deepgram_transcriber._transcribe_impl(test_file, TEST_LANGUAGE)
 
@@ -165,16 +161,12 @@ class TestDeepgramTranscriber:
 
         mock_client.listen.prerecorded.v.return_value.transcribe_file.return_value = mock_response
 
-        with patch.object(
-            deepgram_transcriber, "_create_client", return_value=mock_client
-        ), patch.object(
-            deepgram_transcriber, "_open_audio_file", return_value=mock_file
-        ), patch.object(
-            deepgram_transcriber, "_build_options", return_value=Mock()
-        ), patch.object(
-            deepgram_transcriber, "_detect_mimetype", return_value=TEST_MIMETYPE
-        ), patch(
-            "src.providers.deepgram.safe_validate_audio_file", return_value=test_file
+        with (
+            patch.object(deepgram_transcriber, "_create_client", return_value=mock_client),
+            patch.object(deepgram_transcriber, "_open_audio_file", return_value=mock_file),
+            patch.object(deepgram_transcriber, "_build_options", return_value=Mock()),
+            patch.object(deepgram_transcriber, "_detect_mimetype", return_value=TEST_MIMETYPE),
+            patch("src.providers.deepgram.safe_validate_audio_file", return_value=test_file),
         ):
             result = await deepgram_transcriber._transcribe_impl(test_file, TEST_LANGUAGE)
 
@@ -208,16 +200,12 @@ class TestDeepgramTranscriber:
 
         mock_client.listen.prerecorded.v.return_value.transcribe_file.return_value = mock_response
 
-        with patch.object(
-            deepgram_transcriber, "_create_client", return_value=mock_client
-        ), patch.object(
-            deepgram_transcriber, "_open_audio_file", return_value=mock_file_handle
-        ), patch.object(
-            deepgram_transcriber, "_build_options", return_value=Mock()
-        ), patch.object(
-            deepgram_transcriber, "_detect_mimetype", return_value=TEST_MIMETYPE
-        ), patch(
-            "src.providers.deepgram.safe_validate_audio_file", return_value=test_file
+        with (
+            patch.object(deepgram_transcriber, "_create_client", return_value=mock_client),
+            patch.object(deepgram_transcriber, "_open_audio_file", return_value=mock_file_handle),
+            patch.object(deepgram_transcriber, "_build_options", return_value=Mock()),
+            patch.object(deepgram_transcriber, "_detect_mimetype", return_value=TEST_MIMETYPE),
+            patch("src.providers.deepgram.safe_validate_audio_file", return_value=test_file),
         ):
             result = await deepgram_transcriber._transcribe_impl(test_file, TEST_LANGUAGE)
 
@@ -237,16 +225,12 @@ class TestDeepgramTranscriber:
             "API Error"
         )
 
-        with patch.object(
-            deepgram_transcriber, "_create_client", return_value=mock_client
-        ), patch.object(
-            deepgram_transcriber, "_open_audio_file", return_value=mock_file_handle
-        ), patch.object(
-            deepgram_transcriber, "_build_options", return_value=Mock()
-        ), patch.object(
-            deepgram_transcriber, "_detect_mimetype", return_value=TEST_MIMETYPE
-        ), patch(
-            "src.providers.deepgram.safe_validate_audio_file", return_value=test_file
+        with (
+            patch.object(deepgram_transcriber, "_create_client", return_value=mock_client),
+            patch.object(deepgram_transcriber, "_open_audio_file", return_value=mock_file_handle),
+            patch.object(deepgram_transcriber, "_build_options", return_value=Mock()),
+            patch.object(deepgram_transcriber, "_detect_mimetype", return_value=TEST_MIMETYPE),
+            patch("src.providers.deepgram.safe_validate_audio_file", return_value=test_file),
         ):
             with pytest.raises(ConnectionError):
                 deepgram_transcriber.transcribe(test_file, TEST_LANGUAGE)

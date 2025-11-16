@@ -130,7 +130,7 @@ class TestConfigValidate:
                 Config.validate("parakeet")
 
             assert "Parakeet dependencies not installed" in str(exc_info.value)
-            assert "nemo_toolkit" in str(exc_info.value)
+            assert "nemo-toolkit" in str(exc_info.value)
             assert "torch" in str(exc_info.value)
 
     def test_validate_parakeet_missing_torch(self):

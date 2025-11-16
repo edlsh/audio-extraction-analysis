@@ -273,11 +273,11 @@ def _create_export_markdown_subparser(subparsers) -> None:
 
 def _create_tui_subparser(subparsers) -> None:
     """Create the TUI subcommand parser.
-    
+
     Args:
         subparsers: Subparsers object to add the TUI parser to
     """
-    tui_parser = subparsers.add_parser(
+    subparsers.add_parser(
         "tui",
         help="Launch interactive Terminal User Interface",
         description=(
@@ -1076,34 +1076,32 @@ def export_markdown_command(args, console_manager: ConsoleManager | None = None)
 
 def tui_command(args: argparse.Namespace, console_manager: ConsoleManager | None = None) -> int:
     """Handle the TUI subcommand.
-    
+
     This command launches the interactive Terminal User Interface.
-    
+
     Args:
         args: Parsed CLI arguments (unused for TUI)
         console_manager: Optional console manager (unused for TUI)
-    
+
     Returns:
         Exit code (0 for success, non-zero for failure)
     """
     try:
         # Import the TUI app here to avoid circular imports and only load when needed
         from .ui.tui.app import AudioExtractionApp
-        
+
         # Create and run the TUI application
         app = AudioExtractionApp()
         app.run()
         return 0
-        
+
     except ImportError as e:
         logger.error(
             "TUI dependencies not installed. Install with: pip install -e '.[tui]'. Error: %s", e
         )
         return 1
     except Exception as e:
-        logger.critical(
-            "An unexpected error occurred in tui_command: %s", e, exc_info=True
-        )
+        logger.critical("An unexpected error occurred in tui_command: %s", e, exc_info=True)
         return 1
 
 

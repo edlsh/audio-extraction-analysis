@@ -263,6 +263,7 @@ def add_recent_file(file_path: Path) -> bool:
     # Limit to 20 entries and persist
     return save_recent_files(existing)
 
+
 def clear_recent_files() -> bool:
     """Clear the recent files list.
 

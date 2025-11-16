@@ -38,8 +38,8 @@ class TestSuiteResult:
     tests_passed: int
     tests_failed: int
     tests_skipped: int
-    error_message: Optional[str] = None
-    coverage: Optional[float] = None
+    error_message: str | None = None
+    coverage: float | None = None
 
 
 @dataclass
@@ -49,10 +49,10 @@ class E2ETestReport:
     start_time: str
     end_time: str
     total_duration: float
-    environment_info: Dict
-    suite_results: List[TestSuiteResult]
+    environment_info: dict
+    suite_results: list[TestSuiteResult]
     overall_success: bool
-    coverage_report: Optional[Dict] = None
+    coverage_report: dict | None = None
 
 
 class E2ETestRunner:
@@ -113,7 +113,7 @@ class E2ETestRunner:
         }
 
         # Results storage
-        self.suite_results: List[TestSuiteResult] = []
+        self.suite_results: list[TestSuiteResult] = []
         self.environment_info = {}
 
     def setup_logging(self):
@@ -212,7 +212,7 @@ class E2ETestRunner:
         except (subprocess.TimeoutExpired, FileNotFoundError):
             return False
 
-    def get_tool_version(self, tool: str) -> Optional[str]:
+    def get_tool_version(self, tool: str) -> str | None:
         """Get version of a command-line tool."""
         try:
             result = subprocess.run([tool, "--version"], capture_output=True, text=True, timeout=10)
@@ -263,7 +263,7 @@ class E2ETestRunner:
             self.logger.error(f"Test data setup failed: {e}")
             return False
 
-    def run_test_suite(self, suite_name: str, suite_config: Dict) -> TestSuiteResult:
+    def run_test_suite(self, suite_name: str, suite_config: dict) -> TestSuiteResult:
         """Run a specific test suite."""
         self.logger.info(f"Running {suite_name} test suite: {suite_config['description']}")
 
@@ -391,7 +391,7 @@ class E2ETestRunner:
                 error_message=str(e),
             )
 
-    def parse_pytest_json_report(self, report_file: Path) -> Dict:
+    def parse_pytest_json_report(self, report_file: Path) -> dict:
         """Parse pytest JSON report file."""
         if not report_file.exists():
             return {"passed": 0, "failed": 0, "skipped": 0}

@@ -8,10 +8,11 @@ import shutil
 import sys
 import tempfile
 import time
+from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Iterator, Tuple
+from typing import Tuple
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -31,7 +32,7 @@ BENCHMARK_TEST_ENTRIES = 1000
 
 
 @contextmanager
-def temporary_cache(max_size_mb: int = 10) -> Iterator[Tuple[DiskCache, Path]]:
+def temporary_cache(max_size_mb: int = 10) -> Iterator[tuple[DiskCache, Path]]:
     """Context manager for temporary cache with automatic cleanup.
 
     Args:

@@ -70,7 +70,11 @@ class HelpScreen(Screen):
     def _build_help_sections(self) -> list[Text | Table]:
         """Build ordered help renderables."""
         sections: list[Text | Table] = []
-        sections.append(Text.from_markup("[bold cyan]📖 Audio Extraction & Transcription Analysis - TUI Guide[/bold cyan]"))
+        sections.append(
+            Text.from_markup(
+                "[bold cyan]📖 Audio Extraction & Transcription Analysis - TUI Guide[/bold cyan]"
+            )
+        )
         sections.append(self._section_overview())
         sections.extend(self._section_global_shortcuts())
         sections.extend(self._section_screen_shortcuts())

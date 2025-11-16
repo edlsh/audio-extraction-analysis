@@ -12,7 +12,8 @@ from textual.containers import Container, Horizontal, Vertical, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import Button, Checkbox, Footer, Header, Input, Label, Select
 
-from ..persistence import default_settings as _default_settings, load_settings, save_settings
+from ..persistence import default_settings as _default_settings
+from ..persistence import load_settings, save_settings
 
 # Re-export for test patching convenience
 default_settings = _default_settings
@@ -106,13 +107,13 @@ class ConfigScreen(Screen):
         self._app_override: AudioExtractionApp | None = None
 
     @property
-    def app(self) -> "AudioExtractionApp":
+    def app(self) -> AudioExtractionApp:
         if self._app_override is not None:
             return self._app_override
         return cast("AudioExtractionApp", super().app)
 
     @app.setter
-    def app(self, value: "AudioExtractionApp") -> None:
+    def app(self, value: AudioExtractionApp) -> None:
         self._app_override = value
         active_app.set(value)
 
@@ -194,7 +195,9 @@ class ConfigScreen(Screen):
 
         output_group = Container(
             Label("Output Directory", classes="config-label"),
-            Label("[dim]Where to save output files (default: ./output)[/dim]", classes="config-help"),
+            Label(
+                "[dim]Where to save output files (default: ./output)[/dim]", classes="config-help"
+            ),
             Input(
                 placeholder="./output (or specify custom path)",
                 value=self.settings["last_output_dir"],
@@ -206,7 +209,9 @@ class ConfigScreen(Screen):
         export_group = Container(
             Label("Export Options", classes="config-label"),
             Label("[dim]Additional output formats[/dim]", classes="config-help"),
-            Checkbox("Export Markdown transcript (recommended)", value=True, id="export-md-checkbox"),
+            Checkbox(
+                "Export Markdown transcript (recommended)", value=True, id="export-md-checkbox"
+            ),
             Checkbox(
                 "Generate HTML dashboard (interactive)",
                 value=False,

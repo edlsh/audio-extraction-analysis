@@ -71,8 +71,8 @@ class TestMetrics:
     cpu_avg_percent: float
     success: bool
     timestamp: str
-    error_message: Optional[str] = None
-    coverage_percent: Optional[float] = None
+    error_message: str | None = None
+    coverage_percent: float | None = None
 
 
 @dataclass
@@ -105,7 +105,7 @@ class SuiteMetrics:
     avg_execution_time: float
     success_rate: float
     timestamp: str
-    coverage_percent: Optional[float] = None
+    coverage_percent: float | None = None
 
 
 @dataclass
@@ -131,8 +131,8 @@ class TrendData:
     """
 
     metric_name: str
-    timestamps: List[str]
-    values: List[float]
+    timestamps: list[str]
+    values: list[float]
     trend_direction: str  # "improving", "degrading", "stable"
     change_percent: float
 
@@ -168,7 +168,7 @@ class TestMetricsCollector:
         >>> collector.record_test_metrics(metrics)
     """
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         """
         Initialize metrics collector with database connection.
 
@@ -319,7 +319,7 @@ class TestMetricsCollector:
             )
             conn.commit()
 
-    def get_suite_history(self, suite_name: str, days: int = 30) -> List[SuiteMetrics]:
+    def get_suite_history(self, suite_name: str, days: int = 30) -> list[SuiteMetrics]:
         """
         Retrieve historical suite metrics for trend analysis.
 
@@ -355,10 +355,10 @@ class TestMetricsCollector:
             columns = [desc[0] for desc in cursor.description]
 
             return [
-                SuiteMetrics(**dict(zip(columns[1:], row[1:]))) for row in rows  # Skip ID column
+                SuiteMetrics(**dict(zip(columns[1:], row[1:], strict=False))) for row in rows  # Skip ID column
             ]
 
-    def get_performance_trends(self, suite_name: str, days: int = 30) -> Dict[str, TrendData]:
+    def get_performance_trends(self, suite_name: str, days: int = 30) -> dict[str, TrendData]:
         """
         Analyze performance trends for a test suite over time.
 
@@ -414,7 +414,7 @@ class TestMetricsCollector:
         return trends
 
     def _calculate_trend(
-        self, metric_name: str, timestamps: List[str], values: List[float]
+        self, metric_name: str, timestamps: list[str], values: list[float]
     ) -> TrendData:
         """
         Calculate trend direction and percentage change for a metric.
@@ -510,7 +510,7 @@ class ReportGenerator:
         self.metrics_collector = metrics_collector
         self.logger = logging.getLogger(__name__)
 
-    def generate_html_report(self, output_path: Path, suite_name: Optional[str] = None):
+    def generate_html_report(self, output_path: Path, suite_name: str | None = None):
         """
         Generate an HTML report with charts and metrics visualization.
 
@@ -535,7 +535,7 @@ class ReportGenerator:
 
         self.logger.info(f"HTML report generated: {output_path}")
 
-    def generate_json_report(self, output_path: Path, suite_name: Optional[str] = None) -> Dict:
+    def generate_json_report(self, output_path: Path, suite_name: str | None = None) -> dict:
         """
         Generate a JSON report for programmatic consumption.
 
@@ -563,7 +563,7 @@ class ReportGenerator:
         self.logger.info(f"JSON report generated: {output_path}")
         return report_data
 
-    def generate_markdown_report(self, output_path: Path, suite_name: Optional[str] = None):
+    def generate_markdown_report(self, output_path: Path, suite_name: str | None = None):
         """
         Generate a Markdown report for documentation and README files.
 
@@ -588,7 +588,7 @@ class ReportGenerator:
 
         self.logger.info(f"Markdown report generated: {output_path}")
 
-    def _build_report_data(self, suite_name: Optional[str] = None) -> Dict:
+    def _build_report_data(self, suite_name: str | None = None) -> dict:
         """Build report data structure."""
         if suite_name:
             # Single suite report
@@ -630,7 +630,7 @@ class ReportGenerator:
                 "summary": self._calculate_overall_summary(suites_data),
             }
 
-    def _build_html_report(self, suite_name: Optional[str] = None) -> str:
+    def _build_html_report(self, suite_name: str | None = None) -> str:
         """Build HTML report content."""
         report_data = self._build_report_data(suite_name)
 
@@ -680,7 +680,7 @@ class ReportGenerator:
             title=title, generated_at=report_data["generated_at"], content=content
         )
 
-    def _build_suite_html_content(self, data: Dict) -> str:
+    def _build_suite_html_content(self, data: dict) -> str:
         """Build HTML content for single suite report."""
         latest = data.get("latest_metrics")
         if not latest:
@@ -721,7 +721,7 @@ class ReportGenerator:
         </div>
         """
 
-    def _build_overview_html_content(self, data: Dict) -> str:
+    def _build_overview_html_content(self, data: dict) -> str:
         """Build HTML content for overview report."""
         suites_html = ""
 
@@ -767,7 +767,7 @@ class ReportGenerator:
         {self._build_summary_html(data.get("summary", {}))}
         """
 
-    def _build_summary_html(self, summary: Dict) -> str:
+    def _build_summary_html(self, summary: dict) -> str:
         """Build summary HTML section."""
         if not summary:
             return "<p>No summary data available.</p>"
@@ -781,7 +781,7 @@ class ReportGenerator:
         </div>
         """
 
-    def _build_markdown_report(self, suite_name: Optional[str] = None) -> str:
+    def _build_markdown_report(self, suite_name: str | None = None) -> str:
         """Build Markdown report content."""
         report_data = self._build_report_data(suite_name)
 
@@ -790,7 +790,7 @@ class ReportGenerator:
         else:
             return self._build_overview_markdown_content(report_data)
 
-    def _build_suite_markdown_content(self, data: Dict) -> str:
+    def _build_suite_markdown_content(self, data: dict) -> str:
         """Build Markdown content for single suite report."""
         latest = data.get("latest_metrics")
         if not latest:
@@ -830,7 +830,7 @@ class ReportGenerator:
 {self._generate_recommendations(latest, data.get("trends", {}))}
 """
 
-    def _build_overview_markdown_content(self, data: Dict) -> str:
+    def _build_overview_markdown_content(self, data: dict) -> str:
         """Build Markdown content for overview report."""
         suites_table = "| Suite Name | Success Rate | Total Tests | Avg Duration | Last Run |\n|------------|--------------|-------------|--------------|----------|\n"
 
@@ -868,7 +868,7 @@ class ReportGenerator:
 {self._generate_overview_recommendations(data.get("suites", {}))}
 """
 
-    def _summarize_trends(self, trends: Dict[str, TrendData]) -> Dict:
+    def _summarize_trends(self, trends: dict[str, TrendData]) -> dict:
         """Summarize trend data for overview."""
         summary = {}
         for trend_name, trend_data in trends.items():
@@ -878,7 +878,7 @@ class ReportGenerator:
             }
         return summary
 
-    def _calculate_overall_summary(self, suites_data: Dict) -> Dict:
+    def _calculate_overall_summary(self, suites_data: dict) -> dict:
         """Calculate overall summary statistics."""
         total_suites = len(suites_data)
         passing_suites = 0
@@ -899,7 +899,7 @@ class ReportGenerator:
             "avg_success_rate": avg_success_rate,
         }
 
-    def _generate_recommendations(self, latest_metrics: Dict, trends: Dict) -> str:
+    def _generate_recommendations(self, latest_metrics: dict, trends: dict) -> str:
         """Generate recommendations based on metrics and trends."""
         recommendations = []
 
@@ -925,7 +925,7 @@ class ReportGenerator:
 
         return "\n".join(f"- {rec}" for rec in recommendations)
 
-    def _generate_overview_recommendations(self, suites_data: Dict) -> str:
+    def _generate_overview_recommendations(self, suites_data: dict) -> str:
         """Generate overview recommendations."""
         failing_suites = []
 
@@ -950,7 +950,7 @@ class ReportGenerator:
 
         return "## Recommendations\n\n" + "\n".join(f"- {rec}" for rec in recommendations)
 
-    def _get_health_status(self, summary: Dict) -> str:
+    def _get_health_status(self, summary: dict) -> str:
         """Get overall health status."""
         avg_success_rate = summary.get("avg_success_rate", 0)
 
@@ -1059,7 +1059,7 @@ class AlertSystem:
         for alert in alerts:
             self._send_alert(alert)
 
-    def _send_alert(self, alert: Dict):
+    def _send_alert(self, alert: dict):
         """
         Send alert notification through configured channels.
 
@@ -1095,7 +1095,7 @@ class AlertSystem:
 
 
 # Example usage and integration function
-def monitor_test_execution(test_results: Dict, output_dir: Path):
+def monitor_test_execution(test_results: dict, output_dir: Path):
     """
     Monitor test execution and generate comprehensive reports.
 

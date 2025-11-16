@@ -17,7 +17,7 @@ from typing import Dict, Optional
 class TestDataManager:
     """Manages test media files and data for E2E testing."""
 
-    def __init__(self, test_data_dir: Optional[Path] = None):
+    def __init__(self, test_data_dir: Path | None = None):
         """Initialize test data manager."""
         self.test_data_dir = test_data_dir or Path(__file__).parent / "test_data"
         self.test_data_dir.mkdir(exist_ok=True)
@@ -81,7 +81,7 @@ class TestDataManager:
             },
         }
 
-    def generate_all_test_files(self, force_regenerate: bool = False) -> Dict[str, Path]:
+    def generate_all_test_files(self, force_regenerate: bool = False) -> dict[str, Path]:
         """Generate all required test files."""
         generated_files = {}
 
@@ -99,7 +99,7 @@ class TestDataManager:
 
         return generated_files
 
-    def _generate_test_media(self, spec: Dict, force_regenerate: bool = False) -> Optional[Path]:
+    def _generate_test_media(self, spec: dict, force_regenerate: bool = False) -> Path | None:
         """Generate a test media file using FFmpeg."""
         file_path = self.test_data_dir / spec["name"]
 
@@ -156,8 +156,8 @@ class TestDataManager:
             return None
 
     def _generate_edge_case_file(
-        self, spec: Dict, force_regenerate: bool = False
-    ) -> Optional[Path]:
+        self, spec: dict, force_regenerate: bool = False
+    ) -> Path | None:
         """Generate edge case test files."""
         file_path = self.test_data_dir / spec["name"]
 
@@ -223,7 +223,7 @@ class TestDataManager:
 
         return None
 
-    def generate_large_file(self) -> Optional[Path]:
+    def generate_large_file(self) -> Path | None:
         """Generate actual large file for stress testing (slow operation)."""
         spec = self.edge_case_files["large"]
         file_path = self.test_data_dir / spec["name"]
@@ -282,7 +282,7 @@ class TestDataManager:
         except (subprocess.TimeoutExpired, FileNotFoundError):
             return False
 
-    def get_test_file_path(self, file_type: str) -> Optional[Path]:
+    def get_test_file_path(self, file_type: str) -> Path | None:
         """Get path to a specific test file."""
         if file_type in self.test_files:
             return self.test_data_dir / self.test_files[file_type]["name"]
@@ -290,7 +290,7 @@ class TestDataManager:
             return self.test_data_dir / self.edge_case_files[file_type]["name"]
         return None
 
-    def validate_test_files(self) -> Dict[str, bool]:
+    def validate_test_files(self) -> dict[str, bool]:
         """Validate that test files exist and are accessible."""
         validation_results = {}
 
@@ -326,13 +326,13 @@ class TestDataManager:
                 for temp_file in self.test_data_dir.glob(pattern):
                     temp_file.unlink()
 
-    def get_file_specs(self) -> Dict[str, Dict]:
+    def get_file_specs(self) -> dict[str, dict]:
         """Get specifications for all test files."""
         return {"standard": self.test_files, "edge_cases": self.edge_case_files}
 
     def create_custom_test_file(
         self, name: str, duration: int = 10, video_size: str = "640x480", audio_freq: int = 1000
-    ) -> Optional[Path]:
+    ) -> Path | None:
         """Create a custom test file with specified parameters."""
         if not self._check_ffmpeg_available():
             print("FFmpeg required for custom file generation")
