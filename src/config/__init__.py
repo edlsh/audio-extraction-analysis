@@ -1,6 +1,7 @@
 """Simplified configuration management using environment variables."""
 
 import os
+import tempfile
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -92,7 +93,9 @@ class Config:
     # ========== Paths ==========
     data_dir: Path = field(default_factory=lambda: Path(_getenv("DATA_DIR", "./data")))
     cache_dir: Path = field(default_factory=lambda: Path(_getenv("CACHE_DIR", "./cache")))
-    temp_dir: Path = field(default_factory=lambda: Path(_getenv("TEMP_DIR", "/tmp")))
+    temp_dir: Path = field(
+        default_factory=lambda: Path(_getenv("TEMP_DIR") or tempfile.gettempdir())
+    )
 
     # ========== File Handling ==========
     max_file_size: int = field(default_factory=lambda: _getenv_int("MAX_FILE_SIZE", 100000000))

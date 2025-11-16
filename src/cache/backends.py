@@ -591,7 +591,7 @@ class DiskCache(CacheBackend):
                 return cursor.rowcount > 0
 
             except Exception as e:
-                logger.error(f"Failed to delete from disk cache: {e}")
+                logger.error(f"Failed to remove entry from disk cache: {e}")
                 return False
 
     def clear(self) -> int:
