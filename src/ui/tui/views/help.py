@@ -97,7 +97,8 @@ It features live progress monitoring, real-time log streaming, and provider heal
         table = self._build_shortcut_table(
             [
                 ("q", "Quit application"),
-                ("d", "Toggle dark mode"),
+                ("t", "Switch theme (select from list)"),
+                ("d", "Switch theme (same as 't')"),
                 ("h", "Show this help screen"),
                 ("?", "Show this help screen"),
                 ("Esc", "Go back / Close screen"),

@@ -58,6 +58,7 @@ def default_settings() -> dict[str, Any]:
             "language": "en",
             "provider": "auto",
             "analysis_style": "concise",
+            "keep_downloaded_videos": False,
         },
         "exports": {
             "markdown": True,

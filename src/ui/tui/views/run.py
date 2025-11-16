@@ -235,6 +235,8 @@ class RunScreen(Screen):
                 analysis_style=self.config.get("analysis_style", "concise"),
                 event_sink=event_sink,
                 run_id=run_identifier,
+                url=self.config.get("url"),
+                keep_downloaded_videos=self.config.get("keep_downloaded_videos"),
             )
 
             # Store output directory from result

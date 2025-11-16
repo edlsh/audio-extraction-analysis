@@ -10,9 +10,10 @@ from textual._context import active_app
 from textual.app import ComposeResult
 from textual.containers import Container, Vertical
 from textual.screen import Screen
-from textual.widgets import Button, DataTable, DirectoryTree, Footer, Header, Input, Label
+from textual.widgets import Button, DataTable, Footer, Header, Input, Label
 
 from ..persistence import add_recent_file, load_recent_files
+from ..widgets.filtered_tree import FilteredDirectoryTree
 
 if TYPE_CHECKING:
     from ..app import AudioExtractionApp
@@ -43,6 +44,7 @@ class HomeScreen(Screen):
         ("/", "filter", "Filter"),
         ("f", "filter", "Filter"),
         ("r", "refresh_recent", "Refresh Recent"),
+        ("u", "open_url_downloads", "URL from Web"),
     ]
 
     CSS = """
@@ -133,13 +135,14 @@ class HomeScreen(Screen):
 
         tree_pane = Vertical(
             Label("Browse Files"),
-            DirectoryTree(str(self.initial_path), id="file-tree"),
+            FilteredDirectoryTree(str(self.initial_path), id="file-tree"),
             id="tree-pane",
         )
 
         recent_pane = Vertical(
             Label("Recent Files"),
             DataTable(id="recent-table"),
+            Button("Process from URL", id="open-url-btn"),
             id="recent-pane",
         )
 
@@ -182,7 +185,7 @@ class HomeScreen(Screen):
     def action_select_file(self) -> None:
         """Handle file selection (Enter key)."""
         if self._active_pane == "tree":
-            tree = self.query_one("#file-tree", DirectoryTree)
+            tree = self.query_one("#file-tree", FilteredDirectoryTree)
             node = tree.cursor_node
             if not node or not node.data:
                 self.notify("No file selected", severity="warning")
@@ -253,7 +256,17 @@ class HomeScreen(Screen):
         """Return to the previous screen."""
         self.app.pop_screen()
 
-    def on_directory_tree_file_selected(self, event: DirectoryTree.FileSelected) -> None:
+    def action_open_url_downloads(self) -> None:
+        """Navigate to the URL downloads screen."""
+        self.app.push_screen("url_downloads")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Handle button presses on the home screen."""
+        if event.button.id == "open-url-btn":
+            event.stop()
+            self.action_open_url_downloads()
+
+    def on_directory_tree_file_selected(self, event: FilteredDirectoryTree.FileSelected) -> None:
         """Handle file selection from directory tree.
 
         Args:
@@ -280,11 +293,19 @@ class HomeScreen(Screen):
         else:
             self.notify("No recent file selected", severity="warning")
 
+    def on_input_changed(self, event: Input.Changed) -> None:
+        """Dynamically filter the directory tree as the user types."""
+        if event.input.id != "filter-input":
+            return
+
+        tree = self.query_one("#file-tree", FilteredDirectoryTree)
+        tree.filter = event.value or ""
+
     def on_input_submitted(self, event: Input.Submitted) -> None:
         """Filter the directory tree when the filter input is submitted."""
 
         if event.input.id != "filter-input":
             return
 
-        tree = self.query_one("#file-tree", DirectoryTree)
+        tree = self.query_one("#file-tree", FilteredDirectoryTree)
         tree.filter = event.value or ""

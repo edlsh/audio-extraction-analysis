@@ -217,6 +217,11 @@ class ConfigScreen(Screen):
                 value=False,
                 id="html-dashboard-checkbox",
             ),
+            Checkbox(
+                "Keep downloaded videos after processing (URL runs)",
+                value=self.settings["defaults"].get("keep_downloaded_videos", False),
+                id="keep-videos-checkbox",
+            ),
             classes="config-group",
         )
 
@@ -308,6 +313,11 @@ class ConfigScreen(Screen):
         elif event.button.id == "back-btn":
             self.action_back()
 
+        elif event.button.id == "keep-videos-checkbox":
+            # Mirror checkbox value into settings
+            self.settings["defaults"]["keep_downloaded_videos"] = bool(event.button.value)
+            save_settings(self.settings)
+
     def action_start_run(self) -> None:
         """Start the pipeline run."""
         # Validate configuration
@@ -322,6 +332,8 @@ class ConfigScreen(Screen):
         # Save current settings
         save_settings(self.settings)
 
+        keep_videos = bool(self.settings["defaults"].get("keep_downloaded_videos", False))
+
         # Build config dict from settings
         config = {
             "output_dir": str(self.app.state.output_dir),
@@ -331,6 +343,7 @@ class ConfigScreen(Screen):
             "analysis_style": self.settings["defaults"]["analysis_style"],
             "export_markdown": self.settings["exports"]["markdown"],
             "export_html": self.settings["exports"]["html"],
+            "keep_downloaded_videos": keep_videos,
         }
 
         # Store config and navigate to run screen
@@ -349,6 +362,8 @@ class ConfigScreen(Screen):
         self.query_one("#language-select", Select).value = self.settings["defaults"]["language"]
         self.query_one("#style-select", Select).value = self.settings["defaults"]["analysis_style"]
         self.query_one("#output-dir-input", Input).value = self.settings["last_output_dir"]
+        keep_default = bool(self.settings["defaults"].get("keep_downloaded_videos", False))
+        self.query_one("#keep-videos-checkbox", Checkbox).value = keep_default
 
         self.notify("Configuration reset to defaults", severity="information", timeout=2)
 
