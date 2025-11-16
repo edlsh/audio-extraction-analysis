@@ -18,6 +18,10 @@ import pytest
 from src.services.audio_extraction_async import AsyncAudioExtractor, AudioQuality
 
 
+@pytest.mark.integration
+@pytest.mark.ffmpeg
+
+
 class TestFFmpegFormatConversion:
     """Test FFmpeg format conversion functionality."""
 

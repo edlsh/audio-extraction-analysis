@@ -20,6 +20,7 @@ from benchmarks.hash_cache_benchmark import benchmark_hash_performance, create_t
 from src.cache.transcription_cache import CacheKey
 
 
+@pytest.mark.benchmark
 class TestCreateTestFile:
     """Test the create_test_file() function."""
 
@@ -97,6 +98,7 @@ class TestCreateTestFile:
             test_file.unlink(missing_ok=True)
 
 
+@pytest.mark.benchmark
 class TestBenchmarkHashPerformance:
     """Test the benchmark_hash_performance() function."""
 
@@ -218,6 +220,7 @@ class TestBenchmarkHashPerformance:
             large_file.unlink(missing_ok=True)
 
 
+@pytest.mark.benchmark
 class TestBenchmarkIntegration:
     """Integration tests for the benchmark script."""
 
@@ -291,6 +294,7 @@ class TestBenchmarkIntegration:
                 f.unlink(missing_ok=True)
 
 
+@pytest.mark.benchmark
 class TestBenchmarkMain:
     """Test the main() benchmark function."""
 
@@ -400,6 +404,7 @@ class TestBenchmarkMain:
         assert "Speedup" in captured.out
 
 
+@pytest.mark.benchmark
 class TestBenchmarkEdgeCases:
     """Test edge cases and error conditions."""
 

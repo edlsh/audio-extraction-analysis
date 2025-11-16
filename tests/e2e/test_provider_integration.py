@@ -30,6 +30,9 @@ import pytest
 from .base import E2ETestBase, MockProviderMixin
 
 
+@pytest.mark.e2e
+@pytest.mark.providers
+@pytest.mark.network
 class TestProviderFactory(E2ETestBase, MockProviderMixin):
     """
     Test the provider factory pattern and auto-selection logic.
@@ -295,6 +298,9 @@ class TestProviderFactory(E2ETestBase, MockProviderMixin):
             assert sentiment_provider in ["deepgram", "elevenlabs"]
 
 
+@pytest.mark.e2e
+@pytest.mark.providers
+@pytest.mark.slow
 class TestWhisperProviderIntegration(E2ETestBase, MockProviderMixin):
     """
     Test Whisper provider integration and unique capabilities.

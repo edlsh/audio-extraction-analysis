@@ -16,6 +16,9 @@ from .base import CLITestMixin, E2ETestBase, MockProviderMixin
 from .test_data_manager import TestDataManager
 
 
+@pytest.mark.e2e
+@pytest.mark.slow
+@pytest.mark.ffmpeg
 class TestCLIExtractCommand(E2ETestBase, CLITestMixin):
     """
     Test cases for the extract command.
@@ -171,6 +174,9 @@ class TestCLIExtractCommand(E2ETestBase, CLITestMixin):
             assert "exists" in result.error.lower() or "overwrite" in result.error.lower()
 
 
+@pytest.mark.e2e
+@pytest.mark.network
+@pytest.mark.providers
 class TestCLITranscribeCommand(E2ETestBase, CLITestMixin, MockProviderMixin):
     """
     Test cases for the transcribe command.
@@ -354,6 +360,10 @@ class TestCLITranscribeCommand(E2ETestBase, CLITestMixin, MockProviderMixin):
             assert size_related, f"Unexpected error for large file: {result.error}"
 
 
+@pytest.mark.e2e
+@pytest.mark.network
+@pytest.mark.providers
+@pytest.mark.slow
 class TestCLIProcessCommand(E2ETestBase, CLITestMixin, MockProviderMixin):
     """
     Test cases for the full process command.

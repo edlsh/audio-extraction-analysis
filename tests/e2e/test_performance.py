@@ -22,6 +22,9 @@ from .base import CLITestMixin, E2ETestBase, MockProviderMixin, PerformanceTestM
 from .test_data_manager import TestDataManager
 
 
+@pytest.mark.e2e
+@pytest.mark.benchmark
+@pytest.mark.slow
 class TestPerformanceBenchmarks(E2ETestBase, CLITestMixin, PerformanceTestMixin, MockProviderMixin):
     """Performance benchmark tests for core operations."""
 
@@ -275,6 +278,9 @@ class TestPerformanceBenchmarks(E2ETestBase, CLITestMixin, PerformanceTestMixin,
         assert total_growth <= 200.0, f"Total memory growth {total_growth:.1f}MB too high"
 
 
+@pytest.mark.e2e
+@pytest.mark.benchmark
+@pytest.mark.slow
 class TestLoadTesting(E2ETestBase, CLITestMixin, MockProviderMixin):
     """Load testing scenarios including concurrent operations."""
 
@@ -497,6 +503,9 @@ class TestLoadTesting(E2ETestBase, CLITestMixin, MockProviderMixin):
             assert temp_file.stat().st_size > 0, f"Output file {temp_file} is empty"
 
 
+@pytest.mark.e2e
+@pytest.mark.benchmark
+@pytest.mark.slow
 class TestStressScenarios(E2ETestBase, CLITestMixin, MockProviderMixin):
     """Stress testing with edge cases and extreme scenarios."""
 
