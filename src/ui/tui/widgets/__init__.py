@@ -31,19 +31,24 @@ def _placeholder(name: str) -> type:
 try:  # pragma: no cover - covered via higher-level tests
     from .filtered_tree import FilteredDirectoryTree
 except ImportError:  # Textual or related deps not installed
+    # type: ignore[misc] - Placeholder doesn't match full widget interface, but that's intentional
+    # for graceful degradation when Textual is not available
     FilteredDirectoryTree = _placeholder("FilteredDirectoryTree")  # type: ignore[misc]
 
 try:  # pragma: no cover
     from .health_panel import HealthPanel
 except ImportError:
+    # type: ignore[misc] - Same pattern as above: placeholder for optional dependency
     HealthPanel = _placeholder("HealthPanel")  # type: ignore[misc]
 
 try:  # pragma: no cover
     from .log_panel import LogPanel
 except ImportError:
+    # type: ignore[misc] - Same pattern as above: placeholder for optional dependency
     LogPanel = _placeholder("LogPanel")  # type: ignore[misc]
 
 try:  # pragma: no cover
     from .progress_board import ProgressBoard
 except ImportError:
+    # type: ignore[misc] - Same pattern as above: placeholder for optional dependency
     ProgressBoard = _placeholder("ProgressBoard")  # type: ignore[misc]

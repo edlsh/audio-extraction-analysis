@@ -48,7 +48,11 @@ def decompress_value(data: bytes) -> object | None:
             return str(value_data)
         else:
             # Return as object (dict, list, etc.)
-            return value_data if isinstance(value_data, (dict, list, str, int, float, bool, type(None))) else None
+            return (
+                value_data
+                if isinstance(value_data, (dict, list, str, int, float, bool, type(None)))
+                else None
+            )
     except Exception:
         # Caller will handle logging
         return None

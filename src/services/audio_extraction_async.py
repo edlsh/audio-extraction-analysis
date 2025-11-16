@@ -142,7 +142,7 @@ class AsyncAudioExtractor(AudioExtractor):
 
     async def _run_ffmpeg_with_progress(
         self,
-        ffmpeg_args: list,
+        ffmpeg_args: list[str],
         total_duration: float,
         progress_callback: Callable[[int, int], None] | None,
         stage: str = "Processing",
@@ -158,23 +158,26 @@ class AsyncAudioExtractor(AudioExtractor):
         )
 
         # Parse progress from stdout
+        assert proc.stdout is not None, "stdout should be PIPE"
         while True:
             line = await proc.stdout.readline()
             if not line:
                 break
 
-            line = line.decode("utf-8").strip()
+            line_str = line.decode("utf-8").strip()
 
             # Parse FFmpeg progress format: "out_time_ms=12345678"
-            if line.startswith("out_time_ms="):
+            if line_str.startswith("out_time_ms="):
                 try:
-                    time_ms = int(line.split("=")[1])
-                    current_seconds = time_ms / 1_000_000  # Convert microseconds to seconds
+                    parts = line_str.split("=")
+                    if len(parts) >= 2:
+                        time_ms = int(parts[1])
+                        current_seconds = time_ms / 1_000_000  # Convert microseconds to seconds
 
-                    if progress_callback and total_duration > 0:
-                        # Calculate percentage with bounds checking
-                        percentage = min(100, max(0, (current_seconds / total_duration) * 100))
-                        progress_callback(int(percentage), 100)
+                        if progress_callback and total_duration > 0:
+                            # Calculate percentage with bounds checking
+                            percentage = min(100, max(0, (current_seconds / total_duration) * 100))
+                            progress_callback(int(percentage), 100)
 
                 except (ValueError, IndexError):
                     continue
@@ -183,5 +186,6 @@ class AsyncAudioExtractor(AudioExtractor):
         await proc.wait()
 
         if proc.returncode != 0:
+            assert proc.stderr is not None, "stderr should be PIPE"
             stderr = await proc.stderr.read()
             raise RuntimeError(f"FFmpeg failed with code {proc.returncode}: {stderr.decode()}")

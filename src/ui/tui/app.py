@@ -244,10 +244,15 @@ class AudioExtractionApp(App):
 
         try:
             # Run pipeline
+            # Convert quality string to AudioQuality enum
+            from ...services.audio_extraction import AudioQuality
+
+            quality_enum = AudioQuality[self.state.quality.upper()]
+
             result = await process_pipeline(
                 input_path=self.state.input_path,
                 output_dir=self.state.output_dir,
-                quality=self.state.quality,  # type: ignore
+                quality=quality_enum,
                 language=self.state.language,
                 provider=self.state.provider,
                 analysis_style=self.state.analysis_style,

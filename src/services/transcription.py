@@ -42,7 +42,7 @@ class TranscriptionService:
 
     def _prepare_transcription(
         self, audio_file_path: Path, provider_name: str | None = None
-    ) -> tuple[Path, str] | None:
+    ) -> tuple[Path, str]:
         """Validate audio file and select provider for transcription.
 
         Args:
@@ -50,12 +50,28 @@ class TranscriptionService:
             provider_name: Optional provider name. If None, auto-selects best provider
 
         Returns:
-            Tuple of (validated_path, provider_name) or None if validation fails
+            Tuple of (validated_path, provider_name)
+
+        Raises:
+            ValidationError: If audio file validation fails
+            ProviderSelectionError: If no suitable provider can be found
+            ProviderValidationError: If provider cannot handle the file
+            ProviderNotAvailableError: If no providers configured (test environments)
         """
+        from ..exceptions import (
+            ValidationError,
+            ProviderSelectionError,
+            ProviderValidationError,
+            ProviderNotAvailableError,
+        )
+
         # Validate audio file
         validated_path = safe_validate_audio_file(audio_file_path)
         if validated_path is None:
-            return None
+            raise ValidationError(
+                f"Audio file validation failed: {audio_file_path}",
+                context={"file_path": str(audio_file_path)},
+            )
 
         # Auto-select provider if not specified
         if not provider_name:
@@ -71,23 +87,33 @@ class TranscriptionService:
                     provider_name = self.auto_select_provider(validated_path)
                     logger.info(f"Auto-selected provider: {provider_name}")
             except ValueError as e:
-                # In CI/testing, fail gracefully if no providers configured
+                # In CI/testing, provide clear error
                 if os.getenv("CI") or os.getenv("PYTEST_CURRENT_TEST"):
-                    logger.warning(f"No providers configured in test environment: {e}")
-                    return None
-                logger.error(f"Failed to auto-select provider: {e}")
-                return None
+                    raise ProviderNotAvailableError(
+                        "No providers configured in test environment",
+                        context={"environment": "test", "ci": True},
+                    ) from e
+                raise ProviderSelectionError(
+                    f"Failed to auto-select provider: {e}",
+                    context={"file_path": str(validated_path)},
+                ) from e
 
         # Validate provider can handle the file
         if not self.factory.validate_provider_for_file(provider_name, validated_path):
-            logger.error(f"Provider '{provider_name}' cannot handle file: {validated_path}")
-            return None
+            raise ProviderValidationError(
+                f"Provider '{provider_name}' cannot handle file",
+                context={
+                    "provider": provider_name,
+                    "file_path": str(validated_path),
+                    "file_size": validated_path.stat().st_size,
+                },
+            )
 
         return validated_path, provider_name
 
     def transcribe(
         self, audio_file_path: Path, provider_name: str | None = None, language: str = "en"
-    ) -> TranscriptionResult | None:
+    ) -> TranscriptionResult:
         """Transcribe an audio file using the specified or auto-selected provider.
 
         Args:
@@ -96,60 +122,48 @@ class TranscriptionService:
             language: Language code for transcription (default: 'en')
 
         Returns:
-            TranscriptionResult with available features, or None if failed
+            TranscriptionResult with available features
+
+        Raises:
+            ValidationError: If audio file validation fails
+            ProviderSelectionError: If no suitable provider found
+            ProviderNotAvailableError: If provider SDK not installed
+            ProviderAuthenticationError: If API key invalid
+            ProviderRateLimitError: If rate limit exceeded
+            ProviderTimeoutError: If request times out
+            ProviderAPIError: If provider API fails
+            TranscriptionError: If transcription produces no result or fails
         """
-        # Validate and prepare for transcription
-        preparation = self._prepare_transcription(audio_file_path, provider_name)
-        if preparation is None:
-            return None
-        audio_file_path, provider_name = preparation
+        from ..exceptions import TranscriptionError
 
-        try:
-            # Create provider instance
-            provider = self.factory.create_provider(provider_name)
+        # Validate and prepare for transcription (now raises exceptions)
+        audio_file_path, provider_name = self._prepare_transcription(audio_file_path, provider_name)
 
-            # Perform transcription
-            logger.info(f"Starting transcription with {provider.get_provider_name()}")
-            result = provider.transcribe(audio_file_path, language)
+        # Create provider instance
+        provider = self.factory.create_provider(provider_name)
 
-            if result:
-                logger.info(
-                    f"Transcription completed successfully with {provider.get_provider_name()}"
-                )
-                logger.info(f"Transcript length: {len(result.transcript)} characters")
-            else:
-                logger.error(f"Transcription failed with {provider.get_provider_name()}")
+        # Perform transcription (let provider exceptions propagate)
+        logger.info(f"Starting transcription with {provider.get_provider_name()}")
+        result = provider.transcribe(audio_file_path, language)
 
-            return result
+        if not result:
+            raise TranscriptionError(
+                f"Transcription returned no result",
+                context={
+                    "provider": provider_name,
+                    "file_path": str(audio_file_path),
+                    "language": language,
+                },
+            )
 
-        except ValueError as e:
-            logger.error(f"Invalid provider or configuration: {e}")
-            return None
-        except FileNotFoundError as e:
-            logger.error(f"Audio file not found: {e}")
-            return None
-        except ImportError as e:
-            logger.error(f"Required provider module not available: {e}")
-            return None
-        except ConnectionError as e:
-            logger.error(f"Network connection failed during transcription: {e}")
-            return None
-        except TimeoutError as e:
-            logger.error(f"Transcription request timed out: {e}")
-            return None
-        except PermissionError as e:
-            logger.error(f"Permission denied: {e}")
-            return None
-        except OSError as e:
-            logger.error(f"System error during transcription: {e}")
-            return None
-        except Exception as e:
-            logger.error(f"Unexpected transcription error: {e}")
-            return None
+        logger.info(f"Transcription completed successfully with {provider.get_provider_name()}")
+        logger.info(f"Transcript length: {len(result.transcript)} characters")
+
+        return result
 
     async def transcribe_async(
         self, audio_file_path: Path, provider_name: str | None = None, language: str = "en"
-    ) -> TranscriptionResult | None:
+    ) -> TranscriptionResult:
         """Transcribe an audio file asynchronously.
 
         Args:
@@ -158,80 +172,68 @@ class TranscriptionService:
             language: Language code for transcription (default: 'en')
 
         Returns:
-            TranscriptionResult with available features, or None if failed
+            TranscriptionResult with available features
+
+        Raises:
+            ValidationError: If audio file validation fails
+            ProviderSelectionError: If no suitable provider found
+            ProviderNotAvailableError: If provider SDK not installed
+            ProviderAuthenticationError: If API key invalid
+            ProviderRateLimitError: If rate limit exceeded
+            ProviderTimeoutError: If request times out
+            ProviderAPIError: If provider API fails
+            TranscriptionError: If transcription produces no result or fails
         """
-        # Validate and prepare for transcription
-        preparation = self._prepare_transcription(audio_file_path, provider_name)
-        if preparation is None:
-            return None
-        audio_file_path, provider_name = preparation
+        from ..exceptions import TranscriptionError
 
-        try:
-            # Create provider instance
-            provider = self.factory.create_provider(provider_name)
+        # Validate and prepare for transcription (now raises exceptions)
+        audio_file_path, provider_name = self._prepare_transcription(audio_file_path, provider_name)
 
-            # Perform async transcription with safe method checking
-            logger.info(f"Starting async transcription with {provider.get_provider_name()}")
+        # Create provider instance
+        provider = self.factory.create_provider(provider_name)
 
-            # Check for async method first
-            if hasattr(provider, "transcribe_async") and callable(provider.transcribe_async):
-                try:
-                    result = await provider.transcribe_async(audio_file_path, language)
-                except Exception as e:
-                    logger.warning(f"Async transcription failed, falling back to sync: {e}")
-                    # Fall through to sync method
-                    result = None
-            else:
+        # Perform async transcription with safe method checking
+        logger.info(f"Starting async transcription with {provider.get_provider_name()}")
+
+        # Check for async method first
+        if hasattr(provider, "transcribe_async") and callable(provider.transcribe_async):
+            try:
+                result = await provider.transcribe_async(audio_file_path, language)
+            except Exception as e:
+                logger.warning(f"Async transcription failed, falling back to sync: {e}")
+                # Fall through to sync method
                 result = None
+        else:
+            result = None
 
-            # Fallback to sync method wrapped in thread executor if async failed or doesn't exist
-            if result is None:
-                if hasattr(provider, "transcribe") and callable(provider.transcribe):
-                    loop = asyncio.get_event_loop()
+        # Fallback to sync method wrapped in thread executor if async failed or doesn't exist
+        if result is None:
+            if hasattr(provider, "transcribe") and callable(provider.transcribe):
+                loop = asyncio.get_event_loop()
 
-                    def sync_transcribe() -> TranscriptionResult:
-                        return provider.transcribe(audio_file_path, language)
+                def sync_transcribe() -> TranscriptionResult | None:
+                    return provider.transcribe(audio_file_path, language)
 
-                    result = await loop.run_in_executor(None, sync_transcribe)
-                else:
-                    raise ValueError(
-                        f"Provider {provider.__class__.__name__} has no suitable transcription method"
-                    )
-
-            if result:
-                logger.info(
-                    f"Transcription completed successfully with {provider.get_provider_name()}"
-                )
-                logger.info(f"Transcript length: {len(result.transcript)} characters")
+                result = await loop.run_in_executor(None, sync_transcribe)
             else:
-                logger.error(f"Transcription failed with {provider.get_provider_name()}")
+                raise ValueError(
+                    f"Provider {provider.__class__.__name__} has no suitable transcription method"
+                )
 
-            return result
+        if not result:
+            raise TranscriptionError(
+                f"Transcription returned no result",
+                context={
+                    "provider": provider_name,
+                    "file_path": str(audio_file_path),
+                    "language": language,
+                },
+            )
 
-        except ValueError as e:
-            logger.error(f"Invalid provider or configuration for async: {e}")
-            return None
-        except FileNotFoundError as e:
-            logger.error(f"Audio file not found for transcription: {e}")
-            return None
-        except ImportError as e:
-            logger.error(f"Required provider module not available: {e}")
-            return None
-        except ConnectionError as e:
-            logger.error(f"Network connection failed during transcription: {e}")
-            return None
-        except TimeoutError as e:
-            logger.error(f"Transcription request timed out: {e}")
-            return None
-        except PermissionError as e:
-            logger.error(f"Permission denied for transcription: {e}")
-            return None
-        except OSError as e:
-            logger.error(f"System error during transcription: {e}")
-            return None
-        except Exception as e:
-            logger.error(f"Unexpected transcription error: {e}")
-            return None
+        logger.info(f"Transcription completed successfully with {provider.get_provider_name()}")
+        logger.info(f"Transcript length: {len(result.transcript)} characters")
+
+        return result
 
     async def transcribe_with_progress(
         self,

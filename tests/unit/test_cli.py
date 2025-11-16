@@ -426,9 +426,11 @@ class TestCLIErrorHandling:
             with patch("src.cli.TranscriptionService") as mock_service:
                 mock_service.side_effect = KeyboardInterrupt()
 
-                result = main()
+                # KeyboardInterrupt now raises SystemExit(130) as expected
+                with pytest.raises(SystemExit) as exc_info:
+                    main()
 
-        assert result == 1
+        assert exc_info.value.code == 130  # Standard exit code for SIGINT
 
 
 class TestCLIProviderSelection:

@@ -71,10 +71,10 @@ class UrlIngestionService:
 
         downloaded_path: Path | None = None
 
-        def _hook(d: dict) -> None:  # pragma: no cover - thin progress hook
+        def _hook(d: dict[str, object]) -> None:  # pragma: no cover - thin progress hook
             if d.get("status") == "finished":
                 filename = d.get("filename")
-                if filename:
+                if filename and isinstance(filename, str):
                     nonlocal downloaded_path
                     downloaded_path = Path(filename)
 
@@ -90,7 +90,7 @@ class UrlIngestionService:
         if not downloaded_path:
             # Fallback: try to infer from result
             filename = result.get("_filename") if isinstance(result, dict) else None
-            if filename:
+            if filename and isinstance(filename, str):
                 downloaded_path = Path(filename)
 
         if not downloaded_path or not downloaded_path.exists():

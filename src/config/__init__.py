@@ -461,7 +461,7 @@ class Config:
         return self.max_file_size
 
     @property
-    def ALLOWED_FILE_EXTENSIONS(self) -> set:
+    def ALLOWED_FILE_EXTENSIONS(self) -> set[str]:
         """Get allowed file extensions."""
         return set(self.allowed_extensions)
 

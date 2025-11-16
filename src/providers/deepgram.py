@@ -104,7 +104,7 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
             DeepgramClient: Configured Deepgram SDK client instance ready for API calls
         """
         # Import Deepgram SDK lazily to avoid import-time failures when optional
-        from deepgram import ClientOptionsFromEnv, DeepgramClient  # type: ignore
+        from deepgram import ClientOptionsFromEnv, DeepgramClient
 
         # 10 minute timeout (large files can take time)
         config = ClientOptionsFromEnv(options={"timeout": 600})
@@ -485,11 +485,28 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
 
         Returns:
             TranscriptionResult with all features, or None if failed
+
+        Raises:
+            ProviderNotAvailableError: If Deepgram SDK not installed
+            ValidationError: If audio file validation fails or file not found
+            FileAccessError: If file permissions prevent access
+            ProviderAPIError: If Deepgram API returns an error
+            ProviderTimeoutError: If request times out
         """
+        from ..exceptions import (
+            ProviderNotAvailableError,
+            ProviderAPIError,
+            ValidationError,
+            FileAccessError,
+        )
+
         # Validate audio file
         validated_path = safe_validate_audio_file(audio_file_path, provider_name="deepgram")
         if validated_path is None:
-            return None
+            raise ValidationError(
+                f"Audio file validation failed: {audio_file_path}",
+                context={"file_path": str(audio_file_path), "provider": "deepgram"},
+            )
         audio_file_path = validated_path
 
         try:
@@ -504,43 +521,46 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
             # Submit transcription job using file handle for efficient streaming upload
             # This prevents loading entire file into memory for large audio files
             logger.info("Sending to Deepgram Nova 3 with streaming upload...")
-            try:
-                with self._open_audio_file(audio_file_path) as audio_source:
-                    response = self._submit_transcription_job(
-                        client, audio_source, mimetype, options
-                    )
-                logger.info("Transcription completed successfully")
-            except (OSError, PermissionError) as e:
-                logger.error(f"Failed to open audio file: {e}")
-                return None
+            with self._open_audio_file(audio_file_path) as audio_source:
+                response = self._submit_transcription_job(client, audio_source, mimetype, options)
+            logger.info("Transcription completed successfully")
 
             # Parse and return
             return self._parse_response(response, audio_file_path, language)
 
         except ImportError as e:
             logger.error(f"Deepgram SDK not installed: {e}")
-            raise ConnectionError(f"Deepgram SDK not available: {e}") from e
+            raise ProviderNotAvailableError(
+                "Deepgram SDK not available",
+                context={"provider": "deepgram", "install_command": "uv add deepgram-sdk"},
+            ) from e
         except FileNotFoundError as e:
             logger.error(f"Audio file not found: {e}")
-            raise ValueError(f"Audio file not found: {e}") from e
+            raise ValidationError(
+                f"Audio file not found: {audio_file_path}",
+                context={"file_path": str(audio_file_path)},
+            ) from e
         except PermissionError as e:
             logger.error(f"Permission denied accessing file: {e}")
-            raise ValueError(f"Permission denied: {e}") from e
-        except ValueError as e:
-            logger.error(f"Invalid configuration or input: {e}")
-            raise
-        except ConnectionError as e:
-            logger.error(f"Network connection error: {e}")
-            raise
-        except TimeoutError as e:
-            logger.error(f"Transcription request timed out: {e}")
+            raise FileAccessError(
+                f"Permission denied: {audio_file_path}", context={"file_path": str(audio_file_path)}
+            ) from e
+        except (ConnectionError, TimeoutError):
+            # Let provider-specific errors propagate directly
+            logger.error(f"Deepgram API error")
             raise
         except OSError as e:
             logger.error(f"System error during transcription: {e}")
-            raise ConnectionError(f"System error: {e}") from e
+            raise ProviderAPIError(
+                "Deepgram API system error",
+                context={"error": str(e), "file_path": str(audio_file_path)},
+            ) from e
         except Exception as e:
             logger.error(f"Unexpected transcription error: {e}")
-            raise ConnectionError(f"Unexpected error: {e}") from e
+            raise ProviderAPIError(
+                f"Unexpected Deepgram error: {e}",
+                context={"error_type": type(e).__name__, "file_path": str(audio_file_path)},
+            ) from e
 
     def transcribe(self, audio_file_path: Path, language: str = "en") -> TranscriptionResult | None:
         """Synchronous transcription method for blocking I/O contexts.

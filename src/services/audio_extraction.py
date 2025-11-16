@@ -10,6 +10,13 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from ..exceptions import (
+    AudioExtractionError,
+    AudioExtractionTimeout,
+    AudioFileCorruptedError,
+    FFmpegExecutionError,
+    FFmpegNotFoundError,
+)
 from ..utils.file_validation import FileValidator, safe_validate_media_file
 from .ffmpeg_core import build_extract_commands
 
@@ -94,26 +101,29 @@ class AudioExtractor:
         return shlex.quote(str(file_path.resolve()))
 
     def _check_ffmpeg(self) -> None:
-        """Check if FFmpeg is available."""
+        """Check if FFmpeg is available.
+
+        Raises:
+            FFmpegNotFoundError: If FFmpeg is not installed or not accessible
+        """
         try:
             subprocess.run(["ffmpeg", "-version"], capture_output=True, check=True, timeout=10)
         except subprocess.CalledProcessError as e:
             logger.error("FFmpeg check failed")
-            raise RuntimeError(
-                "FFmpeg is required but not installed. "
-                "Install with: brew install ffmpeg (macOS) or "
-                "sudo apt-get install ffmpeg (Ubuntu)"
+            raise FFmpegNotFoundError(
+                "FFmpeg is required but not installed or not accessible",
+                context={"check_type": "version"},
             ) from e
         except FileNotFoundError as e:
-            logger.error("FFmpeg is not installed or not accessible")
-            raise RuntimeError(
-                "FFmpeg is required but not installed. "
-                "Install with: brew install ffmpeg (macOS) or "
-                "sudo apt-get install ffmpeg (Ubuntu)"
+            logger.error("FFmpeg is not installed or not in PATH")
+            raise FFmpegNotFoundError(
+                "FFmpeg not found in PATH", context={"error": "not_in_path"}
             ) from e
         except subprocess.TimeoutExpired as e:
             logger.error("FFmpeg version check timed out")
-            raise RuntimeError("FFmpeg version check timed out") from e
+            raise FFmpegNotFoundError(
+                "FFmpeg version check timed out", context={"timeout": 10}
+            ) from e
 
     def get_video_info(self, input_path: Path) -> dict[str, Any]:
         """Get video/audio file information using ffprobe."""
@@ -164,7 +174,7 @@ class AudioExtractor:
         input_path: Path,
         output_path: Path | None = None,
         quality: AudioQuality = AudioQuality.SPEECH,
-    ) -> Path | None:
+    ) -> Path:
         """Extract audio from video using specified quality preset.
 
         Args:
@@ -173,12 +183,19 @@ class AudioExtractor:
             quality: Audio quality preset
 
         Returns:
-            Path to extracted audio file, or None if extraction failed
+            Path to extracted audio file
+
+        Raises:
+            AudioExtractionTimeout: If extraction exceeds timeout (600s)
+            FFmpegNotFoundError: If FFmpeg is not installed
+            FFmpegExecutionError: If FFmpeg execution fails
+            AudioFileCorruptedError: If input file is corrupted
+            AudioExtractionError: For other extraction failures
         """
         # Validate input video file (for audio extraction)
         validated_path = safe_validate_media_file(input_path, max_file_size=self.MAX_FILE_SIZE)
         if validated_path is None:
-            return None
+            raise ValueError(f"Invalid media file: {input_path}")
         input_path = validated_path
 
         # Set default output path
@@ -205,27 +222,64 @@ class AudioExtractor:
             for cmd in cmds:
                 subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=600)
 
-            # Log success
-            if output_path.exists():
-                final_size = output_path.stat().st_size / (1024 * 1024)
-                logger.info(f"Successfully extracted audio: {final_size:.2f} MB")
-                return output_path
-            else:
+            # Verify output file was created
+            if not output_path.exists():
                 logger.error("Audio extraction completed but output file not found")
-                return None
-        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
-            logger.error(f"Audio extraction failed: {e}")
-            return None
-        except (FileNotFoundError, PermissionError, OSError, ValueError) as e:
-            logger.error(f"Audio extraction failed: {e}")
-            return None
+                raise AudioExtractionError(
+                    f"FFmpeg completed but output file not found: {output_path.name}",
+                    context={"input_path": str(input_path), "expected_output": str(output_path)},
+                )
+
+            # Log success
+            final_size = output_path.stat().st_size / (1024 * 1024)
+            logger.info(f"Successfully extracted audio: {final_size:.2f} MB")
+            return output_path
+        except subprocess.TimeoutExpired as e:
+            logger.error(f"Audio extraction timed out after 600s")
+            raise AudioExtractionTimeout(
+                f"Audio extraction timed out after 600s for {input_path.name}",
+                context={"input_path": str(input_path), "timeout": 600, "quality": quality.value},
+            ) from e
+        except subprocess.CalledProcessError as e:
+            stderr = e.stderr if hasattr(e, "stderr") else str(e)
+            logger.error(f"FFmpeg execution failed: {stderr}")
+
+            # Check if error indicates corrupted file
+            if stderr and ("Invalid data" in stderr or "corrupt" in stderr.lower()):
+                raise AudioFileCorruptedError(
+                    f"Input file appears corrupted: {input_path.name}",
+                    context={
+                        "input_path": str(input_path),
+                        "ffmpeg_stderr": stderr[:500] if stderr else None,
+                        "return_code": e.returncode,
+                    },
+                ) from e
+
+            raise FFmpegExecutionError(
+                f"FFmpeg failed to extract audio from {input_path.name}",
+                context={
+                    "input_path": str(input_path),
+                    "output_path": str(output_path),
+                    "return_code": e.returncode,
+                    "stderr": stderr[:500] if stderr else None,
+                    "quality": quality.value,
+                },
+            ) from e
+        except (FileNotFoundError, PermissionError, OSError) as e:
+            logger.error(f"File system error during extraction: {e}")
+            raise AudioExtractionError(
+                f"File system error during audio extraction: {e}",
+                context={"input_path": str(input_path), "error_type": type(e).__name__},
+            ) from e
         finally:
             # Cleanup possible temp file from SPEECH pipeline
-            try:
-                if "temp_path" in locals() and temp_path and temp_path.exists():
+            if "temp_path" in locals() and temp_path and temp_path.exists():
+                try:
                     temp_path.unlink()
-            except Exception:
-                pass
+                    logger.debug(f"Cleaned up temp file: {temp_path}")
+                except OSError as e:
+                    # Log but don't raise - cleanup failure shouldn't fail the operation
+                    logger.warning(f"Failed to clean up temp file {temp_path}: {e}")
 
 
 # ---------------------- Legacy shim for backward compatibility ----------------------

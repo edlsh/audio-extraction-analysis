@@ -416,7 +416,9 @@ class DiskCache(CacheBackend):
 
         result = cursor.fetchone()
         # fetchone() returns tuple[Any, ...] | None, cast to our return type
-        return result
+        from typing import cast
+
+        return cast(tuple[object, ...] | None, result) if result else None
 
     def _update_access_stats(self, key: str) -> None:
         """Update access time and count for an entry.
@@ -461,11 +463,11 @@ class DiskCache(CacheBackend):
         """
         try:
             from typing import cast
-            
+
             # Cast row[0] from object to bytes for JSON decoding
             blob_data = cast(bytes, row[0])
             entry_dict = json.loads(blob_data.decode("utf-8"))
-            
+
             # CacheEntry is already imported at module level
             entry_data = CacheEntry.from_dict(entry_dict)
             return entry_data
@@ -571,6 +573,7 @@ class DiskCache(CacheBackend):
                 result = cursor.fetchone()
                 if result:
                     from typing import cast
+
                     count = cast(int, result[0])
                     return count > 0
                 return False
@@ -613,6 +616,7 @@ class DiskCache(CacheBackend):
                 result = cursor.fetchone()
                 if result:
                     from typing import cast
+
                     count = cast(int, result[0])
                 else:
                     count = 0

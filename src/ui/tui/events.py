@@ -32,7 +32,14 @@ class _DropAwareQueue(asyncio.Queue[Event]):
         except asyncio.QueueEmpty:
             pass
 
+    # type: ignore[override] - Intentional type narrowing: asyncio.Queue accepts Any,
+    # but we want type safety with Event-only queue. This is a Liskov substitution
+    # intentional violation for better type checking in our codebase.
     def put_nowait(self, item: Event) -> None:  # type: ignore[override]
+        """Put an item into the queue without blocking.
+
+        If the queue is full, evict oldest item or drop newest based on policy.
+        """
         if self.maxsize > 0 and self.full():
             if item is _STOP_SENTINEL:
                 self._evict_oldest()
@@ -41,8 +48,10 @@ class _DropAwareQueue(asyncio.Queue[Event]):
             else:  # newest
                 logger.debug("Dropping newest event due to full queue")
                 return
-        return super().put_nowait(item)
+        # type: ignore[arg-type] - Parent expects Any, we provide Event (narrower type)
+        super().put_nowait(item)  # type: ignore[arg-type]
 
+    # type: ignore[override] - Same intentional type narrowing as put_nowait
     async def put(self, item: Event) -> None:  # type: ignore[override]
         if self.maxsize > 0 and self.full():
             if item is _STOP_SENTINEL or self._drop_policy == "oldest":

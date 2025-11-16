@@ -689,9 +689,13 @@ class TranscriptionProviderFactory:
         for provider_name in cls.get_configured_providers():
             try:
                 health = cls.check_provider_health_sync(provider_name)
-                status["provider_health"][provider_name] = health
+                provider_health = status["provider_health"]
+                assert isinstance(provider_health, dict)
+                provider_health[provider_name] = health
             except Exception as e:
-                status["provider_health"][provider_name] = {
+                provider_health = status["provider_health"]
+                assert isinstance(provider_health, dict)
+                provider_health[provider_name] = {
                     "healthy": False,
                     "status": "check_failed",
                     "error": str(e),

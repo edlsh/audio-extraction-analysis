@@ -20,6 +20,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from src.exceptions import FFmpegExecutionError, FFmpegNotFoundError
 from src.services.audio_extraction import (
     AudioExtractor,
     AudioQuality,
@@ -77,12 +78,12 @@ class TestAudioExtractor:
     def test_check_ffmpeg_failure(self, mock_run):
         """Test FFmpeg availability check when FFmpeg is not installed.
 
-        Verifies that AudioExtractor raises RuntimeError with appropriate
+        Verifies that AudioExtractor raises FFmpegNotFoundError with appropriate
         error message when FFmpeg is not found in the system path.
         """
         mock_run.side_effect = FileNotFoundError()
 
-        with pytest.raises(RuntimeError, match="FFmpeg is required"):
+        with pytest.raises(FFmpegNotFoundError, match="FFmpeg not found in PATH"):
             AudioExtractor()
 
     @patch("subprocess.run")
@@ -160,9 +161,9 @@ class TestAudioExtractor:
     def test_extract_audio_ffmpeg_failure(self, mock_run, temp_video_file, temp_output_dir):
         """Test audio extraction when FFmpeg command fails.
 
-        Verifies that extract_audio() handles FFmpeg execution failures gracefully:
+        Verifies that extract_audio() raises FFmpegExecutionError:
         - Catches CalledProcessError when FFmpeg returns non-zero exit code
-        - Returns None to indicate extraction failure
+        - Raises FFmpegExecutionError with context
         - Logs the error appropriately (implicit in implementation)
         """
         # Mock successful FFmpeg check, then failed extraction and video info call
@@ -177,9 +178,8 @@ class TestAudioExtractor:
         extractor = AudioExtractor()
         output_path = temp_output_dir / "output.mp3"
 
-        result = extractor.extract_audio(temp_video_file, output_path, AudioQuality.HIGH)
-
-        assert result is None
+        with pytest.raises(FFmpegExecutionError, match="FFmpeg failed to extract audio"):
+            extractor.extract_audio(temp_video_file, output_path, AudioQuality.HIGH)
 
     @patch("subprocess.run")
     def test_extract_audio_speech_quality(self, mock_run, temp_video_file, temp_output_dir):

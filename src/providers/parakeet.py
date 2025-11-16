@@ -45,7 +45,7 @@ def _ensure_nemo() -> bool:
     if NEMO_AVAILABLE is not None:
         return NEMO_AVAILABLE
     try:
-        import nemo.collections.asr as _nemo_asr  # type: ignore
+        import nemo.collections.asr as _nemo_asr
 
         nemo_asr = _nemo_asr
         NEMO_AVAILABLE = True

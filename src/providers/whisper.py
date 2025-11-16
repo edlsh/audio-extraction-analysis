@@ -402,7 +402,9 @@ class WhisperTranscriber(BaseTranscriptionProvider):
 
         return words
 
-    def _generate_chapters(self, utterances: list[TranscriptionUtterance]) -> list[dict[str, object]]:
+    def _generate_chapters(
+        self, utterances: list[TranscriptionUtterance]
+    ) -> list[dict[str, object]]:
         """Generate simple chapters based on time intervals.
 
         Creates chapter markers at fixed 5-minute (300-second) intervals to help
