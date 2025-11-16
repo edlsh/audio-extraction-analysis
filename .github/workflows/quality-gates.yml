@@ -44,7 +44,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv sync --dev --frozen
+          uv sync --locked --all-extras --dev
           npm install -g jscpd
 
       - name: Run static checks script
@@ -82,7 +82,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv sync --dev --frozen
+          uv sync --locked --all-extras --dev
 
       - name: Run E2E test suite
         run: uv run pytest tests/e2e/ -v --timeout=900
@@ -120,7 +120,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv sync --dev --frozen
+          uv sync --locked --all-extras --dev
 
       - name: Run performance tests
         run: uv run pytest tests/e2e/test_performance.py -v --timeout=1800

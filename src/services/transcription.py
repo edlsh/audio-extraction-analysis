@@ -60,6 +60,7 @@ class TranscriptionService:
             try:
                 # Check if we're in test mode first
                 import os
+
                 test_provider = os.getenv("AUDIO_TEST_PROVIDER")
                 if test_provider:
                     provider_name = test_provider

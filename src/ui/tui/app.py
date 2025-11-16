@@ -170,14 +170,14 @@ class AudioExtractionApp(App):
         # Load settings to determine initial theme
         self.settings = load_settings()
         saved_theme = self.settings.get("ui", {}).get("theme", DEFAULT_CUSTOM_THEME)
-        
+
         # Initialize parent
         super().__init__()
-        
+
         # Register custom themes
         for theme in CUSTOM_THEMES:
             self.register_theme(theme)
-        
+
         # Set theme based on settings
         # For backwards compatibility, map old theme names
         if saved_theme == "dark":
@@ -190,7 +190,7 @@ class AudioExtractionApp(App):
             self.theme = saved_theme
         else:
             self.theme = DEFAULT_CUSTOM_THEME
-        
+
         self.state = AppState(
             input_path=Path(input_path) if input_path else None,
             output_dir=Path(output_dir) if output_dir else None,
@@ -210,7 +210,7 @@ class AudioExtractionApp(App):
             if isinstance(screen, ThemeSelectorScreen):
                 # Already showing theme selector, don't push another
                 return
-        
+
         # Push theme selector screen
         self.push_screen("theme_selector")
 

@@ -28,7 +28,7 @@ jobs:
     
     - name: Install dependencies
       run: |
-        uv sync --dev --frozen
+        uv sync --locked --all-extras --dev
     
     - name: Run unit tests
       run: |
@@ -62,7 +62,7 @@ jobs:
     
     - name: Install dependencies
       run: |
-        uv sync --dev --frozen
+        uv sync --locked --all-extras --dev
     
     - name: Run integration tests
       run: |
@@ -83,7 +83,7 @@ jobs:
     
     - name: Install dependencies
       run: |
-        uv sync --dev --frozen
+        uv sync --locked --all-extras --dev
     
     - name: Run linting
       run: |
@@ -126,7 +126,7 @@ jobs:
     
     - name: Install dependencies
       run: |
-        uv sync --dev --frozen
+        uv sync --locked --all-extras --dev
     
     - name: Run E2E tests
       env:
@@ -151,7 +151,7 @@ jobs:
     
     - name: Install dependencies
       run: |
-        uv sync --dev --frozen
+        uv sync --locked --all-extras --dev
     
     - name: Run benchmarks
       run: |

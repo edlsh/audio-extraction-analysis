@@ -385,6 +385,7 @@ class TranscriptionProviderFactory:
         if not configured_providers:
             # Check if we're in test/CI mode
             import os
+
             if os.getenv("CI") or os.getenv("PYTEST_CURRENT_TEST") or os.getenv("AUDIO_TEST_MODE"):
                 # In test mode, return a mock provider if available
                 if "mock" in cls._providers:
@@ -396,7 +397,7 @@ class TranscriptionProviderFactory:
                     "Set AUDIO_TEST_MODE=1 and ensure mock provider is registered, "
                     "or set API keys for real providers."
                 )
-            
+
             raise ValueError(
                 "No transcription providers are configured. "
                 "Please set DEEPGRAM_API_KEY or ELEVENLABS_API_KEY environment variables."
@@ -736,9 +737,11 @@ def _initialize_factory():
 
     # Mock provider for testing
     import os
+
     if os.getenv("AUDIO_TEST_MODE") or os.getenv("CI") or os.getenv("PYTEST_CURRENT_TEST"):
         try:
             from .mock import MockTranscriber
+
             TranscriptionProviderFactory.register_provider("mock", MockTranscriber)
             logger.debug("Registered Mock provider for testing")
         except ImportError as e:

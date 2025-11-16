@@ -86,7 +86,7 @@ class Config:
 
     # ========== Application Settings ==========
     app_name: str = field(default_factory=lambda: _getenv("APP_NAME", "audio-extraction-analysis"))
-    app_version: str = field(default_factory=lambda: _getenv("APP_VERSION", "1.0.0"))
+    app_version: str = field(default_factory=lambda: _getenv("APP_VERSION", "2.0.0"))
     environment: str = field(default_factory=lambda: _getenv("ENVIRONMENT", "production"))
 
     # ========== Paths ==========
@@ -242,13 +242,9 @@ class Config:
     url_ingest_prefer_audio_only: bool = field(
         default_factory=lambda: _parse_bool(_getenv("URL_INGEST_PREFER_AUDIO_ONLY", "true"))
     )
-    url_ingest_timeout: int = field(
-        default_factory=lambda: _getenv_int("URL_INGEST_TIMEOUT", 600)
-    )
+    url_ingest_timeout: int = field(default_factory=lambda: _getenv_int("URL_INGEST_TIMEOUT", 600))
     url_ingest_keep_video_default: bool = field(
-        default_factory=lambda: _parse_bool(
-            _getenv("URL_INGEST_KEEP_VIDEO_DEFAULT", "false")
-        )
+        default_factory=lambda: _parse_bool(_getenv("URL_INGEST_KEEP_VIDEO_DEFAULT", "false"))
     )
 
     # ========== Markdown Settings ==========

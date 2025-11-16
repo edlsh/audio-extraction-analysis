@@ -88,10 +88,12 @@ class AsyncAudioExtractor(AudioExtractor):
         except (
             subprocess.CalledProcessError,
             subprocess.TimeoutExpired,
+            asyncio.TimeoutError,  # Async timeout from readline() or other async operations
             FileNotFoundError,
             PermissionError,
             OSError,
             ValueError,
+            RuntimeError,  # Raised by _run_ffmpeg_with_progress on non-zero return codes
         ) as e:
             # Error already logged by individual operations
             logger.error(f"Async audio extraction failed: {e}")

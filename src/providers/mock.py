@@ -1,4 +1,5 @@
 """Mock transcription provider for testing."""
+
 import asyncio
 import logging
 import time
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 class MockTranscriber(BaseTranscriptionProvider):
     """Mock transcription provider for testing purposes.
-    
+
     This provider simulates transcription without requiring external services.
     Useful for CI/CD and unit testing where real providers aren't available.
     """
@@ -28,7 +29,7 @@ class MockTranscriber(BaseTranscriptionProvider):
         retry_config: RetryConfig | None = None,
     ):
         """Initialize mock provider with optional configuration.
-        
+
         Args:
             api_key: Ignored, included for interface compatibility
             circuit_config: Circuit breaker configuration
@@ -57,32 +58,32 @@ class MockTranscriber(BaseTranscriptionProvider):
         self, audio_file_path: Path, language: str = "en", **kwargs
     ) -> TranscriptionResult:
         """Generate mock transcription result.
-        
+
         Args:
             audio_file_path: Path to audio file (existence checked)
             language: Language code (ignored in mock)
             **kwargs: Additional arguments (ignored)
-            
+
         Returns:
             Mock TranscriptionResult with test data
-            
+
         Raises:
             FileNotFoundError: If audio file doesn't exist
         """
         # Validate file exists
         if not audio_file_path.exists():
             raise FileNotFoundError(f"Audio file not found: {audio_file_path}")
-        
+
         # Simulate processing time
         await asyncio.sleep(self.transcription_delay)
-        
+
         # Generate mock transcription
         mock_text = (
             f"This is a mock transcription of {audio_file_path.name}. "
             "The quick brown fox jumps over the lazy dog. "
             "This text is generated for testing purposes only."
         )
-        
+
         # Create mock utterances
         utterances = [
             TranscriptionUtterance(
@@ -104,7 +105,7 @@ class MockTranscriber(BaseTranscriptionProvider):
                 text="This text is generated for testing purposes only.",
             ),
         ]
-        
+
         return TranscriptionResult(
             transcript=mock_text,
             duration=15.0,

@@ -18,13 +18,13 @@ jobs:
           python-version: '3.11'
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
 
       - name: Install dependencies
         run: |
-          uv sync --dev --frozen
+          uv sync --locked --all-extras --dev
 
       - name: Build distributions
         run: uv run python -m build

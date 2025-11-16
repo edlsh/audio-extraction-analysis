@@ -154,9 +154,7 @@ class TestDataManager:
             print(f"Error generating {spec['name']}: {e}")
             return None
 
-    def _generate_edge_case_file(
-        self, spec: dict, force_regenerate: bool = False
-    ) -> Path | None:
+    def _generate_edge_case_file(self, spec: dict, force_regenerate: bool = False) -> Path | None:
         """Generate edge case test files."""
         file_path = self.test_data_dir / spec["name"]
 

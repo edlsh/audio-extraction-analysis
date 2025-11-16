@@ -42,12 +42,42 @@ except ImportError:  # pragma: no cover - fallback for installed package layout
     from src.utils.paths import ensure_subpath, safe_write_json, sanitize_dirname
     from src.utils.sanitization import PathSanitizer
 
-__version__ = "1.0.0+emergency"
+__version__ = "2.0.0"
 
 # Module-level constants
 DEFAULT_OUTPUT_DIR = "output"
 
 logger = logging.getLogger(__name__)
+
+
+def _redact_sensitive_data(text: str) -> str:
+    """Redact API keys and sensitive data from text.
+
+    Args:
+        text: Text that may contain sensitive information
+
+    Returns:
+        Text with sensitive data redacted
+
+    Patterns redacted:
+        - API key patterns (e.g., test_deepgram_key_12345)
+        - Token patterns (e.g., auth_token_xyz)
+        - Long alphanumeric sequences that might be keys (20+ chars)
+        - Patterns containing "key" or "token" with surrounding alphanumeric chars
+    """
+    import re
+
+    # Redact patterns containing "key" with surrounding characters (e.g., "test_deepgram_key_12345")
+    # This catches API keys that have "key" in them
+    text = re.sub(r"\b\w+[_-]?\w*key\w*[_-]?\w+\b", "[REDACTED_KEY]", text, flags=re.IGNORECASE)
+
+    # Redact patterns containing "token" with surrounding characters
+    text = re.sub(r"\b\w+[_-]?\w*token\w*[_-]?\w+\b", "[REDACTED_TOKEN]", text, flags=re.IGNORECASE)
+
+    # Redact long alphanumeric strings (potential keys/tokens) - 15+ chars to catch more patterns
+    text = re.sub(r"\b[a-zA-Z0-9_-]{15,}\b", "[REDACTED]", text)
+
+    return text
 
 
 def setup_logging(verbose: bool = False) -> None:
@@ -122,6 +152,12 @@ def _create_extract_subparser(subparsers) -> None:
         choices=["high", "standard", "speech", "compressed"],
         default="speech",
         help="Audio quality preset (default: speech)",
+    )
+    extract_parser.add_argument(
+        "--force",
+        "-f",
+        action="store_true",
+        help="Force overwrite of existing output file",
     )
 
 
@@ -453,6 +489,30 @@ def extract_command(args: argparse.Namespace, console_manager: ConsoleManager | 
         # Determine output path
         output_path = _determine_extract_output_path(input_path, args.output)
 
+        # Security check: ALWAYS refuse to overwrite system files (regardless of --force flag)
+        # Use case-insensitive comparison to handle Windows path variations (C:\Windows vs c:\windows)
+        system_paths = [
+            "/etc/",
+            "/bin/",
+            "/usr/bin/",
+            "/sbin/",
+            "/usr/sbin/",
+            "/System/",
+            "C:\\Windows\\",
+        ]
+        output_path_lower = str(output_path).lower()
+        if any(output_path_lower.startswith(sys_path.lower()) for sys_path in system_paths):
+            logger.error("Access denied: Cannot overwrite system files")
+            print("Error: Access denied. Cannot overwrite system files.", file=sys.stderr)
+            return 1
+
+        # Check if output exists and --force not provided
+        if output_path.exists() and not getattr(args, "force", False):
+            logger.error("Output file already exists. Use --force to overwrite.")
+            print(f"Error: Output file already exists: {output_path}", file=sys.stderr)
+            print("Use --force flag to overwrite existing files.", file=sys.stderr)
+            return 1
+
         # Parse quality preset (reuse existing helper)
         quality = _parse_quality_preset(args.quality)
 
@@ -485,10 +545,16 @@ def extract_command(args: argparse.Namespace, console_manager: ConsoleManager | 
             return 1
 
     except (OSError, ValueError, RuntimeError) as e:
-        logger.error("Extract command failed: %s", e)
+        error_msg = _redact_sensitive_data(str(e))
+        logger.error("Extract command failed: %s", error_msg)
+        print(f"Error: {error_msg}", file=sys.stderr)
         return 1
     except Exception as e:
-        logger.critical("An unexpected error occurred in extract_command: %s", e, exc_info=True)
+        error_msg = _redact_sensitive_data(str(e))
+        # Don't use exc_info=True as it includes full traceback with original exception message
+        # which may contain sensitive data. Log the redacted message instead.
+        logger.critical("An unexpected error occurred in extract_command: %s", error_msg)
+        print(f"Error: {error_msg}", file=sys.stderr)
         return 1
 
 
@@ -702,10 +768,16 @@ def transcribe_command(
             return 1
 
     except (OSError, ValueError, RuntimeError, ValidationError) as e:
-        logger.error("Transcribe command failed: %s", e)
+        error_msg = _redact_sensitive_data(str(e))
+        logger.error("Transcribe command failed: %s", error_msg)
+        print(f"Error: {error_msg}", file=sys.stderr)
         return 1
     except Exception as e:
-        logger.critical("An unexpected error occurred in transcribe_command: %s", e, exc_info=True)
+        error_msg = _redact_sensitive_data(str(e))
+        # Don't use exc_info=True as it includes full traceback with original exception message
+        # which may contain sensitive data. Log the redacted message instead.
+        logger.critical("An unexpected error occurred in transcribe_command: %s", error_msg)
+        print(f"Error: {error_msg}", file=sys.stderr)
         return 1
 
 
@@ -908,10 +980,16 @@ def process_command(args: argparse.Namespace, console_manager: ConsoleManager | 
             return 1
 
     except (OSError, ValueError, RuntimeError) as e:
-        logger.error("Process command failed: %s", e)
+        error_msg = _redact_sensitive_data(str(e))
+        logger.error("Process command failed: %s", error_msg)
+        print(f"Error: {error_msg}", file=sys.stderr)
         return 1
     except Exception as e:
-        logger.critical("An unexpected error occurred in process_command: %s", e, exc_info=True)
+        error_msg = _redact_sensitive_data(str(e))
+        # Don't use exc_info=True as it includes full traceback with original exception message
+        # which may contain sensitive data. Log the redacted message instead.
+        logger.critical("An unexpected error occurred in process_command: %s", error_msg)
+        print(f"Error: {error_msg}", file=sys.stderr)
         return 1
 
 
@@ -1102,12 +1180,16 @@ def export_markdown_command(args, console_manager: ConsoleManager | None = None)
         return 0
 
     except (OSError, ValueError, RuntimeError, ValidationError) as e:
-        logger.error("Export markdown command failed: %s", e)
+        error_msg = _redact_sensitive_data(str(e))
+        logger.error("Export markdown command failed: %s", error_msg)
+        print(f"Error: {error_msg}", file=sys.stderr)
         return 1
     except Exception as e:
-        logger.critical(
-            "An unexpected error occurred in export_markdown_command: %s", e, exc_info=True
-        )
+        error_msg = _redact_sensitive_data(str(e))
+        # Don't use exc_info=True as it includes full traceback with original exception message
+        # which may contain sensitive data. Log the redacted message instead.
+        logger.critical("An unexpected error occurred in export_markdown_command: %s", error_msg)
+        print(f"Error: {error_msg}", file=sys.stderr)
         return 1
 
 

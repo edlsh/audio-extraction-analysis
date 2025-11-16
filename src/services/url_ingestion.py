@@ -42,13 +42,17 @@ class UrlIngestionService:
         self._keep_video = keep_video
         self._extractor = AudioExtractor()
 
-    def ingest(self, url: str, *, quality: AudioQuality = AudioQuality.SPEECH) -> UrlIngestionResult:
+    def ingest(
+        self, url: str, *, quality: AudioQuality = AudioQuality.SPEECH
+    ) -> UrlIngestionResult:
         """Download `url` and return a local audio path.
 
         Raises UrlIngestionError on failure.
         """
         if "playlist" in url:
-            raise UrlIngestionError("Playlist URLs are not supported; please provide a single video URL.")
+            raise UrlIngestionError(
+                "Playlist URLs are not supported; please provide a single video URL."
+            )
 
         safe_dir = ensure_subpath(self._download_dir.parent, self._download_dir)
         safe_dir.mkdir(parents=True, exist_ok=True)

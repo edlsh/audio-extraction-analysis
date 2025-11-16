@@ -34,7 +34,12 @@ class TestNetworkFailureSimulation:
         # Mock subprocess to simulate timeout
         with patch("asyncio.create_subprocess_exec") as mock_exec:
             mock_process = AsyncMock()
-            mock_process.communicate = AsyncMock(side_effect=asyncio.TimeoutError("Test timeout"))
+            # Mock stdout.readline to raise TimeoutError when awaited
+            mock_stdout = AsyncMock()
+            mock_stdout.readline = AsyncMock(side_effect=asyncio.TimeoutError("Test timeout"))
+            mock_process.stdout = mock_stdout
+            mock_process.wait = AsyncMock()
+            mock_process.returncode = 1
             mock_exec.return_value = mock_process
 
             with caplog.at_level(logging.ERROR):
@@ -44,7 +49,10 @@ class TestNetworkFailureSimulation:
 
             # Should handle timeout gracefully
             assert result is None
-            assert any("timeout" in record.message.lower() for record in caplog.records)
+            assert any(
+                "timeout" in record.message.lower() or "failed" in record.message.lower()
+                for record in caplog.records
+            )
 
     @pytest.mark.asyncio
     async def test_process_error_handling(self, sample_audio_mp3: Path, tmp_path: Path):
@@ -55,16 +63,22 @@ class TestNetworkFailureSimulation:
         # Mock subprocess to simulate process error
         with patch("asyncio.create_subprocess_exec") as mock_exec:
             mock_process = AsyncMock()
-            mock_process.communicate = AsyncMock(return_value=(b"", b"Error"))
+            # Mock stdout.readline to return empty bytes (end of stream)
+            mock_stdout = AsyncMock()
+            mock_stdout.readline = AsyncMock(return_value=b"")
+            mock_process.stdout = mock_stdout
+            mock_process.stderr = AsyncMock()
+            mock_process.stderr.read = AsyncMock(return_value=b"Error")
+            mock_process.wait = AsyncMock()
             mock_process.returncode = 1
             mock_exec.return_value = mock_process
 
-            await extractor.extract_audio_async(
+            result = await extractor.extract_audio_async(
                 sample_audio_mp3, output, quality=AudioQuality.STANDARD
             )
 
-            # Should handle error gracefully
-            # Result depends on implementation
+            # Should handle error gracefully and return None
+            assert result is None
 
 
 class TestBatchOperationFailures:

@@ -74,9 +74,11 @@ async def run_pipeline(
             ingestion_service = UrlIngestionService(
                 download_dir=cfg.url_ingest_download_dir,
                 prefer_audio_only=cfg.url_ingest_prefer_audio_only,
-                keep_video=keep_downloaded_videos
-                if keep_downloaded_videos is not None
-                else cfg.url_ingest_keep_video_default,
+                keep_video=(
+                    keep_downloaded_videos
+                    if keep_downloaded_videos is not None
+                    else cfg.url_ingest_keep_video_default
+                ),
             )
             try:
                 ingest_result = ingestion_service.ingest(url, quality=quality_enum)
@@ -127,9 +129,7 @@ async def run_pipeline(
 
     except asyncio.CancelledError:
         # Emit cancellation event
-        event_models.emit_event(
-            "cancelled", data={"reason": "User interrupted"}, run_id=run_id
-        )
+        event_models.emit_event("cancelled", data={"reason": "User interrupted"}, run_id=run_id)
         raise
 
     except Exception as e:

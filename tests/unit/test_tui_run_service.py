@@ -201,11 +201,15 @@ class TestRunService:
             url_ingest_prefer_audio_only = True
             url_ingest_keep_video_default = False
 
-        with patch("src.pipeline.simple_pipeline.process_pipeline", new_callable=AsyncMock) as mock_pipeline:
+        with patch(
+            "src.pipeline.simple_pipeline.process_pipeline", new_callable=AsyncMock
+        ) as mock_pipeline:
             mock_pipeline.return_value = {"status": "success"}
 
             with patch("src.config.get_config", return_value=DummyConfig()):
-                with patch("src.ui.tui.services.run_service.UrlIngestionService") as mock_ingestion_cls:
+                with patch(
+                    "src.ui.tui.services.run_service.UrlIngestionService"
+                ) as mock_ingestion_cls:
                     mock_ingestion_instance = mock_ingestion_cls.return_value
                     mock_ingestion_instance.ingest.return_value = type(
                         "Result",

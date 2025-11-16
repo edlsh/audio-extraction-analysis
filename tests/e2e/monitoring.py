@@ -354,7 +354,8 @@ class TestMetricsCollector:
             columns = [desc[0] for desc in cursor.description]
 
             return [
-                SuiteMetrics(**dict(zip(columns[1:], row[1:], strict=False))) for row in rows  # Skip ID column
+                SuiteMetrics(**dict(zip(columns[1:], row[1:], strict=False)))
+                for row in rows  # Skip ID column
             ]
 
     def get_performance_trends(self, suite_name: str, days: int = 30) -> dict[str, TrendData]:

@@ -104,16 +104,12 @@ class ThemeSelectorScreen(Screen):
         custom_theme_names = [theme.name for theme in CUSTOM_THEMES]
         if custom_theme_names:
             # Add a disabled option as a separator
-            option_list.add_option(
-                Option("──── Custom Themes ────", disabled=True)
-            )
+            option_list.add_option(Option("──── Custom Themes ────", disabled=True))
             for theme_name in custom_theme_names:
                 display_name = self._format_theme_name(theme_name)
                 if theme_name == current_theme:
                     display_name = f"▶ {display_name}"
-                option_list.add_option(
-                    Option(display_name, id=theme_name)
-                )
+                option_list.add_option(Option(display_name, id=theme_name))
 
         # Add built-in dark themes
         dark_themes = [
@@ -128,16 +124,12 @@ class ThemeSelectorScreen(Screen):
         available_dark = [t for t in dark_themes if t in self.app.available_themes]
         if available_dark:
             # Add a disabled option as a separator
-            option_list.add_option(
-                Option("──── Built-in Dark Themes ────", disabled=True)
-            )
+            option_list.add_option(Option("──── Built-in Dark Themes ────", disabled=True))
             for theme_name in available_dark:
                 display_name = self._format_theme_name(theme_name)
                 if theme_name == current_theme:
                     display_name = f"▶ {display_name}"
-                option_list.add_option(
-                    Option(display_name, id=theme_name)
-                )
+                option_list.add_option(Option(display_name, id=theme_name))
 
         # Add built-in light themes
         light_themes = [
@@ -148,16 +140,12 @@ class ThemeSelectorScreen(Screen):
         available_light = [t for t in light_themes if t in self.app.available_themes]
         if available_light:
             # Add a disabled option as a separator
-            option_list.add_option(
-                Option("──── Built-in Light Themes ────", disabled=True)
-            )
+            option_list.add_option(Option("──── Built-in Light Themes ────", disabled=True))
             for theme_name in available_light:
                 display_name = self._format_theme_name(theme_name)
                 if theme_name == current_theme:
                     display_name = f"▶ {display_name}"
-                option_list.add_option(
-                    Option(display_name, id=theme_name)
-                )
+                option_list.add_option(Option(display_name, id=theme_name))
 
         # Update current theme display
         self._update_current_theme_display()
@@ -170,10 +158,10 @@ class ThemeSelectorScreen(Screen):
 
     def _format_theme_name(self, theme_name: str) -> str:
         """Format theme name for display.
-        
+
         Args:
             theme_name: Internal theme name
-            
+
         Returns:
             Formatted display name
         """
@@ -181,11 +169,11 @@ class ThemeSelectorScreen(Screen):
         name = theme_name.replace("audio-extraction-", "")
         name = name.replace("textual-", "")
         name = name.replace("-", " ")
-        
+
         # Capitalize words
         words = name.split()
         formatted = " ".join(word.capitalize() for word in words)
-        
+
         # Add emoji indicators for our custom themes
         if theme_name.startswith("audio-extraction"):
             if "blue" in theme_name:
@@ -196,7 +184,7 @@ class ThemeSelectorScreen(Screen):
                 formatted = f"🟢 {formatted}"
             elif "light" in theme_name:
                 formatted = f"☀️ {formatted}"
-        
+
         return formatted
 
     def _update_current_theme_display(self) -> None:
@@ -210,7 +198,7 @@ class ThemeSelectorScreen(Screen):
         """Highlight the current theme in the list."""
         option_list = self.query_one("#theme-list", OptionList)
         current_theme = self.app.theme
-        
+
         # Find and highlight the current theme option
         for index in range(option_list.option_count):
             option = option_list.get_option_at_index(index)
@@ -220,7 +208,7 @@ class ThemeSelectorScreen(Screen):
 
     def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
         """Handle theme selection.
-        
+
         Args:
             event: Option selected event
         """
@@ -229,21 +217,21 @@ class ThemeSelectorScreen(Screen):
 
     def _apply_theme(self, theme_name: str) -> None:
         """Apply the selected theme.
-        
+
         Args:
             theme_name: Name of the theme to apply
         """
         # Apply the theme
         self.app.theme = theme_name
-        
+
         # Save to settings
         self.app.settings["ui"]["theme"] = theme_name
         save_settings(self.app.settings)
-        
+
         # Show notification
         formatted_name = self._format_theme_name(theme_name)
         self.app.notify(f"Theme changed to: {formatted_name}", severity="information")
-        
+
         # Return to previous screen
         self.app.pop_screen()
 
