@@ -78,12 +78,12 @@ def _ensure_whisper_available() -> bool:
     if PROVIDER_AVAILABLE is not None:
         return PROVIDER_AVAILABLE
     try:
-        import torch as _torch  # type: ignore
-        import whisper as _whisper  # type: ignore
+        import torch as _torch
+        import whisper as _whisper
 
         try:
             # get_writer is optional and may not be available in all Whisper versions
-            from whisper.utils import get_writer as get_writer_  # type: ignore
+            from whisper.utils import get_writer as get_writer_
         except Exception:
             get_writer_ = None
         torch = _torch
@@ -301,7 +301,7 @@ class WhisperTranscriber(BaseTranscriptionProvider):
             raise
 
     def _parse_whisper_result(
-        self, whisper_result: dict, audio_file_path: Path, processing_time: float
+        self, whisper_result: dict[str, object], audio_file_path: Path, processing_time: float
     ) -> TranscriptionResult:
         """Parse Whisper result into TranscriptionResult format.
 
@@ -366,7 +366,7 @@ class WhisperTranscriber(BaseTranscriptionProvider):
 
         return result
 
-    def _extract_words(self, segment: dict) -> list[dict] | None:
+    def _extract_words(self, segment: dict[str, object]) -> list[dict[str, object]] | None:
         """Extract word-level timestamps from Whisper segment.
 
         This method processes word-level timing information when available in
@@ -402,7 +402,7 @@ class WhisperTranscriber(BaseTranscriptionProvider):
 
         return words
 
-    def _generate_chapters(self, utterances: list[TranscriptionUtterance]) -> list[dict]:
+    def _generate_chapters(self, utterances: list[TranscriptionUtterance]) -> list[dict[str, object]]:
         """Generate simple chapters based on time intervals.
 
         Creates chapter markers at fixed 5-minute (300-second) intervals to help
