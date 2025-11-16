@@ -356,14 +356,27 @@ class SerializationHelper:
                 return str(value_data)
             else:
                 # Return as object (dict, list, etc.)
-                return (
-                    value_data
-                    if isinstance(value_data, (dict, list, str, int, float, bool, type(None)))
-                    else None
-                )
+                if isinstance(value_data, (dict, list, str, int, float, bool, type(None))):
+                    return value_data
+                else:
+                    # Log warning for unexpected types instead of silent None
+                    logger.warning(
+                        f"Cannot deserialize non-primitive type {type(value_data).__name__}: "
+                        f"expected dict, list, str, int, float, bool, or None. "
+                        f"Cached data may be corrupted or from incompatible version."
+                    )
+                    return None
 
+        except zlib.error as e:
+            logger.warning(f"Failed to decompress cached data: {e}. Cache entry may be corrupted.")
+            return None
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse cached JSON data: {e}. Cache entry may be corrupted.")
+            return None
         except Exception as e:
-            logger.error(f"Failed to deserialize value: {e}")
+            logger.warning(
+                f"Failed to deserialize cached value: {e}. Returning None for graceful degradation."
+            )
             return None
 
 
