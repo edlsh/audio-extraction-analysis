@@ -3,21 +3,20 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 from yt_dlp import YoutubeDL
 
 from src.services.audio_extraction import AudioExtractor, AudioQuality
 from src.utils.paths import ensure_subpath
 
-
+logger = logging.getLogger(__name__)
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class UrlIngestionResult:
     audio_path: Path
-    source_video_path: Optional[Path]
+    source_video_path: Path | None
 
 
 class UrlIngestionError(Exception):
@@ -66,7 +65,7 @@ class UrlIngestionService:
         else:
             ydl_opts["format"] = "bestvideo+bestaudio/best"
 
-        downloaded_path: Optional[Path] = None
+        downloaded_path: Path | None = None
 
         def _hook(d: dict) -> None:  # pragma: no cover - thin progress hook
             if d.get("status") == "finished":
@@ -80,7 +79,7 @@ class UrlIngestionService:
         try:
             with YoutubeDL(ydl_opts) as ydl:
                 result = ydl.extract_info(url, download=True)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.exception("URL ingestion failed for %s", url)
             raise UrlIngestionError(f"Failed to download URL: {url}") from exc
 
@@ -106,14 +105,14 @@ class UrlIngestionService:
                 output_path=None,
                 quality=quality,
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.exception("Audio extraction from downloaded video failed: %s", downloaded_path)
             raise UrlIngestionError("Failed to extract audio from downloaded video.") from exc
 
         if audio_path is None:
             raise UrlIngestionError("Audio extraction returned no path.")
 
-        source_video_path: Optional[Path] = downloaded_path if self._keep_video else None
+        source_video_path: Path | None = downloaded_path if self._keep_video else None
         if not self._keep_video:
             try:
                 downloaded_path.unlink(missing_ok=True)

@@ -13,11 +13,15 @@ from textual.screen import Screen as TextualScreen
 from textual.widgets import Button, Footer, Header, Label
 
 from ...models.events import Event, QueueEventSink
+from .persistence import load_settings, save_settings
 from .state import AppState
+from .themes import CUSTOM_THEMES, DEFAULT_CUSTOM_THEME
 from .views.config import ConfigScreen
 from .views.help import HelpScreen
 from .views.home import HomeScreen
 from .views.run import RunScreen
+from .views.theme_selector import ThemeSelectorScreen
+from .views.url_downloads import UrlDownloadsScreen
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +110,8 @@ class AudioExtractionApp(App):
         "config": ConfigScreen,
         "help": HelpScreen,
         "run": RunScreen,
+        "theme_selector": ThemeSelectorScreen,
+        "url_downloads": UrlDownloadsScreen,
     }
 
     CSS = """
@@ -144,7 +150,8 @@ class AudioExtractionApp(App):
 
     BINDINGS = [
         ("q", "quit", "Quit"),
-        ("d", "toggle_dark", "Toggle Dark Mode"),
+        ("t", "show_theme_selector", "Switch Theme"),
+        ("d", "show_theme_selector", "Switch Theme"),  # Keep 'd' for backwards compatibility
         ("h", "help", "Help"),
         ("?", "help", "Help"),
     ]
@@ -160,7 +167,30 @@ class AudioExtractionApp(App):
             input_path: Optional pre-populated input file path
             output_dir: Optional pre-populated output directory
         """
+        # Load settings to determine initial theme
+        self.settings = load_settings()
+        saved_theme = self.settings.get("ui", {}).get("theme", DEFAULT_CUSTOM_THEME)
+        
+        # Initialize parent
         super().__init__()
+        
+        # Register custom themes
+        for theme in CUSTOM_THEMES:
+            self.register_theme(theme)
+        
+        # Set theme based on settings
+        # For backwards compatibility, map old theme names
+        if saved_theme == "dark":
+            self.theme = DEFAULT_CUSTOM_THEME
+        elif saved_theme == "light":
+            self.theme = "audio-extraction-light"
+        elif saved_theme in [t.name for t in CUSTOM_THEMES]:
+            self.theme = saved_theme
+        elif saved_theme in self.available_themes:
+            self.theme = saved_theme
+        else:
+            self.theme = DEFAULT_CUSTOM_THEME
+        
         self.state = AppState(
             input_path=Path(input_path) if input_path else None,
             output_dir=Path(output_dir) if output_dir else None,
@@ -173,9 +203,16 @@ class AudioExtractionApp(App):
         """Push the welcome screen when the app starts."""
         self.push_screen("welcome")
 
-    def action_toggle_dark(self) -> None:
-        """Toggle dark mode."""
-        self.dark = not self.dark
+    def action_show_theme_selector(self) -> None:
+        """Show theme selection screen."""
+        # Check if theme selector is already in the stack
+        for screen in self.screen_stack:
+            if isinstance(screen, ThemeSelectorScreen):
+                # Already showing theme selector, don't push another
+                return
+        
+        # Push theme selector screen
+        self.push_screen("theme_selector")
 
     def action_help(self) -> None:
         """Show help screen."""

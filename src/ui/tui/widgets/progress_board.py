@@ -30,6 +30,8 @@ class ProgressBoard(Static):
 
     # Stage display names and order
     STAGES = [
+        ("url_download", "URL Download"),
+        ("url_prepare", "Prepare Media"),
         ("extract", "Extract Audio"),
         ("transcribe", "Transcribe"),
         ("analyze", "Analyze"),

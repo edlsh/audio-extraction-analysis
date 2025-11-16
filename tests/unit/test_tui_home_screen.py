@@ -11,6 +11,7 @@ import pytest
 
 from src.ui.tui.state import AppState
 from src.ui.tui.views.home import HomeScreen
+from src.ui.tui.widgets.filtered_tree import FilteredDirectoryTree
 
 
 @dataclass
@@ -163,3 +164,24 @@ def test_on_input_submitted_sets_filter(home_screen: HomeScreen) -> None:
     home_screen.on_input_submitted(event)
 
     assert tree.filter == "*.mp3"
+
+
+def test_on_input_changed_sets_filter_dynamically(home_screen: HomeScreen) -> None:
+    """Test that filter is applied dynamically as user types."""
+    tree = _stub_tree(None)
+    home_screen.query_one = MagicMock(return_value=tree)
+
+    # Test typing a partial filter
+    event = SimpleNamespace(input=SimpleNamespace(id="filter-input"), value="*.m")
+    home_screen.on_input_changed(event)
+    assert tree.filter == "*.m"
+
+    # Test typing more characters
+    event = SimpleNamespace(input=SimpleNamespace(id="filter-input"), value="*.mp")
+    home_screen.on_input_changed(event)
+    assert tree.filter == "*.mp"
+
+    # Test clearing the filter
+    event = SimpleNamespace(input=SimpleNamespace(id="filter-input"), value="")
+    home_screen.on_input_changed(event)
+    assert tree.filter == ""

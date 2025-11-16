@@ -74,7 +74,13 @@ def test_action_start_run_success(mock_save, config_screen: ConfigScreen) -> Non
 def test_action_reset_defaults(mock_defaults, _mock_save, config_screen: ConfigScreen) -> None:
     defaults = default_settings()
     defaults["defaults"].update(
-        {"quality": "high", "provider": "deepgram", "language": "es", "analysis_style": "full"}
+        {
+            "quality": "high",
+            "provider": "deepgram",
+            "language": "es",
+            "analysis_style": "full",
+            "keep_downloaded_videos": True,
+        }
     )
     defaults["last_output_dir"] = "/tmp/out"
     mock_defaults.return_value = defaults
@@ -84,8 +90,10 @@ def test_action_reset_defaults(mock_defaults, _mock_save, config_screen: ConfigS
     language_select = SimpleNamespace(value="")
     style_select = SimpleNamespace(value="")
     output_input = SimpleNamespace(value="")
+    keep_videos_checkbox = SimpleNamespace(value=False)
 
     mapping = {
+        "#keep-videos-checkbox": keep_videos_checkbox,
         "#quality-select": quality_select,
         "#provider-select": provider_select,
         "#language-select": language_select,
@@ -101,6 +109,7 @@ def test_action_reset_defaults(mock_defaults, _mock_save, config_screen: ConfigS
     assert language_select.value == "es"
     assert style_select.value == "full"
     assert output_input.value == "/tmp/out"
+    assert keep_videos_checkbox.value is True
 
 
 def test_action_back_invokes_app(config_screen: ConfigScreen) -> None:
