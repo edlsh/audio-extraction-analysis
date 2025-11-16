@@ -7,11 +7,9 @@ mkdir -p "$REPORTS_DIR"
 
 
 echo "Running ruff (style/lint)"
-# Try to use uv run if available, otherwise try direct command
 if command -v uv >/dev/null 2>&1; then
 	uv run ruff check src --format json > "$REPORTS_DIR/ruff.json" 2>/dev/null || \
-	ruff check src --format json > "$REPORTS_DIR/ruff.json" 2>/dev/null || \
-	echo "ruff not available" > "$REPORTS_DIR/ruff.txt"
+	echo "ruff (via uv) not available" > "$REPORTS_DIR/ruff.txt"
 elif command -v ruff >/dev/null 2>&1; then
 	ruff check src --format json > "$REPORTS_DIR/ruff.json" || true
 else
@@ -21,8 +19,7 @@ fi
 echo "Running radon (cyclomatic complexity)"
 if command -v uv >/dev/null 2>&1; then
 	uv run radon cc -s -j src > "$REPORTS_DIR/radon_cc.json" 2>/dev/null || \
-	radon cc -s -j src > "$REPORTS_DIR/radon_cc.json" 2>/dev/null || \
-	echo "radon not available" > "$REPORTS_DIR/radon_cc.txt"
+	echo "radon (via uv) not available" > "$REPORTS_DIR/radon_cc.txt"
 elif command -v radon >/dev/null 2>&1; then
 	radon cc -s -j src > "$REPORTS_DIR/radon_cc.json" || true
 else
@@ -32,8 +29,7 @@ fi
 echo "Running vulture (dead code)"
 if command -v uv >/dev/null 2>&1; then
 	uv run vulture src --min-confidence 50 > "$REPORTS_DIR/vulture.txt" 2>/dev/null || \
-	vulture src --min-confidence 50 > "$REPORTS_DIR/vulture.txt" 2>/dev/null || \
-	echo "vulture not available" > "$REPORTS_DIR/vulture.txt"
+	echo "vulture (via uv) not available" > "$REPORTS_DIR/vulture.txt"
 elif command -v vulture >/dev/null 2>&1; then
 	vulture src --min-confidence 50 > "$REPORTS_DIR/vulture.txt" || true
 else
