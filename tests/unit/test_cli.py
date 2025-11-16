@@ -267,11 +267,16 @@ class TestCLITranscribeCommand:
 
     def test_transcribe_command_missing_api_key(self, temp_audio_file):
         """Test transcribe command without API key."""
-        test_args = ["transcribe", str(temp_audio_file)]
+        test_args = ["transcribe", str(temp_audio_file), "--provider", "deepgram"]
 
         with patch("sys.argv", ["audio-extraction-analysis", *test_args]):
-            with patch("src.cli.Config") as mock_config:
-                mock_config.validate.side_effect = ValueError("API key not found")
+            # Mock the TranscriptionService to raise an error for missing API key
+            with patch("src.cli.TranscriptionService") as mock_service_class:
+                mock_instance = Mock()
+                mock_instance.transcribe.side_effect = ValueError(
+                    "DEEPGRAM_API_KEY not found. Set it as environment variable"
+                )
+                mock_service_class.return_value = mock_instance
 
                 result = main()
 

@@ -29,7 +29,7 @@ def mock_provider_available(monkeypatch):
     monkeypatch.setattr("src.providers.elevenlabs.PROVIDER_AVAILABLE", True)
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def clear_elevenlabs_env(monkeypatch):
     """Ensure ELEVENLABS_API_KEY is absent by default; tests can set it explicitly when needed."""
     monkeypatch.delenv("ELEVENLABS_API_KEY", raising=False)
@@ -89,7 +89,7 @@ class TestElevenLabsTranscriberInit:
         transcriber = ElevenLabsTranscriber()
         assert transcriber.api_key == "env_key"
 
-    def test_init_without_api_key_raises_error(self):
+    def test_init_without_api_key_raises_error(self, clear_elevenlabs_env):
         """Test initialization without API key raises ValueError."""
         with pytest.raises(ValueError, match="ELEVENLABS_API_KEY not found"):
             ElevenLabsTranscriber()

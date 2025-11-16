@@ -3,6 +3,7 @@
 import asyncio
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
+import subprocess
 
 import pytest
 
@@ -22,19 +23,28 @@ class TestAsyncAudioExtractor:
 
     def test_import_works(self):
         """Test that we can import the async audio extractor."""
-        extractor = AsyncAudioExtractor()
-        assert extractor is not None
+        # Mock the FFmpeg check to prevent failures in CI environments
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value.returncode = 0
+            extractor = AsyncAudioExtractor()
+            assert extractor is not None
 
     @pytest.mark.asyncio
     async def test_extract_audio_async_method_exists(self):
         """Test that the async extraction method exists."""
-        extractor = AsyncAudioExtractor()
-        assert hasattr(extractor, "extract_audio_async")
+        # Mock the FFmpeg check to prevent failures in CI environments
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value.returncode = 0
+            extractor = AsyncAudioExtractor()
+            assert hasattr(extractor, "extract_audio_async")
 
     @pytest.mark.asyncio
     async def test_extract_audio_async_handles_timeout_error(self, tmp_path):
         """Test that TimeoutError is properly caught and handled."""
-        extractor = AsyncAudioExtractor()
+        # Mock the FFmpeg check to prevent failures in CI environments
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value.returncode = 0
+            extractor = AsyncAudioExtractor()
         input_file = tmp_path / "test_video.mp4"
         input_file.write_bytes(b"fake video data")
 
@@ -58,7 +68,10 @@ class TestAsyncAudioExtractor:
         """Test that subprocess.TimeoutExpired is properly caught and handled."""
         import subprocess
 
-        extractor = AsyncAudioExtractor()
+        # Mock the FFmpeg check to prevent failures in CI environments
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value.returncode = 0
+            extractor = AsyncAudioExtractor()
         input_file = tmp_path / "test_video.mp4"
         input_file.write_bytes(b"fake video data")
 
