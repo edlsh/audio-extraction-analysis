@@ -1,6 +1,12 @@
-# Audio Extraction Analysis v1.0.0+emergency
+# Audio Extraction Analysis v2.0.0
 
 🎥➡️🎵➡️📝 **Professional Audio-to-Transcript Pipeline with Multiple Providers**
+
+[![CI](https://github.com/edlsh/audio-extraction-analysis/actions/workflows/ci.yml/badge.svg)](https://github.com/edlsh/audio-extraction-analysis/actions)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![Security: bandit](https://img.shields.io/badge/security-bandit-yellow.svg)](https://github.com/PyCQA/bandit)
 
 A comprehensive, production-ready Python package that transforms video recordings into structured, actionable documentation. Features a unified CLI with interactive TUI, robust error handling, event streaming, and extensive transcription analysis including speaker diarization, topic detection, and sentiment analysis. Supports multiple transcription providers including Deepgram Nova 3, ElevenLabs, OpenAI Whisper, and NVIDIA Parakeet.
 
@@ -37,6 +43,9 @@ echo "DEEPGRAM_API_KEY=your-key-here" > .env
 # Complete pipeline (concise default): video → audio → transcript → single analysis
 audio-extraction-analysis process meeting.mp4
 
+# Process from URL (YouTube, Vimeo, etc.)
+audio-extraction-analysis process --url "https://youtube.com/watch?v=..." --output-dir ./results
+
 # Custom output directory
 audio-extraction-analysis process video.mp4 --output-dir ./results
 
@@ -47,10 +56,19 @@ audio-extraction-analysis process video.mp4 --analysis-style full --output-dir .
 ## 🎯 Complete Workflow
 
 ```
-MP4 Video → Audio Extraction → Deepgram Nova 3 → AI Analysis → 5 Structured Files
-    ↓             ↓                    ↓                ↓               ↓
- FFmpeg      Quality Presets    Advanced Features   Smart Analysis   Actionable Docs
+MP4/URL → Audio Extraction → Transcription → AI Analysis → Structured Output
+   ↓            ↓                 ↓              ↓              ↓
+FFmpeg    Quality Presets   4 Providers    Smart Analysis  Actionable Docs
+         (speech/high)    (Cloud/Local)   (GPT/Gemini)    (MD/HTML/JSON)
 ```
+
+### ✨ New in v2.0.0
+- **URL Ingestion**: Direct processing from YouTube, Vimeo, and other platforms
+- **Multiple Providers**: Deepgram, ElevenLabs, Whisper, Parakeet support
+- **Interactive TUI**: Terminal UI with live progress and health monitoring
+- **Event Streaming**: JSONL output for integration and monitoring
+- **Enhanced CI/CD**: Full test coverage with black, ruff, and bandit checks
+- **Security Hardening**: Path sanitization, input validation, secure temp files
 
 ## 📋 CLI Commands
 
@@ -145,8 +163,11 @@ Welcome → Select File → Configure → Run → View Results
 
 ### Basic Usage
 ```bash
-# Process a meeting recording
+# Process a local video file
 audio-extraction-analysis process team-meeting.mp4
+
+# Process from URL (YouTube, Vimeo, etc.)
+audio-extraction-analysis process --url "https://youtube.com/watch?v=VIDEO_ID"
 
 # Process with custom settings
 audio-extraction-analysis process interview.mp4 \
@@ -411,10 +432,10 @@ To customize, add a new entry to `TEMPLATES` with keys:
 ## 🛠️ System Requirements
 
 ### Prerequisites
-- **Python 3.8+** (3.9+ recommended)
+- **Python 3.11+** (3.12 recommended)
 - **FFmpeg** (for audio extraction)
-- **Deepgram API Key** (for transcription)
-- **Internet connection** (for API calls)
+- **API Key** for cloud providers (Deepgram or ElevenLabs) OR local models (Whisper/Parakeet)
+- **Internet connection** (for cloud API calls)
 
 ### Installation Steps
 1. **Install FFmpeg**: `brew install ffmpeg` (macOS) or `sudo apt install ffmpeg` (Ubuntu)
@@ -593,9 +614,11 @@ AUDIO_TEST_MODE=1 pytest
 # Run with coverage
 pytest --cov=src --cov-report=html
 
-# Code formatting
-black src/ tests/
-ruff check src/ tests/
+# Code quality checks (CI/CD compliant)
+black src/ tests/                    # Format code
+ruff check src/ tests/                # Lint code
+bandit -r src -ll                     # Security analysis
+./scripts/run_static_checks.sh       # Run all static checks
 ```
 
 ## 📄 License
