@@ -127,10 +127,19 @@ ignore = [
 ]
 
 [tool.pytest.ini_options]
-addopts = "-q"
+addopts = "-q -m 'not e2e and not integration and not benchmark and not network and not slow'"
 testpaths = ["tests"]
 pythonpath = ["."]
 asyncio_mode = "strict"
+markers = [
+    "e2e: End-to-end tests requiring full environment (deselect with '-m \"not e2e\"')",
+    "integration: Integration tests requiring external tools like FFmpeg (deselect with '-m \"not integration\"')",
+    "benchmark: Performance benchmark tests (deselect with '-m \"not benchmark\"')",
+    "network: Tests requiring network connectivity (deselect with '-m \"not network\"')",
+    "slow: Tests that take longer than 5 seconds (deselect with '-m \"not slow\"')",
+    "ffmpeg: Tests requiring FFmpeg to be installed",
+    "providers: Tests requiring provider API keys or models"
+]
 
 [tool.importlinter]
 root_package = "src"
