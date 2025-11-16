@@ -22,10 +22,9 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Install build tooling
+      - name: Install dependencies
         run: |
-          uv venv
-          uv pip install build twine
+          uv sync --dev --frozen
 
       - name: Build distributions
         run: uv run python -m build

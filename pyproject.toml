@@ -45,6 +45,10 @@ dev = [
     "detect-secrets>=1.4.0",
     "import-linter>=2.0",
     "responses>=0.24.0",
+    "radon>=6.0.0",
+    "vulture>=2.0",
+    "build>=1.0.0",
+    "twine>=4.0.0",
 ]
 
 parakeet = [

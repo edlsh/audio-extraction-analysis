@@ -107,10 +107,9 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Install security tooling
+      - name: Install dependencies
         run: |
-          uv venv
-          uv pip install detect-secrets bandit pip-audit
+          uv sync --dev --frozen
 
       - name: Secret scanning
         run: |
