@@ -207,6 +207,7 @@ class TestProvidersPackage:
             "deepgram_utils",
             "elevenlabs",
             "factory",
+            "mock",  # Mock provider for testing
             "parakeet",
             "provider_utils",
             "whisper",

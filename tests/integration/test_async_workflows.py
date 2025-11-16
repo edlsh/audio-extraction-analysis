@@ -18,6 +18,8 @@ import pytest
 from src.services.audio_extraction_async import AsyncAudioExtractor, AudioQuality
 
 
+@pytest.mark.integration
+@pytest.mark.ffmpeg
 class TestConcurrentProcessing:
     """Test concurrent audio processing workflows."""
 
@@ -88,6 +90,8 @@ class TestConcurrentProcessing:
         assert len(exceptions) == 0, f"Race conditions detected: {exceptions}"
 
 
+@pytest.mark.integration
+@pytest.mark.ffmpeg
 class TestAsyncExceptionHandling:
     """Test exception handling in async contexts."""
 
@@ -149,6 +153,8 @@ class TestAsyncExceptionHandling:
         assert len(caplog.records) > 0
 
 
+@pytest.mark.integration
+@pytest.mark.ffmpeg
 class TestCancellationAndTimeouts:
     """Test task cancellation and timeout behavior."""
 
@@ -213,6 +219,8 @@ class TestCancellationAndTimeouts:
             pytest.fail("Task hung - exceeded 30 second timeout")
 
 
+@pytest.mark.integration
+@pytest.mark.ffmpeg
 class TestAsyncResourceCleanup:
     """Test resource cleanup in async contexts."""
 
