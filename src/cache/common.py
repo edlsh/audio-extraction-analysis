@@ -355,7 +355,8 @@ class SerializationHelper:
             elif value_type == "str":
                 return str(value_data)
             else:
-                return value_data
+                # Return as object (dict, list, etc.)
+                return value_data if isinstance(value_data, (dict, list, str, int, float, bool, type(None))) else None
 
         except Exception as e:
             logger.error(f"Failed to deserialize value: {e}")
