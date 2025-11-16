@@ -178,7 +178,20 @@ unfixable = []
 # Event is used at runtime in state.py (accessing event.type, event.stage, etc.)
 "src/ui/tui/state.py" = ["TC001"]  # Event used at runtime, not just type annotation
 # Test files can use additional patterns
-"tests/**/*.py" = ["S101"]  # asserts are standard in tests
+"tests/**/*.py" = [
+    "S101",  # asserts are standard in tests
+    "ANN001",  # test fixtures often intentionally untyped
+    "ANN002",  # *args in test mocks/helpers often intentionally untyped
+    "ANN003",  # **kwargs in test helpers often intentionally untyped
+    "ANN201",  # test methods don't need return type annotations
+    "ANN202",  # private test helper functions less critical
+    "ANN204",  # __init__ methods in test classes return None implicitly
+    "ANN206",  # setup_class methods always return None (redundant annotation)
+]
+# Benchmark files use Any for comparison functions
+"tests/benchmarks/**/*.py" = [
+    "ANN401",  # typing.Any used intentionally for backend comparison functions
+]
 
 [tool.pytest.ini_options]
 minversion = "8.0"

@@ -9,31 +9,28 @@ from __future__ import annotations
 
 import os
 import shutil
-from functools import lru_cache
+from collections.abc import Callable
+from functools import cache
 from typing import TYPE_CHECKING
 
 import pytest
-
-if TYPE_CHECKING:
-    from typing import Callable
-
 
 # ============================================================================
 # Dependency Detection
 # ============================================================================
 
 
-@lru_cache(maxsize=None)
+@cache
 def has_ffmpeg() -> bool:
     """Check if FFmpeg is installed and available."""
     return shutil.which("ffmpeg") is not None
 
 
-@lru_cache(maxsize=None)
+@cache
 def has_parakeet() -> bool:
     """Check if Parakeet/NeMo dependencies are available."""
     try:
-        import nemo.collections.asr as nemo_asr  # noqa: F401
+        import nemo.collections.asr as nemo_asr
 
         return True
     except (ImportError, AttributeError, RuntimeError):
@@ -42,18 +39,18 @@ def has_parakeet() -> bool:
         return False
 
 
-@lru_cache(maxsize=None)
+@cache
 def has_whisper() -> bool:
     """Check if Whisper dependencies are available."""
     try:
-        import whisper  # noqa: F401
+        import whisper
 
         return True
     except ImportError:
         return False
 
 
-@lru_cache(maxsize=None)
+@cache
 def has_redis() -> bool:
     """Check if Redis is available and connectable."""
     try:
@@ -66,7 +63,7 @@ def has_redis() -> bool:
         return False
 
 
-@lru_cache(maxsize=None)
+@cache
 def has_network() -> bool:
     """Check if network connectivity is available."""
     import socket
@@ -79,7 +76,7 @@ def has_network() -> bool:
         return False
 
 
-@lru_cache(maxsize=None)
+@cache
 def has_api_key(provider: str) -> bool:
     """Check if API key is available for a provider."""
     key_map = {
