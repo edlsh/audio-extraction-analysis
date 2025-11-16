@@ -149,7 +149,7 @@ class TestFileHashCache:
             start = timeit.default_timer()
             hash1 = CacheKey._hash_file(temp_file)
             times_uncached.append(timeit.default_timer() - start)
-        
+
         time_uncached = sum(times_uncached) / len(times_uncached)
 
         # Time second hash (cache hit) - average over multiple runs
@@ -160,7 +160,7 @@ class TestFileHashCache:
             start = timeit.default_timer()
             hash2 = CacheKey._hash_file(temp_file)
             times_cached.append(timeit.default_timer() - start)
-        
+
         time_cached = sum(times_cached) / len(times_cached)
 
         assert hash1 == hash2, "Hashes should match"

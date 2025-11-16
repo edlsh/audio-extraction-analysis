@@ -87,7 +87,7 @@ class TestElevenLabsTranscriberInit:
         # Mock get_config to return a config with the API key set
         mock_config = Mock()
         mock_config.ELEVENLABS_API_KEY = "env_key"
-        
+
         with patch("src.providers.elevenlabs.get_config", return_value=mock_config):
             transcriber = ElevenLabsTranscriber()
             assert transcriber.api_key == "env_key"
