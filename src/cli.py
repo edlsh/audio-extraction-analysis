@@ -24,6 +24,7 @@ try:
     from .pipeline.simple_pipeline import process_pipeline
     from .services.audio_extraction import AudioExtractor, AudioQuality
     from .services.transcription import TranscriptionService
+    from .services.url_ingestion import UrlIngestionError, UrlIngestionService
     from .ui.console import ConsoleManager
     from .utils.file_validation import ValidationError, validate_audio_file
     from .utils.paths import ensure_subpath, safe_write_json, sanitize_dirname
@@ -35,6 +36,7 @@ except ImportError:  # pragma: no cover - fallback for installed package layout
     from src.pipeline.simple_pipeline import process_pipeline
     from src.services.audio_extraction import AudioExtractor, AudioQuality
     from src.services.transcription import TranscriptionService
+    from src.services.url_ingestion import UrlIngestionError, UrlIngestionService
     from src.ui.console import ConsoleManager
     from src.utils.file_validation import ValidationError, validate_audio_file
     from src.utils.paths import ensure_subpath, safe_write_json, sanitize_dirname
@@ -162,7 +164,11 @@ def _create_process_subparser(subparsers) -> None:
         help="Full pipeline: extract audio and transcribe",
         description="Complete video-to-transcript pipeline with audio extraction and transcription",
     )
-    process_parser.add_argument("video_file", help="Input video file path")
+    process_parser.add_argument("video_file", nargs="?", help="Input video file path")
+    process_parser.add_argument(
+        "--url",
+        help="Process media from a remote URL (e.g. YouTube). Mutually exclusive with local file.",
+    )
     process_parser.add_argument(
         "--output-dir", "-o", help="Output directory for results (default: ./output)"
     )
@@ -837,11 +843,42 @@ def process_command(args: argparse.Namespace, console_manager: ConsoleManager | 
         Exit code (0 for success, non-zero for failure)
     """
     try:
-        # Validate input file
-        input_path = Path(args.video_file)
-        if not input_path.exists():
-            logger.error(f"Video file not found: {input_path}")
+        # Determine input source (local file vs URL)
+        if getattr(args, "url", None) and args.video_file:
+            logger.error("Specify either a local video file or --url, not both.")
             return 1
+
+        config = Config()
+
+        if getattr(args, "url", None):
+            if not config.url_ingest_enabled:
+                logger.error("URL ingestion is disabled by configuration.")
+                return 1
+
+            quality = _parse_quality_preset(args.quality)
+
+            logger.info("Downloading media from URL: %s", args.url)
+            ingestion_service = UrlIngestionService(
+                download_dir=config.url_ingest_download_dir,
+                prefer_audio_only=config.url_ingest_prefer_audio_only,
+                keep_video=config.url_ingest_keep_video_default,
+            )
+            try:
+                ingest_result = ingestion_service.ingest(args.url, quality=quality)
+            except UrlIngestionError as exc:
+                logger.error("URL ingestion failed: %s", exc)
+                return 1
+
+            input_path = ingest_result.audio_path
+        else:
+            if not args.video_file:
+                logger.error("You must provide a local video file or --url.")
+                return 1
+
+            input_path = Path(args.video_file)
+            if not input_path.exists():
+                logger.error(f"Video file not found: {input_path}")
+                return 1
 
         # Setup output directory
         output_dir = _setup_process_output_dir(args)

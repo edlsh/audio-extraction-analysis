@@ -100,15 +100,25 @@ class TestCLIParser:
             parser.parse_args(["transcribe", "audio.mp3", "--provider", "invalid"])
 
     def test_process_command_parsing(self):
-        """Test process subcommand parsing."""
+        """Test process subcommand parsing with local file."""
         parser = create_parser()
 
         args = parser.parse_args(["process", "video.mp4"])
         assert args.command == "process"
         assert args.video_file == "video.mp4"
+        assert getattr(args, "url", None) is None
         assert args.quality == "speech"  # default
         assert args.language == "en"  # default
         assert args.output_dir is None  # default
+
+    def test_process_command_parsing_with_url(self):
+        """Test process subcommand parsing with URL only."""
+        parser = create_parser()
+
+        args = parser.parse_args(["process", "--url", "https://example.com/video"])
+        assert args.command == "process"
+        assert args.video_file is None
+        assert args.url == "https://example.com/video"
 
     def test_process_command_with_options(self):
         """Test process subcommand with all options."""
@@ -140,6 +150,10 @@ class TestCLIParser:
         parser = create_parser()
 
         args = parser.parse_args(["process", "video.mp4"])
+        assert args.provider == "auto"
+
+        # Also works when using --url
+        args = parser.parse_args(["process", "--url", "https://example.com/video"])
         assert args.provider == "auto"
 
     def test_verbose_flag(self):
