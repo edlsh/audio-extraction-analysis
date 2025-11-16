@@ -232,6 +232,25 @@ class Config:
     )
     rich_output: bool = field(default_factory=lambda: _parse_bool(_getenv("RICH_OUTPUT", "true")))
 
+    # ========== URL Ingestion Settings ==========
+    url_ingest_enabled: bool = field(
+        default_factory=lambda: _parse_bool(_getenv("URL_INGEST_ENABLED", "true"))
+    )
+    url_ingest_download_dir: Path = field(
+        default_factory=lambda: Path(_getenv("URL_INGEST_DOWNLOAD_DIR", "./data/url_downloads"))
+    )
+    url_ingest_prefer_audio_only: bool = field(
+        default_factory=lambda: _parse_bool(_getenv("URL_INGEST_PREFER_AUDIO_ONLY", "true"))
+    )
+    url_ingest_timeout: int = field(
+        default_factory=lambda: _getenv_int("URL_INGEST_TIMEOUT", 600)
+    )
+    url_ingest_keep_video_default: bool = field(
+        default_factory=lambda: _parse_bool(
+            _getenv("URL_INGEST_KEEP_VIDEO_DEFAULT", "false")
+        )
+    )
+
     # ========== Markdown Settings ==========
     markdown_include_timestamps: bool = field(
         default_factory=lambda: _parse_bool(_getenv("MARKDOWN_INCLUDE_TIMESTAMPS", "true"))
