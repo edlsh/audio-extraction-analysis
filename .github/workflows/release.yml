@@ -24,6 +24,7 @@ jobs:
 
       - name: Install build tooling
         run: |
+          uv venv
           uv pip install build twine
 
       - name: Build distributions

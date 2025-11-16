@@ -44,6 +44,7 @@ jobs:
 
       - name: Install tools
         run: |
+          uv venv
           uv pip install ruff radon vulture pytest
           npm install -g jscpd
 
