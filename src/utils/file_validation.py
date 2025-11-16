@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any
 
 from .sanitization import PathSanitizer
 
@@ -350,12 +351,12 @@ class ConfigValidator:
 
 
 # Convenience functions for backward compatibility
-def validate_file_path(file_path: Path, **kwargs) -> None:
+def validate_file_path(file_path: Path, **kwargs: Any) -> None:
     """Validate a file path. See FileValidator.validate_file_path for details."""
     FileValidator.validate_file_path(file_path, **kwargs)
 
 
-def validate_output_path(output_path: Path, **kwargs) -> None:
+def validate_output_path(output_path: Path, **kwargs: Any) -> None:
     """Validate an output path. See FileValidator.validate_output_path for details."""
     FileValidator.validate_output_path(output_path, **kwargs)
 
@@ -484,6 +485,8 @@ def validate_audio_file(
 
     except Exception as e:
         _handle_validation_exception(e, audio_file_path, "audio")
+        # This line is unreachable but mypy needs explicit return after exception
+        raise  # Re-raise to satisfy type checker
 
 
 def validate_media_file(
@@ -534,6 +537,8 @@ def validate_media_file(
 
     except Exception as e:
         _handle_validation_exception(e, media_file_path, "media")
+        # This line is unreachable but mypy needs explicit return after exception
+        raise  # Re-raise to satisfy type checker
 
 
 def safe_validate_media_file(
