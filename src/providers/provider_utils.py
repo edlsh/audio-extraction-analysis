@@ -117,7 +117,7 @@ class ProviderAvailabilityChecker:
         except ImportError as e:
             logger.warning(
                 f"{provider_name} dependencies not installed. "
-                f"Install with: pip install {package_name}. Error: {e}"
+                f"Install with: uv add {package_name}. Error: {e}"
             )
             return False, None
 

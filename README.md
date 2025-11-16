@@ -1,8 +1,8 @@
-# Audio Extraction Analysis v3.0
+# Audio Extraction Analysis v1.0.0+emergency
 
 🎥➡️🎵➡️📝 **Professional Audio-to-Transcript Pipeline with Multiple Providers**
 
-A comprehensive, production-ready Python package that transforms video recordings into structured, actionable documentation. Features a unified CLI, robust error handling, and extensive transcription analysis including speaker diarization, topic detection, and sentiment analysis. Supports multiple transcription providers including Deepgram Nova 3, ElevenLabs, OpenAI Whisper, and NVIDIA Parakeet.
+A comprehensive, production-ready Python package that transforms video recordings into structured, actionable documentation. Features a unified CLI with interactive TUI, robust error handling, event streaming, and extensive transcription analysis including speaker diarization, topic detection, and sentiment analysis. Supports multiple transcription providers including Deepgram Nova 3, ElevenLabs, OpenAI Whisper, and NVIDIA Parakeet.
 
 ## 🚀 Quick Start (3 Steps)
 
@@ -11,7 +11,7 @@ A comprehensive, production-ready Python package that transforms video recording
 # Clone and install
 git clone <repository-url>
 cd audio-extraction-analysis
-pip install -e .
+uv sync
 
 # Install FFmpeg
 # macOS: brew install ffmpeg
@@ -26,7 +26,7 @@ pip install -e .
 export DEEPGRAM_API_KEY='your-key-here'
 
 # Option 2: Use Whisper (local processing, no API key needed)
-pip install openai-whisper torch
+uv add openai-whisper torch
 
 # Or create .env file for API keys
 echo "DEEPGRAM_API_KEY=your-key-here" > .env
@@ -61,9 +61,18 @@ audio-extraction-analysis process video.mp4              # Complete workflow (co
 audio-extraction-analysis process video.mp4 --output-dir ./results
 audio-extraction-analysis process video.mp4 --analysis-style full --output-dir ./results  # five files
 
+# Interactive TUI (Terminal User Interface) - NEW!
+audio-extraction-analysis tui                            # Launch interactive interface
+audio-extraction-analysis tui --input video.mp4          # Pre-populate input file
+audio-extraction-analysis tui --output-dir ./results     # Pre-set output directory
+
 # Individual steps
 audio-extraction-analysis extract video.mp4              # Audio extraction only  
 audio-extraction-analysis transcribe audio.mp3           # Transcription only
+
+# Event streaming (for monitoring/integration) - NEW!
+audio-extraction-analysis process video.mp4 --jsonl      # Stream events as JSONL
+audio-extraction-analysis process video.mp4 --jsonl | jq '.type'  # Monitor event types
 
 # Help and info
 audio-extraction-analysis --help                         # Show all commands
@@ -88,6 +97,8 @@ audio-extraction-analysis process video.mp4 --export-markdown --md-no-speakers -
 | `--output-dir` | Directory path | Where to save results |
 | `--analysis-style` | `concise`, `full` | Output style: single analysis vs. 5 files |
 | `--verbose` | Flag | Detailed logging |
+| `--jsonl` | Flag | Stream events as JSONL for monitoring |
+| `--provider` | `auto`, `deepgram`, `elevenlabs`, `whisper`, `parakeet` | Transcription provider selection |
 
 ## 🖥️ Interactive TUI (Terminal User Interface)
 
@@ -164,6 +175,82 @@ done
 - **`high`**: Maximum quality for archival
 - **`compressed`**: Smaller files for quick tests
 
+## 🖥️ Interactive TUI (Terminal User Interface)
+
+The TUI provides a visual, interactive interface for processing audio and video files with real-time progress monitoring.
+
+### Features
+- **📊 Live Progress Monitoring**: Real-time progress bars with ETAs for each stage
+- **📁 File Browser**: Navigate filesystem with directory tree and recent files
+- **⚙️ Configuration Screen**: Visual settings editor with persistence
+- **📝 Run Screen**: Live progress cards and scrollable, color-coded logs
+- **🎨 Themes**: Dark/light mode toggle (press `d`)
+
+### Launch the TUI
+```bash
+# Basic launch
+audio-extraction-analysis tui
+
+# With pre-populated input
+audio-extraction-analysis tui --input video.mp4
+
+# With custom output directory
+audio-extraction-analysis tui --output-dir ./results
+```
+
+### Keyboard Shortcuts
+| Key | Action | Context |
+|-----|--------|---------|
+| `q` | Quit application | Global |
+| `d` | Toggle dark/light mode | Global |
+| `?` or `h` | Show help | Global |
+| `Enter` | Select/Confirm | Navigation |
+| `Tab` | Switch panes | Home Screen |
+| `/` | Filter files | Home Screen |
+| `c` | Cancel pipeline | Run Screen |
+| `o` | Open output folder | Run Screen (when complete) |
+| `Escape` | Go back | All screens |
+
+### TUI Workflow
+```
+Welcome → File Selection → Configuration → Live Processing → Auto-open Results
+```
+
+## 🔄 Event Streaming for Monitoring
+
+Stream structured events in JSONL format for monitoring, logging, or integration with other tools.
+
+### Enable Event Streaming
+```bash
+# Stream events to stdout
+audio-extraction-analysis process video.mp4 --jsonl
+
+# Monitor specific event types
+audio-extraction-analysis process video.mp4 --jsonl | jq 'select(.type=="stage_progress")'
+
+# Save events to file
+audio-extraction-analysis process video.mp4 --jsonl > events.jsonl
+
+# Real-time monitoring with jq
+audio-extraction-analysis process video.mp4 --jsonl | jq -r '
+  if .type == "stage_start" then 
+    "▶ Starting: " + .stage
+  elif .type == "stage_progress" then 
+    "⏳ Progress: " + .stage + " " + (.data.completed/.data.total*100|tostring) + "%"
+  elif .type == "stage_end" then 
+    "✓ Completed: " + .stage
+  else . end'
+```
+
+### Event Types
+- `stage_start`: Stage beginning (extract, transcribe, analyze)
+- `stage_progress`: Progress updates with completed/total counts
+- `stage_end`: Stage completion with duration
+- `artifact`: File created with path and metadata
+- `log`, `warning`, `error`: Log messages at various levels
+- `summary`: Final metrics and statistics
+- `cancelled`: Pipeline cancellation
+
 ## 📁 Output Structure
 
 Depends on `--analysis-style`:
@@ -213,13 +300,14 @@ When exporting markdown, files are organized as:
 ```bash
 # Required for cloud providers
 export DEEPGRAM_API_KEY='your-api-key-here'     # Get from console.deepgram.com
+export ELEVENLABS_API_KEY='your-api-key-here'   # Get from elevenlabs.io/api
 
-# Optional - Whisper configuration
+# Optional - Whisper configuration (local processing)
 export WHISPER_MODEL='base'                     # tiny, base, small, medium, large
 export WHISPER_DEVICE='cuda'                    # cuda or cpu
 export WHISPER_COMPUTE_TYPE='float16'           # float16 or float32
 
-# Optional - Parakeet configuration
+# Optional - Parakeet configuration (NVIDIA models)
 export PARAKEET_MODEL='stt_en_conformer_ctc_large'  # stt_en_conformer_ctc_large, stt_en_conformer_transducer_large, stt_en_fastconformer_ctc_large
 export PARAKEET_DEVICE='auto'                   # auto, cuda or cpu
 export PARAKEET_BATCH_SIZE=8                    # Batch size for processing
@@ -230,13 +318,20 @@ export PARAKEET_MODEL_CACHE_DIR='~/.cache/parakeet'  # Model cache directory
 
 # Optional - General configuration
 export LOG_LEVEL='INFO'                         # DEBUG, INFO, WARNING, ERROR
-export TEMP_DIR='/custom/temp/path'              # Custom temporary directory
+export TEMP_DIR='/custom/temp/path'             # Custom temporary directory
+
+# Optional - TUI configuration persistence
+# TUI settings are automatically saved to platform-specific config directory:
+# - macOS: ~/Library/Application Support/audio-extraction-analysis/
+# - Linux: ~/.config/audio-extraction-analysis/
+# - Windows: %APPDATA%\audio-extraction-analysis\
 ```
 
 ### .env File (Alternative)
 ```bash
 # Create .env file in project root
 echo "DEEPGRAM_API_KEY=your-key-here" > .env
+echo "ELEVENLABS_API_KEY=your-key-here" >> .env
 echo "WHISPER_MODEL=base" >> .env
 echo "WHISPER_DEVICE=cuda" >> .env
 echo "LOG_LEVEL=DEBUG" >> .env
@@ -303,10 +398,15 @@ To customize, add a new entry to `TEMPLATES` with keys:
 - **Insight Generation**: Extracts actionable takeaways with supporting evidence
 
 ### Production Ready
-- **Unified CLI**: Simple commands for complex workflows
+- **Unified CLI with TUI**: Simple commands and interactive interface for complex workflows
 - **Quality Presets**: Optimized audio extraction for different needs
+- **Provider Health Checking**: Automatic validation and fallback to working providers
+- **Circuit Breaker Pattern**: Fault tolerance with automatic retry and failover
+- **Event Streaming**: Real-time monitoring via JSONL events
+- **Path Sanitization**: Security-hardened file operations
 - **Error Handling**: Robust processing with detailed logging
 - **Fast Processing**: 2-hour meetings processed in ~5-7 minutes
+- **Configuration Persistence**: TUI settings saved across sessions
 
 ## 🛠️ System Requirements
 
@@ -319,11 +419,26 @@ To customize, add a new entry to `TEMPLATES` with keys:
 ### Installation Steps
 1. **Install FFmpeg**: `brew install ffmpeg` (macOS) or `sudo apt install ffmpeg` (Ubuntu)
 2. **Clone repository**: `git clone <repository-url>`
-3. **Install package**: `pip install -e .`
-4. **Install transcription provider**:
-   - For Deepgram: `export DEEPGRAM_API_KEY='your-key'`
-   - For Whisper: `pip install openai-whisper torch`
-   - For Parakeet: `pip install nemo-toolkit[asr]`
+3. **Install package with desired features**:
+   ```bash
+   # Basic installation (cloud providers only)
+   uv sync
+   
+   # With TUI (Terminal User Interface)
+   uv sync --extra tui
+   
+   # With Whisper (local transcription)
+   uv add openai-whisper torch
+   
+   # With Parakeet (NVIDIA models)
+   uv sync --extra parakeet
+   
+   # With all features (recommended for development)
+   uv sync --dev --extra tui --extra parakeet --extra yaml --extra redis
+   ```
+4. **Configure API keys** (for cloud providers):
+   - Deepgram: `export DEEPGRAM_API_KEY='your-key'` (get from console.deepgram.com)
+   - ElevenLabs: `export ELEVENLABS_API_KEY='your-key'` (get from elevenlabs.io)
 5. **Test**: `audio-extraction-analysis --version`
 
 ### Supported Formats
@@ -365,10 +480,10 @@ echo "DEEPGRAM_API_KEY=your-key-here" > .env
 #### "Whisper dependencies not installed"
 ```bash
 # Install Whisper and PyTorch
-pip install openai-whisper torch
+uv add openai-whisper torch
 
 # For GPU acceleration (recommended):
-pip install openai-whisper torch torchaudio --index-url https://download.pytorch.org/whl/cu118
+uv add openai-whisper torch torchaudio --index-url https://download.pytorch.org/whl/cu118
 
 # Verify installation:
 python -c "import whisper; print('Whisper installed successfully')"
@@ -377,13 +492,26 @@ python -c "import whisper; print('Whisper installed successfully')"
 #### "Parakeet dependencies not installed"
 ```bash
 # Install Parakeet and NeMo dependencies
-pip install nemo-toolkit[asr]
+uv sync --extra parakeet
+# Or directly: uv add "nemo-toolkit[asr]@1.20.0" --extra parakeet
 
 # For GPU acceleration (recommended):
-pip install nemo-toolkit[asr] torch torchaudio
+uv add "nemo-toolkit[asr]@1.20.0" torch torchaudio --extra parakeet
 
 # Verify installation:
 python -c "import nemo; print('Parakeet installed successfully')"
+```
+
+#### "TUI not working / Textual not found"
+```bash
+# Install TUI dependencies
+uv sync --extra tui
+
+# Or install Textual directly
+uv add "textual>=0.47.0" --extra tui
+
+# Verify TUI works
+audio-extraction-analysis tui --help
 ```
 
 #### "Permission denied"
@@ -441,13 +569,13 @@ For detailed information:
 # Development setup
 git clone <repository-url>
 cd audio-extraction-analysis
-pip install -e ".[dev]"
+uv sync --dev
 
 # Install Whisper for testing
-pip install openai-whisper torch
+uv add openai-whisper torch
 
 # Install Parakeet for testing
-pip install nemo-toolkit[asr]
+uv add "nemo-toolkit[asr]@1.20.0" --extra parakeet
 
 # Run tests
 pytest

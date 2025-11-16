@@ -258,25 +258,25 @@ class TestConfigValidateEdgeCases:
             assert "ELEVENLABS_API_KEY=your-api-key-here" in error_msg
 
     def test_validate_error_message_includes_install_instructions_whisper(self):
-        """Test Whisper error message includes pip install command."""
+        """Test Whisper error message includes uv add command."""
         with patch.dict("sys.modules", {"torch": None, "whisper": None}):
             with pytest.raises(ValueError) as exc_info:
                 Config.validate("whisper")
 
             error_msg = str(exc_info.value)
-            assert "pip install" in error_msg
+            assert "uv add" in error_msg
             assert "openai-whisper" in error_msg
             assert "torch" in error_msg
 
     def test_validate_error_message_includes_install_instructions_parakeet(self):
-        """Test Parakeet error message includes pip install command."""
+        """Test Parakeet error message includes uv add command."""
         with patch.dict("sys.modules", {"nemo": None, "torch": None}):
             with pytest.raises(ValueError) as exc_info:
                 Config.validate("parakeet")
 
             error_msg = str(exc_info.value)
-            assert "pip install" in error_msg
-            assert "nemo_toolkit" in error_msg
+            assert "uv add" in error_msg
+            assert "nemo-toolkit" in error_msg
             assert "torch" in error_msg
 
 

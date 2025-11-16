@@ -530,7 +530,7 @@ class Config:
             except ImportError:
                 raise ValueError(
                     "Whisper dependencies not installed. Install with: "
-                    "pip install openai-whisper torch"
+                    "uv add openai-whisper torch"
                 )
         elif provider == "parakeet":
             try:
@@ -539,7 +539,7 @@ class Config:
             except ImportError:
                 raise ValueError(
                     "Parakeet dependencies not installed. Install with: "
-                    "pip install nemo_toolkit torch"
+                    "uv add \"nemo-toolkit[asr]@1.20.0\" torch --extra parakeet"
                 )
         else:
             raise ValueError(f"Unknown provider: {provider}")

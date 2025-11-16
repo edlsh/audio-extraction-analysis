@@ -30,7 +30,7 @@ cd audio-extraction-analysis
 
 2. Install the package in editable mode with development dependencies:
 ```bash
-pip install -e ".[dev]"
+uv sync --dev
 ```
 
 3. Install pre-commit hooks:
