@@ -7,6 +7,12 @@ import pytest
 
 from src.ui.console import ConsoleManager
 
+# Apply markers to all tests in this module
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.mock,
+]
+
 
 class TestCLIProgressIntegration:
     """Integration tests for CLI with progress tracking."""

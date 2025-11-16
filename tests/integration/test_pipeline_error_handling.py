@@ -19,6 +19,12 @@ from src.pipeline.simple_pipeline import process_pipeline
 from src.services.audio_extraction import AudioQuality
 from src.ui.console import ConsoleManager
 
+# Apply markers to all tests in this module
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.mock,
+]
+
 
 class TestPipelineErrorHandling:
     """Integration tests for pipeline error handling with real components."""

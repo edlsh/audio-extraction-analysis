@@ -10,9 +10,14 @@ from unittest.mock import Mock, patch
 import pytest
 
 # Skip - duplicate of test_deepgram_provider.py
-pytestmark = pytest.mark.skip(
-    reason="Duplicate Deepgram tests - covered in test_deepgram_provider.py and tests/integration/"
-)
+pytestmark = [
+    pytest.mark.skip(
+        reason="Duplicate Deepgram tests - covered in test_deepgram_provider.py and tests/integration/"
+    ),
+    pytest.mark.unit,
+    pytest.mark.fast,
+    pytest.mark.mock,
+]
 
 from src.models.transcription import (
     TranscriptionChapter,

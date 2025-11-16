@@ -13,6 +13,13 @@ from src.pipeline.simple_pipeline import process_pipeline
 from src.services.audio_extraction import AudioQuality
 from src.ui.console import ConsoleManager
 
+# Apply markers to all tests in this module
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.fast,
+    pytest.mark.mock,
+]
+
 
 @pytest.mark.asyncio
 async def test_pipeline_with_progress():

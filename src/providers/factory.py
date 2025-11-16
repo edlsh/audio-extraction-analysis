@@ -699,7 +699,7 @@ class TranscriptionProviderFactory:
 
 
 # Initialize the factory with default providers
-def _initialize_factory():
+def _initialize_factory() -> None:
     """Initialize factory with all available transcription providers.
 
     This function attempts to import and register each supported provider.

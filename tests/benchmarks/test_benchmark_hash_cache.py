@@ -19,8 +19,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from benchmarks.hash_cache_benchmark import benchmark_hash_performance, create_test_file
 from src.cache.transcription_cache import CacheKey
 
+# Apply markers to all tests in this module
+pytestmark = [
+    pytest.mark.benchmark,
+    pytest.mark.slow,
+]
 
-@pytest.mark.benchmark
+
 class TestCreateTestFile:
     """Test the create_test_file() function."""
 

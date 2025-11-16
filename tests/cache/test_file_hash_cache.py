@@ -15,6 +15,12 @@ import pytest
 
 from src.cache.transcription_cache import CacheKey
 
+# Apply markers to all tests in this module
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.fast,
+]
+
 
 class TestFileHashCache:
     """Test file hash caching functionality."""

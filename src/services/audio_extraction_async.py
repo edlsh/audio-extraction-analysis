@@ -146,7 +146,7 @@ class AsyncAudioExtractor(AudioExtractor):
         total_duration: float,
         progress_callback: Callable[[int, int], None] | None,
         stage: str = "Processing",
-    ):
+    ) -> None:
         """Run FFmpeg and parse progress output."""
         # Add progress reporting to FFmpeg
         ffmpeg_args_with_progress = [*ffmpeg_args, "-progress", "pipe:1", "-nostats"]

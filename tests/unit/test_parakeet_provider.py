@@ -21,6 +21,15 @@ from src.providers.parakeet import (
     ParakeetModelError,
     ParakeetTranscriber,
 )
+from tests.conftest_helpers import skip_without_parakeet
+
+# Apply markers to all tests in this module
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.fast,
+    pytest.mark.parakeet,
+    skip_without_parakeet(),
+]
 
 
 class TestGPUManager:

@@ -17,6 +17,12 @@ from src.cache.backends import DiskCache, InMemoryCache
 from src.cache.common import BaseCache, CacheUtils
 from src.cache.transcription_cache import CacheEntry, CacheKey
 
+# Apply markers to all tests in this module
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.fast,
+]
+
 
 class TestCacheContract:
     """Contract tests that all cache backends must pass."""

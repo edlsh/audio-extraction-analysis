@@ -16,6 +16,13 @@ from src.providers.provider_utils import (
 )
 from src.utils.retry import RetryConfig
 
+# Apply markers to all tests in this module
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.fast,
+    pytest.mark.mock,
+]
+
 
 @pytest.fixture(autouse=True)
 def mock_config():

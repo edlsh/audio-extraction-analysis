@@ -55,7 +55,7 @@ class MockTranscriber(BaseTranscriptionProvider):
         return ["basic", "timestamps", "test-mode"]
 
     async def _transcribe_impl(
-        self, audio_file_path: Path, language: str = "en", **kwargs
+        self, audio_file_path: Path, language: str = "en", **kwargs: Any
     ) -> TranscriptionResult:
         """Generate mock transcription result.
 

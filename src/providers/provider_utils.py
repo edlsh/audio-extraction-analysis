@@ -144,7 +144,7 @@ def initialize_provider_with_defaults(
     api_key: str | None = None,
     retry_config: RetryConfig | None = None,
     circuit_config: CircuitBreakerConfig | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> object:
     """Initialize a provider with standardized configuration.
 

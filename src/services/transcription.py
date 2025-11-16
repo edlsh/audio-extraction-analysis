@@ -189,7 +189,7 @@ class TranscriptionService:
                 if hasattr(provider, "transcribe") and callable(provider.transcribe):
                     loop = asyncio.get_event_loop()
 
-                    def sync_transcribe():
+                    def sync_transcribe() -> TranscriptionResult:
                         return provider.transcribe(audio_file_path, language)
 
                     result = await loop.run_in_executor(None, sync_transcribe)
@@ -239,7 +239,7 @@ class TranscriptionService:
         provider_name: str | None = None,
         language: str = "en",
         progress_callback: Callable[[int, int], None] | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> TranscriptionResult | None:
         """Transcribe with progress estimation based on file characteristics."""
         path = Path(audio_file_path)

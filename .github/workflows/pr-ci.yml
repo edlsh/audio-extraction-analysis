@@ -40,12 +40,12 @@ jobs:
       - name: Architecture checks
         run: uv run lint-imports
 
-  tests:
-    name: Unit and Integration Tests
+  fast-tests:
+    name: Fast Unit Tests
     runs-on: ubuntu-latest
     needs: lint-and-arch
     env:
-      DEEPGRAM_API_KEY: dummy_test_key
+      AUDIO_TEST_MODE: 1  # Enable mock providers
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -60,28 +60,23 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Install FFmpeg
+      - name: Install dependencies (minimal)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
-          ffmpeg -version
+          uv sync --locked --dev
 
-      - name: Install dependencies
+      - name: Run fast unit tests (respects pyproject.toml markers)
         run: |
-          uv sync --locked --all-extras --dev
-
-      - name: Run unit tests with coverage
-        run: |
-          uv run pytest tests/unit/ tests/test_security.py \
+          # Note: Integration and E2E tests are excluded from PR runs for speed.
+          # They run separately on merge to main/develop via test.yml workflow.
+          uv run pytest \
+            -m "not integration and not e2e and not slow and not network" \
             --cov=src \
             --cov-branch \
             --cov-report=xml:coverage.xml \
             --cov-report=term-missing \
-            --cov-fail-under=45
-
-      - name: Run integration tests
-        run: uv run pytest tests/integration/ -v --timeout=60
-        continue-on-error: true
+            --cov-fail-under=45 \
+            --maxfail=10 \
+            -x
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5

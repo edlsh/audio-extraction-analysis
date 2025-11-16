@@ -11,9 +11,18 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
+import pytest
+
 from src.cache.backends import DiskCache
 from src.cache.transcription_cache import CacheEntry, CacheKey
 from src.models.transcription import TranscriptionResult
+
+# Apply markers to all tests in this module
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.fast,
+    pytest.mark.security,
+]
 
 
 def test_disk_cache_safe_serialization():

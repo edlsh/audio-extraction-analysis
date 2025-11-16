@@ -11,9 +11,14 @@ from unittest.mock import Mock, patch
 import pytest
 
 # Skip integration tests
-pytestmark = pytest.mark.skip(
-    reason="Provider factory integration covered in tests/e2e/test_provider_integration.py"
-)
+pytestmark = [
+    pytest.mark.skip(
+        reason="Provider factory integration covered in tests/e2e/test_provider_integration.py"
+    ),
+    pytest.mark.unit,
+    pytest.mark.fast,
+    pytest.mark.mock,
+]
 
 from src.providers.base import BaseTranscriptionProvider
 from src.providers.factory import TranscriptionProviderFactory

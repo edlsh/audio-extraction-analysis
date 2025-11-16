@@ -94,13 +94,45 @@ packages = ["src"]
 
 [tool.black]
 line-length = 100
+target-version = ["py311", "py312", "py313"]
 
 [tool.ruff]
 line-length = 100
+target-version = "py311"
 preview = true
 
+# Exclude a variety of commonly ignored directories
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+]
+
 [tool.ruff.lint]
-select = ["E","F","I","UP","N","B","S","RUF"]
+select = ["E","F","I","UP","N","B","S","RUF","ANN"]
 ignore = [
   "S101",  # asserts allowed in tests
   "S102",  # exec-builtin (used in tests for dynamic imports)
@@ -126,7 +158,17 @@ ignore = [
   "RUF012", # mutable-class-default (acceptable with dataclasses)
   "RUF029", # async function without await (acceptable for test mocks)
   "RUF034", # useless-if-else (false positive)
+  "ANN401", # any-type - acceptable for interfacing with untyped libraries
+  "ANN201", # missing return type for public functions (mostly test methods - too noisy)
+  "ANN204", # missing return type for __init__ methods (__init__ returns None implicitly)
+  "ANN001", # missing type annotation for function arguments (test fixtures - too strict)
+  "ANN202", # missing return type for private functions (less critical than public APIs)
+  "ANN003", # missing type annotation for **kwargs (often too verbose for **kwargs)
 ]
+
+# Allow fix for all enabled rules (when `--fix` is provided)
+fixable = ["ALL"]
+unfixable = []
 
 [tool.ruff.lint.per-file-ignores]
 # Path is used at runtime in these files (not just type annotations)
@@ -135,21 +177,93 @@ ignore = [
 "src/services/audio_extraction_async.py" = ["TC003"]  # Path used in file operations
 # Event is used at runtime in state.py (accessing event.type, event.stage, etc.)
 "src/ui/tui/state.py" = ["TC001"]  # Event used at runtime, not just type annotation
+# Test files can use additional patterns
+"tests/**/*.py" = ["S101"]  # asserts are standard in tests
 
 [tool.pytest.ini_options]
-addopts = "-q -m 'not e2e and not integration and not benchmark and not network and not slow'"
+minversion = "9.0"
+
+# Default test profile: Fast unit tests only
+# Override with: pytest -m "integration" for integration tests
+addopts = [
+    "-ra",  # Show summary of all test outcomes
+    "-q",   # Quiet output
+    "--strict-markers",  # Fail on unknown markers
+    "--strict-config",   # Fail on configuration warnings
+    "-m",
+    "not e2e and not integration and not benchmark and not network and not slow and not parakeet and not ffmpeg",
+]
+
 testpaths = ["tests"]
 pythonpath = ["."]
 asyncio_mode = "strict"
+
+# Test categorization markers
 markers = [
-    "e2e: End-to-end tests requiring full environment (deselect with '-m \"not e2e\"')",
-    "integration: Integration tests requiring external tools like FFmpeg (deselect with '-m \"not integration\"')",
-    "benchmark: Performance benchmark tests (deselect with '-m \"not benchmark\"')",
-    "network: Tests requiring network connectivity (deselect with '-m \"not network\"')",
+    # Speed categories
     "slow: Tests that take longer than 5 seconds (deselect with '-m \"not slow\"')",
+    "fast: Quick unit tests (under 1 second)",
+    
+    # Scope categories  
+    "unit: Unit tests (isolated, no external dependencies)",
+    "integration: Integration tests requiring external tools or services",
+    "e2e: End-to-end tests requiring full environment",
+    "benchmark: Performance benchmark tests",
+    
+    # Dependency requirements
     "ffmpeg: Tests requiring FFmpeg to be installed",
-    "providers: Tests requiring provider API keys or models"
+    "parakeet: Tests requiring Parakeet/NeMo dependencies (optional)",
+    "whisper: Tests requiring Whisper dependencies (optional)",
+    "network: Tests requiring network connectivity (external APIs)",
+    "redis: Tests requiring Redis server",
+    
+    # Provider-specific
+    "providers: Tests requiring provider API keys or credentials",
+    "deepgram: Tests specific to Deepgram provider",
+    "elevenlabs: Tests specific to ElevenLabs provider",
+    
+    # Special categories
+    "security: Security and vulnerability tests",
+    "mock: Tests using mocked dependencies",
 ]
+
+[tool.coverage.run]
+branch = true
+source = ["src"]
+omit = [
+    "tests/*",
+    "**/__pycache__/*",
+    "**/site-packages/*",
+]
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = false
+
+# Regexes for lines to exclude from consideration
+exclude_also = [
+    # Don't complain about missing debug-only code:
+    "def __repr__",
+    "if self\\.debug",
+
+    # Don't complain if tests don't hit defensive assertion code:
+    "raise AssertionError",
+    "raise NotImplementedError",
+
+    # Don't complain if non-runnable code isn't run:
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+
+    # Don't complain about abstract methods, they aren't run:
+    "@(abc\\.)?abstractmethod",
+]
+
+ignore_errors = true
+
+[tool.coverage.html]
+directory = "htmlcov"
 
 [tool.importlinter]
 root_package = "src"

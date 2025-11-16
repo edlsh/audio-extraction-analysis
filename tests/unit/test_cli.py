@@ -6,6 +6,13 @@ import pytest
 
 from src.cli import create_parser, main
 
+# Apply markers to all tests in this module
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.fast,
+    pytest.mark.mock,
+]
+
 
 class TestCLIParser:
     """Test CLI argument parsing."""

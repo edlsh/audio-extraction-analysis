@@ -926,7 +926,7 @@ class ParakeetTranscriber(BaseTranscriptionProvider):
         """
         loop = asyncio.get_event_loop()
 
-        def _transcribe():
+        def _transcribe() -> list[str]:
             try:
                 if TORCH_AVAILABLE and device.startswith("cuda") and self.use_fp16:
                     import torch

@@ -9,6 +9,13 @@ import pytest
 from src.services.audio_extraction import AudioQuality
 from src.services.audio_extraction_async import AsyncAudioExtractor
 
+# Apply markers to all tests in this module
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.fast,
+    pytest.mark.mock,
+]
+
 
 class TestAsyncAudioExtractor:
     """Test async audio extraction functionality."""

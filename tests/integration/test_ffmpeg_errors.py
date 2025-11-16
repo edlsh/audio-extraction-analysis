@@ -16,6 +16,14 @@ from unittest.mock import patch
 import pytest
 
 from src.services.audio_extraction_async import AsyncAudioExtractor, AudioQuality
+from tests.conftest_helpers import skip_without_ffmpeg
+
+# Apply markers to all tests in this module
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.ffmpeg,
+    skip_without_ffmpeg(),
+]
 
 
 class TestFFmpegErrorHandling:

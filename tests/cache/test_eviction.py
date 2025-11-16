@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
+import pytest
+
 from src.cache.backends import InMemoryCache
 from src.cache.eviction import (
     select_fifo_victim,
@@ -17,6 +19,12 @@ from src.cache.eviction import (
     select_ttl_victim,
 )
 from src.cache.transcription_cache import CacheEntry, CacheKey
+
+# Apply markers to all tests in this module
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.fast,
+]
 
 
 class TestLRUEviction:

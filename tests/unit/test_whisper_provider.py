@@ -7,6 +7,15 @@ import pytest
 
 from src.models.transcription import TranscriptionResult
 from src.providers.whisper import WhisperTranscriber
+from tests.conftest_helpers import skip_without_whisper
+
+# Apply markers to all tests in this module
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.fast,
+    pytest.mark.whisper,
+    skip_without_whisper(),
+]
 
 
 @pytest.fixture(autouse=True)

@@ -56,6 +56,13 @@ import pytest
 from .base import CLITestMixin, E2ETestBase, MockProviderMixin, SecurityTestMixin
 from .test_data_manager import TestDataManager
 
+# Apply markers to all tests in this module
+pytestmark = [
+    pytest.mark.e2e,
+    pytest.mark.security,
+    pytest.mark.mock,
+]
+
 
 class TestInputValidation(E2ETestBase, CLITestMixin, SecurityTestMixin):
     """

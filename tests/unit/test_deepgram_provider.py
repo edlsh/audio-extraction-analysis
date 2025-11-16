@@ -15,6 +15,10 @@ TEST_MIMETYPE = "audio/mp3"
 TEST_LANGUAGE = "en"
 
 
+@pytest.mark.unit
+@pytest.mark.fast
+@pytest.mark.deepgram
+@pytest.mark.mock
 class TestDeepgramTranscriber:
     """Test Deepgram transcription provider functionality."""
 

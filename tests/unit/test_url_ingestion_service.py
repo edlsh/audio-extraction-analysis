@@ -7,6 +7,15 @@ import pytest
 
 from src.services.audio_extraction import AudioQuality
 from src.services.url_ingestion import UrlIngestionError, UrlIngestionResult, UrlIngestionService
+from tests.conftest_helpers import skip_without_ffmpeg
+
+# Apply markers to all tests in this module
+# These tests use URL ingestion which may trigger FFmpeg for conversion
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.ffmpeg,
+    skip_without_ffmpeg(),
+]
 
 
 @pytest.fixture()

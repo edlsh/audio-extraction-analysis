@@ -14,10 +14,13 @@ import pytest
 from src.models.transcription import TranscriptionResult, TranscriptionUtterance
 from src.providers.elevenlabs import ElevenLabsTranscriber
 
-# Skip integration-style tests in unit test runs
-pytestmark = pytest.mark.skip(
-    reason="ElevenLabs tests require complex async API mocking - covered in integration tests"
-)
+# Apply markers for unit tests
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.fast,
+    pytest.mark.elevenlabs,
+    pytest.mark.mock,
+]
 
 
 @pytest.fixture(autouse=True)

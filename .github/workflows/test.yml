@@ -45,6 +45,9 @@ jobs:
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
+    # Only run integration tests on push to main/develop, not on PRs
+    # PRs use pr-ci.yml which runs fast unit tests only
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
     
     steps:
     - uses: actions/checkout@v4
