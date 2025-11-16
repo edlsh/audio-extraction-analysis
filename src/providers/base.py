@@ -13,7 +13,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from threading import Lock
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, Awaitable, TypeVar
 
 T = TypeVar("T")
 
@@ -113,7 +113,7 @@ class CircuitBreakerMixin:
             raise
 
     async def circuit_breaker_call_async(
-        self, func: Callable[..., T], *args: object, **kwargs: object  # type: ignore[type-arg]
+        self, func: Callable[..., Awaitable[T]], *args: object, **kwargs: object
     ) -> T:
         """Execute an async function with circuit breaker protection.
 
@@ -240,31 +240,32 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
     ) -> TranscriptionResult | None:
         """Transcribe audio file asynchronously with retry and circuit breaker.
 
-        This method applies both retry logic and circuit breaker protection,
-        gracefully handling errors by logging them and returning None rather
-        than raising exceptions.
+        This method applies retry logic and circuit breaker protection.
+        Exceptions from the provider implementation are allowed to propagate.
 
         Args:
             audio_file_path: Path to the audio file to transcribe
             language: Language code for transcription (e.g., 'en', 'es')
 
         Returns:
-            TranscriptionResult object with all available features, or None if
-            transcription failed or circuit breaker is open
+            TranscriptionResult object with all available features
+
+        Raises:
+            ValidationError: If audio file validation fails
+            ProviderNotAvailableError: If provider SDK not installed
+            ProviderAuthenticationError: If API key invalid
+            ProviderRateLimitError: If rate limit exceeded
+            ProviderTimeoutError: If request times out
+            ProviderAPIError: If provider API fails
+            CircuitBreakerError: If circuit breaker is open
         """
 
         @retry_async(config=self._retry_config)
         async def _transcribe_with_retry() -> TranscriptionResult:
             return await self._transcribe_impl(audio_file_path, language)
 
-        try:
-            return await self.circuit_breaker_call_async(_transcribe_with_retry)
-        except CircuitBreakerError as e:
-            logger.error(f"Circuit breaker prevented transcription: {e}")
-            return None
-        except Exception as e:
-            logger.error(f"Transcription failed: {e}")
-            return None
+        # Let exceptions propagate - circuit breaker and retry handle retries
+        return await self.circuit_breaker_call_async(_transcribe_with_retry)
 
     def transcribe(self, audio_file_path: Path, language: str = "en") -> TranscriptionResult | None:
         """Transcribe audio file synchronously with retry and circuit breaker.
@@ -281,8 +282,16 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
             language: Language code for transcription (e.g., 'en', 'es')
 
         Returns:
-            TranscriptionResult object with all available features, or None if
-            transcription failed or circuit breaker is open
+            TranscriptionResult object with all available features
+
+        Raises:
+            ValidationError: If audio file validation fails
+            ProviderNotAvailableError: If provider SDK not installed
+            ProviderAuthenticationError: If API key invalid
+            ProviderRateLimitError: If rate limit exceeded
+            ProviderTimeoutError: If request times out
+            ProviderAPIError: If provider API fails
+            CircuitBreakerError: If circuit breaker is open
         """
         try:
             # Check if there's a running event loop
@@ -397,7 +406,7 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
         self._retry_config = config
 
     # ---------------------- Progress Helper ----------------------
-    def _report_progress(self, callback: Callable | None, completed: int, total: int) -> None:
+    def _report_progress(self, callback: Callable[[int, int], None] | None, completed: int, total: int) -> None:
         """Helper to safely report progress if a callback is provided.
 
         This method wraps the progress callback in exception handling to ensure
