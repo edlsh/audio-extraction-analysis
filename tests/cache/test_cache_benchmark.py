@@ -12,7 +12,6 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Tuple
 from unittest.mock import MagicMock, patch
 
 import pytest
