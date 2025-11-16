@@ -82,10 +82,12 @@ class CacheKey:
     @classmethod
     def from_dict(cls, data: dict[str, object]) -> CacheKey:
         """Create from dictionary."""
+        from typing import cast
+        
         return cls(
-            file_hash=data["file_hash"],
-            provider=data["provider"],
-            settings_hash=data["settings_hash"],
+            file_hash=cast(str, data["file_hash"]),
+            provider=cast(str, data["provider"]),
+            settings_hash=cast(str, data["settings_hash"]),
         )
 
     @classmethod
@@ -272,7 +274,9 @@ class CacheEntry:
             Reconstructed CacheEntry instance
         """
         # Reconstruct the cache key
-        cache_key = CacheKey.from_dict(data["key"])
+        from typing import cast
+        
+        cache_key = CacheKey.from_dict(cast(dict[str, object], data["key"]))
 
         # Reconstruct the value based on its type
         value = data["value"]
@@ -285,7 +289,7 @@ class CacheEntry:
                 from ..models.transcription import TranscriptionResult
             except (ImportError, ValueError):
                 try:
-                    from models.transcription import TranscriptionResult
+                    from src.models.transcription import TranscriptionResult
                 except ImportError:
                     # If TranscriptionResult not available, keep as dict (graceful degradation)
                     value = value
@@ -298,12 +302,12 @@ class CacheEntry:
         return cls(
             key=cache_key,
             value=value,
-            size=data["size"],
-            created_at=datetime.fromisoformat(data["created_at"]),
-            accessed_at=datetime.fromisoformat(data["accessed_at"]),
-            access_count=data["access_count"],
-            ttl=data["ttl"],
-            metadata=data["metadata"],
+            size=cast(int, data["size"]),
+            created_at=datetime.fromisoformat(cast(str, data["created_at"])),
+            accessed_at=datetime.fromisoformat(cast(str, data["accessed_at"])),
+            access_count=cast(int, data["access_count"]),
+            ttl=cast(int | None, data["ttl"]),
+            metadata=cast(dict[str, object], data["metadata"]),
         )
 
 

@@ -22,7 +22,8 @@ def select_lru_victim(backend: BaseCache, keys: set[str]) -> str:
     # Fast path for OrderedDict backends
     if hasattr(backend, "_cache") and isinstance(backend._cache, OrderedDict):
         if len(backend._cache) > 0:
-            return next(iter(backend._cache.keys()))
+            key = next(iter(backend._cache.keys()))
+            return str(key) if isinstance(key, str) else ""
 
     # Fallback: find entry with oldest access time
     entries_with_time = []

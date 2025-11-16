@@ -40,14 +40,15 @@ def decompress_value(data: bytes) -> object | None:
                 from ..models.transcription import TranscriptionResult
             except (ImportError, ValueError):
                 try:
-                    from models.transcription import TranscriptionResult
+                    from src.models.transcription import TranscriptionResult
                 except ImportError:
                     return value_data
             return TranscriptionResult.from_dict(value_data)
         elif value_type == "str":
             return str(value_data)
         else:
-            return value_data
+            # Return as object (dict, list, etc.)
+            return value_data if isinstance(value_data, (dict, list, str, int, float, bool, type(None))) else None
     except Exception:
         # Caller will handle logging
         return None

@@ -299,16 +299,19 @@ class DiskCache(CacheBackend):
             connections across threads.
         """
         if not hasattr(self._local, "conn"):
-            self._local.conn = sqlite3.connect(str(self.db_path))
+            conn: sqlite3.Connection = sqlite3.connect(str(self.db_path))
+            self._local.conn = conn
             # Enable WAL (Write-Ahead Logging) mode for concurrent reads
             # WAL allows multiple readers while a writer is active
-            self._local.conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA journal_mode=WAL")
             # Performance optimizations:
             # - NORMAL sync: balance between safety and speed (fsync at checkpoints)
             # - MEMORY temp store: use RAM for temporary tables/indexes
-            self._local.conn.execute("PRAGMA synchronous=NORMAL")
-            self._local.conn.execute("PRAGMA temp_store=MEMORY")
-        return self._local.conn
+            conn.execute("PRAGMA synchronous=NORMAL")
+            conn.execute("PRAGMA temp_store=MEMORY")
+        # Type annotation to help mypy understand conn is Connection
+        conn_result: sqlite3.Connection = self._local.conn
+        return conn_result
 
     def _init_database(self) -> None:
         """Initialize SQLite database schema with tables and indexes.
@@ -389,7 +392,7 @@ class DiskCache(CacheBackend):
                 logger.error(f"Failed to get from disk cache: {e}")
                 return None
 
-    def _query_entry(self, key: str) -> tuple | None:
+    def _query_entry(self, key: str) -> tuple[object, ...] | None:
         """Query cache entry from database.
 
         Args:
@@ -411,7 +414,9 @@ class DiskCache(CacheBackend):
             (key,),
         )
 
-        return cursor.fetchone()
+        result = cursor.fetchone()
+        # fetchone() returns tuple[Any, ...] | None, cast to our return type
+        return result
 
     def _update_access_stats(self, key: str) -> None:
         """Update access time and count for an entry.
@@ -432,7 +437,7 @@ class DiskCache(CacheBackend):
         )
         conn.commit()
 
-    def _deserialize_entry(self, row: tuple, key: str) -> CacheEntry | None:
+    def _deserialize_entry(self, row: tuple[object, ...], key: str) -> CacheEntry | None:
         """Deserialize cache entry from database row with error recovery.
 
         Attempts to decode and deserialize JSON-encoded cache entry from
@@ -455,17 +460,13 @@ class DiskCache(CacheBackend):
             and logs the error for debugging.
         """
         try:
-            entry_dict = json.loads(row[0].decode("utf-8"))
-            # Handle potential circular import when importing CacheEntry
-            # at runtime (already imported at module level, but using explicit
-            # import here for clarity and to handle edge cases)
-            try:
-                from .transcription_cache import CacheEntry
-            except ImportError:
-                # Fallback: use the already imported class from module globals
-                CacheEntry = globals().get("CacheEntry")
-                if not CacheEntry:
-                    raise ImportError("CacheEntry not available")
+            from typing import cast
+            
+            # Cast row[0] from object to bytes for JSON decoding
+            blob_data = cast(bytes, row[0])
+            entry_dict = json.loads(blob_data.decode("utf-8"))
+            
+            # CacheEntry is already imported at module level
             entry_data = CacheEntry.from_dict(entry_dict)
             return entry_data
         except (json.JSONDecodeError, UnicodeDecodeError, KeyError, ImportError) as e:
@@ -567,8 +568,12 @@ class DiskCache(CacheBackend):
                 conn = self._get_connection()
                 cursor = conn.cursor()
                 cursor.execute("SELECT COUNT(*) FROM cache_entries WHERE key = ?", (key,))
-                count = cursor.fetchone()[0]
-                return count > 0
+                result = cursor.fetchone()
+                if result:
+                    from typing import cast
+                    count = cast(int, result[0])
+                    return count > 0
+                return False
             except Exception as e:
                 logger.error(f"Failed to check disk cache exists: {e}")
                 return False
@@ -605,7 +610,12 @@ class DiskCache(CacheBackend):
                 conn = self._get_connection()
                 cursor = conn.cursor()
                 cursor.execute("SELECT COUNT(*) FROM cache_entries")
-                count = cursor.fetchone()[0]
+                result = cursor.fetchone()
+                if result:
+                    from typing import cast
+                    count = cast(int, result[0])
+                else:
+                    count = 0
                 cursor.execute("DELETE FROM cache_entries")
                 conn.commit()
                 return count
