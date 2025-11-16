@@ -21,7 +21,7 @@ import json
 import logging
 import sys
 import zlib
-from typing import Any, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 from .transcription_cache import CacheEntry
 
@@ -145,7 +145,7 @@ class CacheUtils:
         return key.strip().lower()
 
     @staticmethod
-    def calculate_size(value: Any) -> int:
+    def calculate_size(value: object) -> int:
         """Calculate the approximate size of a value in bytes.
 
         Provides size estimates for different value types to assist with
@@ -269,7 +269,7 @@ class SerializationHelper:
             return None
 
     @staticmethod
-    def serialize_value(value: Any, use_compression: bool = False) -> bytes:
+    def serialize_value(value: object, use_compression: bool = False) -> bytes:
         """Serialize an arbitrary value to bytes with type preservation.
 
         Handles multiple value types intelligently:
@@ -316,7 +316,7 @@ class SerializationHelper:
             raise ValueError(f"Failed to serialize value: {e}") from e
 
     @staticmethod
-    def deserialize_value(data: bytes, is_compressed: bool = False) -> Any:
+    def deserialize_value(data: bytes, is_compressed: bool = False) -> object | None:
         """Deserialize bytes back into the original value type.
 
         Attempts to reconstruct the original value using stored type metadata.
@@ -442,7 +442,7 @@ class SizeLimitManager:
         utilization_percent: Current usage as percentage (0-100)
     """
 
-    def __init__(self, max_size_bytes: int):
+    def __init__(self, max_size_bytes: int) -> None:
         """Initialize a new size limit manager.
 
         Args:

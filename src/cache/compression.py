@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import json
 import zlib
-from typing import Any
 
 
-def compress_value(value: Any) -> bytes:
+def compress_value(value: object) -> bytes:
     """Compress value using JSON + zlib.
 
     Attempts to serialize using a to_dict() method if available,
@@ -27,7 +26,7 @@ def compress_value(value: Any) -> bytes:
     return zlib.compress(json_bytes, level=6)
 
 
-def decompress_value(data: bytes) -> Any:
+def decompress_value(data: bytes) -> object | None:
     """Decompress value using zlib + JSON with safe reconstruction."""
     try:
         raw = zlib.decompress(data)

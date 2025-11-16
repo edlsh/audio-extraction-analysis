@@ -7,10 +7,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from textual._context import active_app
-from textual.app import ComposeResult
 from textual.containers import Container, Horizontal, Vertical, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import Button, Checkbox, Footer, Header, Input, Label, Select
+
+if TYPE_CHECKING:
+    from textual.app import ComposeResult
 
 from ..persistence import default_settings as _default_settings
 from ..persistence import load_settings, save_settings

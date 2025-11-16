@@ -14,7 +14,12 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from argparse import _SubParsersAction
+
+    from .models.transcription import TranscriptionResult
 
 # Backwards compatibility imports for tests
 try:
@@ -131,7 +136,7 @@ def _add_markdown_export_options(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def _create_extract_subparser(subparsers) -> None:
+def _create_extract_subparser(subparsers: _SubParsersAction[argparse.ArgumentParser]) -> None:
     """Create the extract subcommand parser.
 
     Args:
@@ -161,7 +166,7 @@ def _create_extract_subparser(subparsers) -> None:
     )
 
 
-def _create_transcribe_subparser(subparsers) -> None:
+def _create_transcribe_subparser(subparsers: _SubParsersAction[argparse.ArgumentParser]) -> None:
     """Create the transcribe subcommand parser.
 
     Args:
@@ -189,7 +194,7 @@ def _create_transcribe_subparser(subparsers) -> None:
     _add_markdown_export_options(transcribe_parser)
 
 
-def _create_process_subparser(subparsers) -> None:
+def _create_process_subparser(subparsers: _SubParsersAction[argparse.ArgumentParser]) -> None:
     """Create the process subcommand parser.
 
     Args:
@@ -238,7 +243,7 @@ def _create_process_subparser(subparsers) -> None:
     _add_markdown_export_options(process_parser)
 
 
-def _create_export_markdown_subparser(subparsers) -> None:
+def _create_export_markdown_subparser(subparsers: _SubParsersAction[argparse.ArgumentParser]) -> None:
     """Create the export-markdown subcommand parser.
 
     Args:
@@ -313,7 +318,7 @@ def _create_export_markdown_subparser(subparsers) -> None:
     )
 
 
-def _create_tui_subparser(subparsers) -> None:
+def _create_tui_subparser(subparsers: _SubParsersAction[argparse.ArgumentParser]) -> None:
     """Create the TUI subcommand parser.
 
     Args:
@@ -558,7 +563,9 @@ def extract_command(args: argparse.Namespace, console_manager: ConsoleManager | 
         return 1
 
 
-def export_markdown_transcript(args: argparse.Namespace, input_path: Path, result: Any) -> None:
+def export_markdown_transcript(
+    args: argparse.Namespace, input_path: Path, result: TranscriptionResult
+) -> None:
     """Export transcription result as Markdown.
 
     Args:
@@ -659,7 +666,7 @@ def _execute_transcription(
     input_path: Path,
     provider: str,
     language: str,
-) -> Any:
+) -> TranscriptionResult | None:
     """Execute transcription with the service.
 
     Args:
@@ -686,7 +693,7 @@ def _execute_transcription(
 
 
 def _handle_transcribe_success(
-    result: Any,
+    result: TranscriptionResult,
     transcription_service: TranscriptionService,
     output_path: Path,
     console_manager: ConsoleManager | None,
@@ -829,7 +836,7 @@ def _execute_processing_pipeline(
     quality: AudioQuality,
     args: argparse.Namespace,
     console_manager: ConsoleManager | None,
-) -> tuple[dict[str, Any], Any]:
+) -> tuple[dict[str, object], TranscriptionResult]:
     """Execute the audio processing pipeline.
 
     Args:
@@ -881,7 +888,7 @@ def _execute_processing_pipeline(
 
 
 def _handle_process_success(
-    result: Any,
+    result: TranscriptionResult,
     output_dir: Path,
     args: argparse.Namespace,
     input_path: Path,
@@ -993,7 +1000,7 @@ def process_command(args: argparse.Namespace, console_manager: ConsoleManager | 
         return 1
 
 
-def _validate_and_setup_paths(args) -> tuple[Path, Path]:
+def _validate_and_setup_paths(args: argparse.Namespace) -> tuple[Path, Path]:
     """Validate input audio file and setup output directory.
 
     Args:
@@ -1011,7 +1018,7 @@ def _validate_and_setup_paths(args) -> tuple[Path, Path]:
     return audio_path, output_dir
 
 
-def _perform_transcription(audio_path: Path, args) -> Any:
+def _perform_transcription(audio_path: Path, args: argparse.Namespace) -> TranscriptionResult:
     """Perform transcription of the audio file.
 
     Args:
@@ -1041,7 +1048,7 @@ def _perform_transcription(audio_path: Path, args) -> Any:
     return result
 
 
-def _prepare_source_info(audio_path: Path, result: Any) -> dict[str, Any]:
+def _prepare_source_info(audio_path: Path, result: TranscriptionResult) -> dict[str, object]:
     """Prepare source information dictionary.
 
     Args:
@@ -1060,10 +1067,10 @@ def _prepare_source_info(audio_path: Path, result: Any) -> dict[str, Any]:
 
 
 def _save_markdown_transcript(
-    result: Any,
-    source_info: dict[str, Any],
+    result: TranscriptionResult,
+    source_info: dict[str, object],
     base_dir: Path,
-    args,
+    args: argparse.Namespace,
 ) -> Path:
     """Generate and save markdown transcript.
 
@@ -1095,7 +1102,9 @@ def _save_markdown_transcript(
     return md_path
 
 
-def _save_metadata(source_info: dict[str, Any], result: Any, base_dir: Path) -> None:
+def _save_metadata(
+    source_info: dict[str, object], result: TranscriptionResult, base_dir: Path
+) -> None:
     """Save metadata to JSON file.
 
     Args:
@@ -1117,7 +1126,7 @@ def _save_metadata(source_info: dict[str, Any], result: Any, base_dir: Path) -> 
         logger.error(f"Failed writing metadata.json: {e}")
 
 
-def _save_segments(result: Any, base_dir: Path) -> None:
+def _save_segments(result: TranscriptionResult, base_dir: Path) -> None:
     """Save segments to JSON file.
 
     Args:
@@ -1140,7 +1149,9 @@ def _save_segments(result: Any, base_dir: Path) -> None:
         logger.error(f"Failed writing segments.json: {e}")
 
 
-def export_markdown_command(args, console_manager: ConsoleManager | None = None) -> int:
+def export_markdown_command(
+    args: argparse.Namespace, console_manager: ConsoleManager | None = None
+) -> int:
     """Handle the export-markdown subcommand.
 
     This command transcribes an audio file and emits a formatted Markdown transcript,

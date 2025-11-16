@@ -14,8 +14,10 @@ import logging
 import os
 import time
 from datetime import datetime
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, Protocol
+
+if TYPE_CHECKING:
+    from io import BytesIO
 
 from ..config import get_config
 from ..models.transcription import (
@@ -25,11 +27,35 @@ from ..models.transcription import (
     TranscriptionUtterance,
 )
 from ..utils.file_validation import safe_validate_audio_file
-from ..utils.retry import RetryConfig
 from .base import BaseTranscriptionProvider, CircuitBreakerConfig
 from .deepgram_utils import build_prerecorded_options
 from .deepgram_utils import detect_mimetype as _dg_detect_mimetype
 from .provider_utils import ProviderInitializer
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from ..utils.retry import RetryConfig
+
+# Protocol types for Deepgram SDK (for type checking without runtime dependency)
+if TYPE_CHECKING:
+
+    class DeepgramClientProtocol(Protocol):
+        """Protocol for DeepgramClient from deepgram SDK."""
+
+        api_key: str
+        listen: Any  # DeepgramListenClient
+
+    class PrerecordedOptionsProtocol(Protocol):
+        """Protocol for PrerecordedOptions from deepgram SDK."""
+
+        pass
+
+    class PrerecordedResponseProtocol(Protocol):
+        """Protocol for PrerecordedResponse from deepgram SDK."""
+
+        results: Any  # PrerecordedResponseResults
+        metadata: Any  # PrerecordedResponseMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +91,7 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
     """
 
     # ---------------------- Internal helpers (extracted) ----------------------
-    def _create_client(self):
+    def _create_client(self) -> Any:  # DeepgramClientProtocol
         """Create and return a Deepgram client configured for production use.
 
         The client is configured with:
@@ -83,7 +109,7 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
         config = ClientOptionsFromEnv(options={"timeout": 600})
         return DeepgramClient(self.api_key, config=config)
 
-    def _build_options(self, language: str):
+    def _build_options(self, language: str) -> Any:  # PrerecordedOptionsProtocol
         """Build PrerecordedOptions for Nova-3 with all AI features enabled.
 
         Configures the Deepgram API request to enable speaker diarization, topic detection,
@@ -112,7 +138,7 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
         """
         return _dg_detect_mimetype(path)
 
-    def _open_audio_file(self, audio_file_path: Path):
+    def _open_audio_file(self, audio_file_path: Path) -> Any:  # BinaryIO
         """Open audio file for streaming upload to Deepgram API.
 
         Opens the file in binary read mode and returns a file handle rather than loading
@@ -132,7 +158,13 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
         """
         return open(audio_file_path, "rb")
 
-    def _submit_transcription_job(self, client, audio_source, mimetype: str, options) -> Any:
+    def _submit_transcription_job(
+        self,
+        client: Any,  # DeepgramClientProtocol
+        audio_source: Any,  # BinaryIO
+        mimetype: str,
+        options: Any,  # PrerecordedOptionsProtocol
+    ) -> Any:  # PrerecordedResponseProtocol
         """Submit the prerecorded transcription request to Deepgram API with streaming.
 
         Uses the Deepgram SDK's file streaming capabilities to upload audio data efficiently.
@@ -161,7 +193,10 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
         )
 
     def _parse_response(
-        self, response: Any, audio_file_path: Path, language: str
+        self,
+        response: Any,  # PrerecordedResponseProtocol
+        audio_file_path: Path,
+        language: str,
     ) -> TranscriptionResult:
         """Parse Deepgram API response into structured TranscriptionResult.
 
@@ -280,7 +315,7 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
         api_key: str | None = None,
         circuit_config: CircuitBreakerConfig | None = None,
         retry_config: RetryConfig | None = None,
-    ):
+    ) -> None:
         """Initialize the transcriber with API key and configurations.
 
         Args:
@@ -298,7 +333,6 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
             circuit_config = CircuitBreakerConfig(
                 failure_threshold=config.CIRCUIT_BREAKER_FAILURE_THRESHOLD,
                 recovery_timeout=config.CIRCUIT_BREAKER_RECOVERY_TIMEOUT,
-                expected_exception_types=config.CIRCUIT_BREAKER_EXPECTED_EXCEPTION_TYPES,
             )
 
         super().__init__(api_key, circuit_config, retry_config)

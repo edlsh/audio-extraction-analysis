@@ -10,14 +10,19 @@ import asyncio
 import logging
 import time
 from abc import ABC, abstractmethod
-from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from pathlib import Path
 from threading import Lock
-from typing import Any
+from typing import TYPE_CHECKING, Any, TypeVar
 
-from ..models.transcription import TranscriptionResult
+T = TypeVar("T")
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from pathlib import Path
+
+    from ..models.transcription import TranscriptionResult
+
 from ..utils.retry import RetryConfig, retry_async
 
 logger = logging.getLogger(__name__)
@@ -82,7 +87,9 @@ class CircuitBreakerMixin:
                 else:
                     raise CircuitBreakerError("Too many failures, circuit open")
 
-    def circuit_breaker_call(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+    def circuit_breaker_call(
+        self, func: Callable[..., T], *args: object, **kwargs: object
+    ) -> T:
         """Execute a function with circuit breaker protection.
 
         Args:
@@ -108,8 +115,8 @@ class CircuitBreakerMixin:
             raise
 
     async def circuit_breaker_call_async(
-        self, func: Callable[..., Any], *args: Any, **kwargs: Any
-    ) -> Any:
+        self, func: Callable[..., T], *args: object, **kwargs: object  # type: ignore[type-arg]
+    ) -> T:
         """Execute an async function with circuit breaker protection.
 
         Args:
@@ -198,7 +205,7 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
         api_key: str | None = None,
         circuit_config: CircuitBreakerConfig | None = None,
         retry_config: RetryConfig | None = None,
-    ):
+    ) -> None:
         """Initialize the transcription provider.
 
         Args:
@@ -249,7 +256,7 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
         """
 
         @retry_async(config=self._retry_config)
-        async def _transcribe_with_retry():
+        async def _transcribe_with_retry() -> TranscriptionResult:
             return await self._transcribe_impl(audio_file_path, language)
 
         try:
@@ -261,7 +268,9 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
             logger.error(f"Transcription failed: {e}")
             return None
 
-    def transcribe(self, audio_file_path: Path, language: str = "en") -> TranscriptionResult | None:
+    def transcribe(
+        self, audio_file_path: Path, language: str = "en"
+    ) -> TranscriptionResult | None:
         """Transcribe audio file synchronously with retry and circuit breaker.
 
         This is a convenience wrapper around transcribe_async() for synchronous

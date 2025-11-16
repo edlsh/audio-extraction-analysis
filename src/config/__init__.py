@@ -297,7 +297,7 @@ class Config:
         default_factory=lambda: _parse_bool(_getenv("PARAKEET_USE_FP16", "false"))
     )
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate configuration and ensure required directories exist."""
         # Create required directories
         self.data_dir.mkdir(parents=True, exist_ok=True)

@@ -4,8 +4,19 @@ from __future__ import annotations
 
 import dataclasses
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, TypedDict
+
+from ...models.events import Event
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+
+class TruncationMarker(TypedDict):
+    """TypedDict for log truncation marker."""
+
+    truncated: bool
+    count: int
 
 
 @dataclass
@@ -57,9 +68,7 @@ class AppState:
     # Results
     artifacts: list[dict[str, str]] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
-    logs: list[LogEntry | dict[str, Any]] = field(
-        default_factory=list
-    )  # LogEntry or truncation marker dict
+    logs: list[LogEntry | TruncationMarker] = field(default_factory=list)
     summary: dict[str, Any] = field(default_factory=dict)
 
     # Run ID for event tracking
@@ -123,7 +132,7 @@ def _append_to_ring(items: list[Any], item: Any, max_size: int) -> list[Any]:
     return result
 
 
-def apply_event(state: AppState, event: Any) -> AppState:
+def apply_event(state: AppState, event: Event) -> AppState:
     """Pure reducer function: (state, event) -> new_state.
 
     Applies an event to the current state and returns a new state instance.

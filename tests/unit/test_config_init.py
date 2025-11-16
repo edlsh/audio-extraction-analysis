@@ -283,7 +283,7 @@ class TestConfigInitialization:
 
             # Application settings - basic metadata
             assert config.app_name == "audio-extraction-analysis"
-            assert config.app_version == "1.0.0"
+            assert config.app_version == "2.0.0"
             assert config.environment == "production"
 
             # Paths - filesystem locations for data persistence

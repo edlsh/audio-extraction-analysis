@@ -6,12 +6,14 @@ from typing import TYPE_CHECKING, cast
 
 from rich.text import Text
 from textual._context import active_app
-from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Container, Vertical
 from textual.screen import Screen
 from textual.widgets import Footer, Header, Label, OptionList, Static
 from textual.widgets.option_list import Option
+
+if TYPE_CHECKING:
+    from textual.app import ComposeResult
 
 from ..persistence import save_settings
 from ..themes import CUSTOM_THEMES

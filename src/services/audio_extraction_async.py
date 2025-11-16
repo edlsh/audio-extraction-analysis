@@ -6,8 +6,11 @@ import asyncio
 import json
 import logging
 import subprocess
-from collections.abc import Callable
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 from ..utils.file_validation import safe_validate_media_file
 from .audio_extraction import AudioExtractor, AudioQuality

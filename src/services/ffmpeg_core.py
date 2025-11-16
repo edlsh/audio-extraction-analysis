@@ -6,7 +6,10 @@ reduce duplication between `audio_extraction.py` and `audio_extraction_async.py`
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def build_base_cmd(input_path: Path, allow_overwrite: bool = True) -> list[str]:

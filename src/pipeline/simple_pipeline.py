@@ -96,7 +96,7 @@ async def process_pipeline(
             with cm.progress_context("Extracting audio...", total=100) as progress:
                 extractor = AsyncAudioExtractor()
 
-                def progress_callback(completed: int, total: int):
+                def progress_callback(completed: int, total: int) -> None:
                     progress.update(completed, total, "Extracting audio...")
 
                 progress.update(10)
@@ -139,7 +139,7 @@ async def process_pipeline(
             with cm.progress_context("Transcribing audio...", total=100) as progress:
                 service = TranscriptionService()
 
-                def progress_callback(completed: int, total: int):
+                def progress_callback(completed: int, total: int) -> None:
                     progress.update(completed, total, "Transcribing audio...")
 
                 progress.update(10)

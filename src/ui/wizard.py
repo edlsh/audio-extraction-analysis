@@ -9,14 +9,18 @@ remaining a thin wrapper around the existing argparse-powered commands.
 from __future__ import annotations
 
 import sys
-from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from rich.panel import Panel
 
 from ..services.audio_extraction import AudioQuality
-from .console import ConsoleManager
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from .console import ConsoleManager
 
 _ACTION_PROCESS = "process"
 _ACTION_EXTRACT = "extract"

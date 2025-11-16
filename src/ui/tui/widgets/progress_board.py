@@ -4,14 +4,17 @@ from __future__ import annotations
 
 import time
 from collections import deque
+from typing import TYPE_CHECKING
 
 from rich.panel import Panel
 from rich.progress import BarColumn, Progress, TextColumn
 from rich.table import Table
-from textual.app import ComposeResult
 from textual.widgets import Static
 
-from ..state import AppState
+if TYPE_CHECKING:
+    from textual.app import ComposeResult
+
+    from ..state import AppState
 
 
 class ProgressBoard(Static):

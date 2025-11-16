@@ -11,10 +11,12 @@ import time
 from datetime import datetime
 from pathlib import Path
 from threading import Lock
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ..models.transcription import TranscriptionResult, TranscriptionUtterance
-from ..utils.retry import RetryConfig
+
+if TYPE_CHECKING:
+    from ..utils.retry import RetryConfig
 from .base import BaseTranscriptionProvider, CircuitBreakerConfig
 
 logger = logging.getLogger(__name__)
@@ -130,7 +132,7 @@ PARAKEET_MODELS = {
 class GPUManager:
     """Manages GPU resources for Parakeet models."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize GPU manager with device detection."""
         self._device = None
         self._device_id = None
@@ -412,7 +414,7 @@ class ParakeetModelCache:
     _instance = None
     _lock = Lock()
 
-    def __new__(cls):
+    def __new__(cls) -> ParakeetModelCache:
         """Ensure singleton pattern."""
         if cls._instance is None:
             with cls._lock:
@@ -421,7 +423,7 @@ class ParakeetModelCache:
                     cls._instance._initialized = False
         return cls._instance
 
-    def _initialize(self):
+    def _initialize(self) -> None:
         """Initialize the cache (called once)."""
         if self._initialized:
             return
@@ -436,7 +438,7 @@ class ParakeetModelCache:
 
         logger.info(f"ParakeetModelCache initialized with device: {self._gpu_manager.device}")
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize cache if not already done."""
         if not hasattr(self, "_initialized") or not self._initialized:
             self._initialize()
@@ -649,7 +651,7 @@ class ParakeetModelCache:
 class ParakeetMetrics:
     """Tracks metrics for Parakeet transcriptions."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.total_transcriptions = 0
         self.total_duration = 0.0
         self.total_processing_time = 0.0
@@ -689,7 +691,7 @@ class ParakeetTranscriber(BaseTranscriptionProvider):
         api_key: str | None = None,
         circuit_config: CircuitBreakerConfig | None = None,
         retry_config: RetryConfig | None = None,
-    ):
+    ) -> None:
         """Initialize the Parakeet transcriber.
 
         Args:
@@ -907,7 +909,10 @@ class ParakeetTranscriber(BaseTranscriptionProvider):
             return None
 
     async def _run_transcription(
-        self, model: Any, kwargs: dict[str, Any], device: str
+        self,
+        model: Any,  # NeMo ASRModelProtocol
+        kwargs: dict[str, Any],
+        device: str,
     ) -> list[str]:
         """Run transcription in thread pool to avoid blocking.
 

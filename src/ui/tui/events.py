@@ -4,9 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING
+
+from ...models.events import Event
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +18,7 @@ _VALID_DROP_POLICIES = {"oldest", "newest"}
 _STOP_SENTINEL = object()
 
 
-class _DropAwareQueue(asyncio.Queue[Any]):
+class _DropAwareQueue(asyncio.Queue[Event]):
     """Async queue that enforces drop policy when full."""
 
     def __init__(self, *, maxsize: int, drop_policy: str) -> None:
@@ -28,7 +32,7 @@ class _DropAwareQueue(asyncio.Queue[Any]):
         except asyncio.QueueEmpty:
             pass
 
-    def put_nowait(self, item: Any) -> None:  # type: ignore[override]
+    def put_nowait(self, item: Event) -> None:  # type: ignore[override]
         if self.maxsize > 0 and self.full():
             if item is _STOP_SENTINEL:
                 self._evict_oldest()
@@ -39,7 +43,7 @@ class _DropAwareQueue(asyncio.Queue[Any]):
                 return
         return super().put_nowait(item)
 
-    async def put(self, item: Any) -> None:  # type: ignore[override]
+    async def put(self, item: Event) -> None:  # type: ignore[override]
         if self.maxsize > 0 and self.full():
             if item is _STOP_SENTINEL or self._drop_policy == "oldest":
                 self._evict_oldest()
@@ -102,8 +106,8 @@ class EventConsumer:
 
     def __init__(
         self,
-        queue: asyncio.Queue[Any] | None,
-        on_batch: Callable[[list[Any]], None],
+        queue: asyncio.Queue[Event] | None,
+        on_batch: Callable[[list[Event]], None],
         config: EventConsumerConfig | None = None,
     ):
         """Initialize event consumer.
@@ -117,12 +121,12 @@ class EventConsumer:
         self.queue = queue or self.create_queue(self.config)
         self.on_batch = on_batch
         self._running = False
-        self._batch: list[Any] = []
-        self._last_progress: dict[str, Any] = {}  # {stage: latest_progress_event}
+        self._batch: list[Event] = []
+        self._last_progress: dict[str, Event] = {}  # {stage: latest_progress_event}
         self._stopped: asyncio.Event | None = None
 
     @staticmethod
-    def create_queue(config: EventConsumerConfig | None = None) -> asyncio.Queue[Any]:
+    def create_queue(config: EventConsumerConfig | None = None) -> asyncio.Queue[Event]:
         """Create a queue that honors the supplied configuration."""
 
         cfg = config or EventConsumerConfig()
@@ -176,7 +180,7 @@ class EventConsumer:
                 self._stopped.set()
             self._running = False
 
-    def _add_to_batch(self, event: Any) -> None:
+    def _add_to_batch(self, event: Event) -> None:
         """Add event to batch with coalescing logic.
 
         Args:
@@ -189,7 +193,7 @@ class EventConsumer:
         else:
             self._batch.append(event)
 
-    def _coalesce_batch(self) -> list[Any]:
+    def _coalesce_batch(self) -> list[Event]:
         """Merge coalesced progress events into batch.
 
         Returns:

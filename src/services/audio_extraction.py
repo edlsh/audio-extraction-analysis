@@ -52,7 +52,7 @@ class AudioExtractor:
     }
     MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024  # 2GB limit
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._check_ffmpeg()
 
     def _validate_path(self, file_path: Path) -> None:

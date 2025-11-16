@@ -7,11 +7,13 @@ import json
 import logging
 import math
 import time
-from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from ..models.transcription import TranscriptionResult
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from ..models.transcription import TranscriptionResult
 from ..providers.factory import TranscriptionProviderFactory
 from ..utils.file_validation import safe_validate_audio_file
 
@@ -21,7 +23,7 @@ logger = logging.getLogger(__name__)
 class TranscriptionService:
     """Coordinates transcription operations across providers."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.factory = TranscriptionProviderFactory
 
     def get_available_providers(self) -> list[str]:

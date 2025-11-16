@@ -11,7 +11,10 @@ import threading
 import time
 from contextlib import contextmanager
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from rich.progress import TaskID
 
 from rich.console import Console
 from rich.logging import RichHandler
@@ -29,7 +32,7 @@ from rich.table import Table
 class ConsoleManager:
     """Console output with Rich formatting."""
 
-    def __init__(self, verbose: bool = False, json_output: bool = False):
+    def __init__(self, verbose: bool = False, json_output: bool = False) -> None:
         self.verbose = verbose
         self.json_output = json_output
         self._json_max_field_length = 200
@@ -259,7 +262,7 @@ class ConsoleManager:
 class RichProgressTracker:
     """Progress tracker using Rich progress bars."""
 
-    def __init__(self, progress: Progress, task_id: Any):
+    def __init__(self, progress: Progress, task_id: TaskID) -> None:
         self.progress = progress
         self.task_id = task_id
         self._last_percentage = 0.0
@@ -291,7 +294,7 @@ class RichProgressTracker:
 class JsonProgressTracker:
     """Progress tracker for JSON output."""
 
-    def __init__(self, description: str):
+    def __init__(self, description: str) -> None:
         self.description = description
         self.start_time = time.time()
         self._lock = threading.Lock()
@@ -330,7 +333,7 @@ class JsonProgressTracker:
 class FallbackProgressTracker:
     """Fallback progress tracker for non-TTY environments."""
 
-    def __init__(self, description: str):
+    def __init__(self, description: str) -> None:
         self.description = description
         self.last_reported = 0.0
         self._lock = threading.Lock()

@@ -9,12 +9,14 @@ import subprocess
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ..config import get_config
 from ..models.transcription import TranscriptionResult, TranscriptionUtterance
 from ..utils.file_validation import safe_validate_audio_file
-from ..utils.retry import RetryConfig
+
+if TYPE_CHECKING:
+    from ..utils.retry import RetryConfig
 from .base import BaseTranscriptionProvider, CircuitBreakerConfig
 from .provider_utils import ProviderInitializer
 
@@ -49,7 +51,7 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
         api_key: str | None = None,
         circuit_config: CircuitBreakerConfig | None = None,
         retry_config: RetryConfig | None = None,
-    ):
+    ) -> None:
         """Initialize the ElevenLabs transcriber with API key and configurations.
 
         Args:

@@ -36,11 +36,13 @@ import logging
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ..config import get_config
 from ..models.transcription import TranscriptionResult, TranscriptionUtterance
-from ..utils.retry import RetryConfig
+
+if TYPE_CHECKING:
+    from ..utils.retry import RetryConfig
 from .base import BaseTranscriptionProvider, CircuitBreakerConfig
 
 logger = logging.getLogger(__name__)
@@ -128,7 +130,7 @@ class WhisperTranscriber(BaseTranscriptionProvider):
         api_key: str | None = None,
         circuit_config: CircuitBreakerConfig | None = None,
         retry_config: RetryConfig | None = None,
-    ):
+    ) -> None:
         """Initialize the Whisper transcriber.
 
         Args:

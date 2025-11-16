@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from rich.table import Table
 from rich.text import Text
-from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import VerticalScroll
 from textual.screen import Screen
 from textual.widgets import Footer, Header, Static
+
+if TYPE_CHECKING:
+    from textual.app import ComposeResult
 
 
 class HelpScreen(Screen):

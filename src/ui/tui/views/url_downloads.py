@@ -6,10 +6,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from textual._context import active_app
-from textual.app import ComposeResult
 from textual.containers import Container, Vertical
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label
+
+if TYPE_CHECKING:
+    from textual.app import ComposeResult
 
 if TYPE_CHECKING:  # pragma: no cover - type hints only
     from ..app import AudioExtractionApp

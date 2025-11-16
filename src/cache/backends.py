@@ -56,7 +56,7 @@ class InMemoryCache(CacheBackend):
         _size_manager (SizeLimitManager): Tracks current cache size
     """
 
-    def __init__(self, max_size_mb: int = 100):
+    def __init__(self, max_size_mb: int = 100) -> None:
         """Initialize in-memory cache.
 
         Args:
@@ -259,7 +259,7 @@ class DiskCache(CacheBackend):
         _local (threading.local): Thread-local storage for connections
     """
 
-    def __init__(self, cache_dir: str | Path | None = None, max_size_mb: int = 1000):
+    def __init__(self, cache_dir: str | Path | None = None, max_size_mb: int = 1000) -> None:
         """Initialize disk cache.
 
         Args:
@@ -310,7 +310,7 @@ class DiskCache(CacheBackend):
             self._local.conn.execute("PRAGMA temp_store=MEMORY")
         return self._local.conn
 
-    def _init_database(self):
+    def _init_database(self) -> None:
         """Initialize SQLite database schema with tables and indexes.
 
         Creates the cache_entries table with columns for key, value, metadata,
@@ -413,7 +413,7 @@ class DiskCache(CacheBackend):
 
         return cursor.fetchone()
 
-    def _update_access_stats(self, key: str):
+    def _update_access_stats(self, key: str) -> None:
         """Update access time and count for an entry.
 
         Args:
@@ -474,7 +474,7 @@ class DiskCache(CacheBackend):
             self._delete_corrupted_entry(key)
             return None
 
-    def _delete_corrupted_entry(self, key: str):
+    def _delete_corrupted_entry(self, key: str) -> None:
         """Delete corrupted cache entry.
 
         Args:
@@ -647,7 +647,7 @@ class DiskCache(CacheBackend):
             logger.error(f"Failed to get disk cache keys: {e}")
             return set()
 
-    def _evict_if_needed(self, required_size: int):
+    def _evict_if_needed(self, required_size: int) -> None:
         """Evict least recently accessed entries to make space for new entry.
 
         Iteratively removes the oldest accessed entry until enough space is
@@ -689,7 +689,7 @@ class DiskCache(CacheBackend):
                 # No more entries to evict - cache is empty
                 break
 
-    def close(self):
+    def close(self) -> None:
         """Close thread-local database connection and clean up resources.
 
         Closes the SQLite connection for the current thread and removes it

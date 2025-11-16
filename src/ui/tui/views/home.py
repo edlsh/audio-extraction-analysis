@@ -7,10 +7,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from textual._context import active_app
-from textual.app import ComposeResult
 from textual.containers import Container, Vertical
 from textual.screen import Screen
 from textual.widgets import Button, DataTable, Footer, Header, Input, Label
+
+if TYPE_CHECKING:
+    from textual.app import ComposeResult
 
 from ..persistence import add_recent_file, load_recent_files
 from ..widgets.filtered_tree import FilteredDirectoryTree

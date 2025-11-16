@@ -26,11 +26,16 @@ import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Protocol
+
+if TYPE_CHECKING:
+    from ..ui.console import RichProgressTracker
 
 from ..analysis.concise_analyzer import ConciseAnalyzer
 from ..analysis.full_analyzer import FullAnalyzer
-from ..models.transcription import TranscriptionResult
+
+if TYPE_CHECKING:
+    from ..models.transcription import TranscriptionResult
 from ..services.audio_extraction import AudioExtractor, AudioQuality
 from ..services.transcription import TranscriptionService
 from ..ui.console import ConsoleManager
@@ -50,7 +55,7 @@ class AudioProcessingPipeline:
     is supplied.
     """
 
-    def __init__(self, temp_dir: Path | None = None, console_manager: ConsoleManager | None = None):
+    def __init__(self, temp_dir: Path | None = None, console_manager: ConsoleManager | None = None) -> None:
         """Initialize pipeline with optional temporary directory.
 
         DEPRECATED: Use `process_pipeline()` instead.
@@ -252,7 +257,7 @@ class AudioProcessingPipeline:
             logger.info(f"Audio saved to: {final_audio_path}")
 
     # ---------------------- Async Progress-Enabled API ----------------------
-    async def process_file(self, input_path: str, output_dir: str, **kwargs) -> dict[str, Any]:
+    async def process_file(self, input_path: str, output_dir: str, **kwargs: object) -> dict[str, object]:
         """Async processing with rich progress.
 
         This method performs extraction → transcription → analysis while emitting
@@ -400,7 +405,7 @@ class AudioProcessingPipeline:
 
             return results
 
-    async def _cleanup_partial_files(self, file_paths: list):
+    async def _cleanup_partial_files(self, file_paths: list[Path | str]) -> None:
         """Clean up partial files on failure."""
         for file_path in file_paths:
             try:
@@ -417,7 +422,7 @@ class AudioProcessingPipeline:
                     )
 
     async def _extract_audio_with_progress(
-        self, input_path: str, output_dir: str, progress, **kwargs
+        self, input_path: str, output_dir: str, progress: object, **kwargs: object
     ) -> Path:
         """Extract audio with progress updates using real progress tracking."""
         # Import the async extractor
@@ -431,7 +436,7 @@ class AudioProcessingPipeline:
         out_path = Path(self.temp_dir) / f"{Path(input_path).stem}.mp3"
 
         # Define progress callback
-        def progress_callback(completed: int, total: int):
+        def progress_callback(completed: int, total: int) -> None:
             progress.update(completed, total, "Extracting audio...")
 
         progress.update(30)
@@ -443,14 +448,16 @@ class AudioProcessingPipeline:
             raise RuntimeError("Audio extraction failed")
         return Path(result_path)
 
-    async def _transcribe_with_progress(self, audio_path: str | Path, progress, **kwargs):
+    async def _transcribe_with_progress(
+        self, audio_path: str | Path, progress: object, **kwargs: object
+    ) -> TranscriptionResult:
         """Transcribe with progress updates using TranscriptionService with real progress."""
         progress.update(10)
 
         service = TranscriptionService()
 
         # Define progress callback
-        def progress_callback(completed: int, total: int):
+        def progress_callback(completed: int, total: int) -> None:
             progress.update(completed, total, "Transcribing audio...")
 
         # Handle "auto" provider by passing None
@@ -472,8 +479,13 @@ class AudioProcessingPipeline:
         return result
 
     async def _analyze_with_progress(
-        self, transcript: TranscriptionResult, output_dir: Path, base_name: str, progress, **kwargs
-    ):
+        self,
+        transcript: TranscriptionResult,
+        output_dir: Path,
+        base_name: str,
+        progress: object,
+        **kwargs: object,
+    ) -> dict[str, object]:
         """Analyze with progress updates using existing analyzers."""
         progress.update(20)
         analysis_style = kwargs.get("analysis_style", "full")
@@ -506,11 +518,16 @@ class AudioProcessingPipeline:
             except Exception as e:
                 logger.warning(f"Failed to clean up temp directory: {e}")
 
-    def __enter__(self):
+    def __enter__(self) -> AudioProcessingPipeline:
         """Context manager entry."""
         return self
 
-    def __exit__(self, _exc_type, _exc_val, _exc_tb):
+    def __exit__(
+        self,
+        _exc_type: type[BaseException] | None,
+        _exc_val: BaseException | None,
+        _exc_tb: object | None,
+    ) -> None:
         """Context manager exit with cleanup."""
         self._cleanup_temp_files()
 

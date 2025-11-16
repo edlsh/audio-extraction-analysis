@@ -26,7 +26,7 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from threading import RLock
-from typing import Any, ClassVar
+from typing import ClassVar
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +71,7 @@ class CacheKey:
         """String representation of cache key."""
         return f"{self.file_hash}:{self.provider}:{self.settings_hash}"
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, object]:
         """Convert to dictionary for JSON serialization."""
         return {
             "file_hash": self.file_hash,
@@ -80,7 +80,7 @@ class CacheKey:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> CacheKey:
+    def from_dict(cls, data: dict[str, object]) -> CacheKey:
         """Create from dictionary."""
         return cls(
             file_hash=data["file_hash"],
@@ -89,7 +89,7 @@ class CacheKey:
         )
 
     @classmethod
-    def from_file(cls, file_path: Path, provider: str, settings: dict[str, Any]) -> CacheKey:
+    def from_file(cls, file_path: Path, provider: str, settings: dict[str, object]) -> CacheKey:
         """Generate cache key from file and settings.
 
         Args:
@@ -176,13 +176,13 @@ class CacheEntry:
     """Cache entry with access tracking and optional TTL expiration."""
 
     key: CacheKey
-    value: Any
+    value: object
     size: int
     created_at: datetime = field(default_factory=datetime.now)
     accessed_at: datetime = field(default_factory=datetime.now)
     access_count: int = 0
     ttl: int | None = None  # seconds
-    metadata: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, object] = field(default_factory=dict)
 
     def is_expired(self) -> bool:
         """Check if entry has expired.
@@ -209,7 +209,7 @@ class CacheEntry:
         """
         return (datetime.now() - self.created_at).total_seconds()
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, object]:
         """Convert to dictionary for JSON serialization.
 
         Handles multiple value types with fallback strategy:
@@ -252,7 +252,7 @@ class CacheEntry:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> CacheEntry:
+    def from_dict(cls, data: dict[str, object]) -> CacheEntry:
         """Create cache entry from dictionary representation.
 
         Reconstructs a CacheEntry from JSON data with intelligent type restoration:
@@ -329,7 +329,7 @@ class CacheStats:
             return 0.0
         return (self.hits / total) * 100
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, object]:
         """Convert to dictionary.
 
         Returns:
@@ -464,7 +464,7 @@ class TranscriptionCache:
         max_entries: int = 10000,
         default_ttl: int | None = 3600,
         enable_compression: bool = True,
-    ):
+    ) -> None:
         """Initialize cache with LRU eviction and optional TTL expiration.
 
         Args:
@@ -494,7 +494,7 @@ class TranscriptionCache:
             f"max_size={max_size_mb}MB, ttl={default_ttl}s"
         )
 
-    def get(self, file_path: Path, provider: str, settings: dict[str, Any]) -> Any | None:
+    def get(self, file_path: Path, provider: str, settings: dict[str, object]) -> object | None:
         """Get transcription from cache.
 
         Args:
@@ -545,10 +545,10 @@ class TranscriptionCache:
         self,
         file_path: Path,
         provider: str,
-        settings: dict[str, Any],
-        value: Any,
+        settings: dict[str, object],
+        value: object,
         ttl: int | None = None,
-        metadata: dict[str, Any] | None = None,
+        metadata: dict[str, object] | None = None,
     ) -> bool:
         """Put transcription in cache.
 
@@ -648,7 +648,7 @@ class TranscriptionCache:
         logger.info(f"Invalidated {count} cache entries")
         return count
 
-    def warm(self, entries: list[tuple[Path, str, dict[str, Any], Any]]) -> int:
+    def warm(self, entries: list[tuple[Path, str, dict[str, object], object]]) -> int:
         """Pre-populate cache with frequently accessed transcription results.
 
         Cache warming improves performance by pre-loading data before it's requested:
@@ -683,7 +683,7 @@ class TranscriptionCache:
         logger.info(f"Warmed cache with {count} entries")
         return count
 
-    def _evict_if_needed(self, required_size: int):
+    def _evict_if_needed(self, required_size: int) -> None:
         """Evict entries if needed to make space for new entry.
 
         Performs eviction in two phases:
@@ -731,7 +731,7 @@ class TranscriptionCache:
 
         return False
 
-    def _promote_entry(self, key: str, entry: CacheEntry, from_level: int):
+    def _promote_entry(self, key: str, entry: CacheEntry, from_level: int) -> None:
         """Promote entry to higher (faster) cache levels after a cache hit.
 
         When an entry is found in a lower-level backend (e.g., L2 disk cache),
@@ -751,18 +751,18 @@ class TranscriptionCache:
         for i in range(from_level):
             self.backends[i].put(key, entry)
 
-    def _compress(self, value: Any) -> bytes:
+    def _compress(self, value: object) -> bytes:
         """Compress value for storage using safe JSON serialization."""
         return compress_value(value)
 
-    def _decompress(self, data: bytes) -> Any:
+    def _decompress(self, data: bytes) -> object | None:
         """Decompress value from storage using safe JSON deserialization."""
         value = decompress_value(data)
         if value is None:
             logger.error("Failed to decompress cache value")
         return value
 
-    def _calculate_size(self, value: Any) -> int:
+    def _calculate_size(self, value: object) -> int:
         """Calculate size of value in bytes.
 
         Args:
@@ -779,7 +779,7 @@ class TranscriptionCache:
         # Rough estimate for other types
         return sys.getsizeof(value)
 
-    def _prepare_cache_value(self, value: Any) -> Any:
+    def _prepare_cache_value(self, value: object) -> object:
         """Prepare value for caching by applying compression if enabled.
 
         Part of the put() operation pipeline. Compresses the transcription result
@@ -814,10 +814,10 @@ class TranscriptionCache:
     def _create_cache_entry(
         self,
         cache_key: CacheKey,
-        cached_value: Any,
+        cached_value: object,
         size: int,
         ttl: int | None,
-        metadata: dict[str, Any] | None,
+        metadata: dict[str, object] | None,
     ) -> CacheEntry:
         """Create cache entry with metadata.
 

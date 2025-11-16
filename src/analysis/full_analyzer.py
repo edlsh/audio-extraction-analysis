@@ -8,8 +8,10 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from ..models.transcription import TranscriptionResult, TranscriptionUtterance
+if TYPE_CHECKING:
+    from ..models.transcription import TranscriptionResult, TranscriptionUtterance
 
 logger = logging.getLogger(__name__)
 

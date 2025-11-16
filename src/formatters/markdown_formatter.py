@@ -4,13 +4,15 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ..config import Config
-from ..models.transcription import (
-    TranscriptionResult,
-    TranscriptionUtterance,
-)
+
+if TYPE_CHECKING:
+    from ..models.transcription import (
+        TranscriptionResult,
+        TranscriptionUtterance,
+    )
 from ..utils.paths import sanitize_dirname as util_sanitize_dirname
 from .templates import TEMPLATES
 
@@ -26,7 +28,7 @@ class TemplateNotFoundError(Exception):
 class MarkdownFormatter:
     """Formats transcription results as markdown documents."""
 
-    def __init__(self, config: Config | None = None):
+    def __init__(self, config: Config | None = None) -> None:
         self.config = config or Config
 
     def format_transcript(

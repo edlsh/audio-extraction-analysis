@@ -10,7 +10,10 @@ import threading
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timezone
-from typing import Any, Literal, Protocol
+from typing import IO, TYPE_CHECKING, Literal, Protocol, TypeVar
+
+if TYPE_CHECKING:
+    from ..ui.console import ConsoleManager
 
 EventType = Literal[
     "stage_start",
@@ -41,9 +44,9 @@ class Event:
     ts: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     run_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     stage: str | None = None
-    data: dict[str, Any] = field(default_factory=dict)
+    data: dict[str, object] = field(default_factory=dict)
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, object]:
         """Convert to dictionary for JSON serialization."""
         return asdict(self)
 
@@ -114,7 +117,7 @@ class JsonLinesSink:
     Used for --jsonl CLI flag to stream events to stdout or file.
     """
 
-    def __init__(self, file=None, path: str | None = None) -> None:
+    def __init__(self, file: IO[str] | None = None, path: str | None = None) -> None:
         """Initialize sink.
 
         Args:
@@ -178,7 +181,7 @@ class ConsoleEventSink:
     Preserves current CLI behavior while emitting events.
     """
 
-    def __init__(self, console_manager) -> None:
+    def __init__(self, console_manager: object) -> None:  # ConsoleManager type
         """Initialize with ConsoleManager instance.
 
         Args:
@@ -264,7 +267,7 @@ def emit_event(
     event_type: EventType,
     *,
     stage: str | None = None,
-    data: dict[str, Any] | None = None,
+    data: dict[str, object] | None = None,
     run_id: str | None = None,
 ) -> None:
     """Emit an event to the current thread's sink.
@@ -292,7 +295,7 @@ def emit_event(
 class EventSinkContext:
     """Context manager for scoped event sink."""
 
-    def __init__(self, sink: EventSink | None):
+    def __init__(self, sink: EventSink | None) -> None:
         """Initialize with sink.
 
         Args:
@@ -301,13 +304,15 @@ class EventSinkContext:
         self.sink = sink
         self.previous_sink = None
 
-    def __enter__(self):
+    def __enter__(self) -> EventSink | None:
         """Enter context and set sink."""
         self.previous_sink = get_event_sink()
         set_event_sink(self.sink)
         return self.sink
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: object | None
+    ) -> None:
         """Exit context and restore previous sink."""
         if self.sink:
             self.sink.close()

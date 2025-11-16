@@ -27,7 +27,7 @@ class MockTranscriber(BaseTranscriptionProvider):
         api_key: str | None = None,
         circuit_config: CircuitBreakerConfig | None = None,
         retry_config: RetryConfig | None = None,
-    ):
+    ) -> None:
         """Initialize mock provider with optional configuration.
 
         Args:

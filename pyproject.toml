@@ -128,6 +128,14 @@ ignore = [
   "RUF034", # useless-if-else (false positive)
 ]
 
+[tool.ruff.lint.per-file-ignores]
+# Path is used at runtime in these files (not just type annotations)
+"src/cache/transcription_cache.py" = ["TC003"]  # Path used in file operations
+"src/providers/whisper.py" = ["TC003"]  # Path used in file operations
+"src/services/audio_extraction_async.py" = ["TC003"]  # Path used in file operations
+# Event is used at runtime in state.py (accessing event.type, event.stage, etc.)
+"src/ui/tui/state.py" = ["TC001"]  # Event used at runtime, not just type annotation
+
 [tool.pytest.ini_options]
 addopts = "-q -m 'not e2e and not integration and not benchmark and not network and not slow'"
 testpaths = ["tests"]

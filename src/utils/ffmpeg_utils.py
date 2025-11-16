@@ -4,16 +4,19 @@ from __future__ import annotations
 
 import logging
 import subprocess
-from collections.abc import Callable
 from functools import wraps
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
+P = ParamSpec("P")
 T = TypeVar("T")
 
 
-def handle_ffmpeg_errors(operation_name: str = "FFmpeg operation") -> Callable:
+def handle_ffmpeg_errors(operation_name: str = "FFmpeg operation") -> Any:  # Callable[[Callable[P, T | None]], Callable[P, T | None]]
     """Decorator to handle common FFmpeg errors consistently.
 
     Args:
@@ -23,9 +26,9 @@ def handle_ffmpeg_errors(operation_name: str = "FFmpeg operation") -> Callable:
         Decorated function that handles FFmpeg errors
     """
 
-    def decorator(func: Callable[..., T | None]) -> Callable[..., T | None]:
+    def decorator(func: Any) -> Any:  # Callable[P, T | None] -> Callable[P, T | None]
         @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> T | None:
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T | None:
             try:
                 return func(*args, **kwargs)
             except subprocess.CalledProcessError as e:
@@ -52,7 +55,7 @@ def handle_ffmpeg_errors(operation_name: str = "FFmpeg operation") -> Callable:
     return decorator
 
 
-def handle_ffmpeg_errors_async(operation_name: str = "FFmpeg operation") -> Callable:
+def handle_ffmpeg_errors_async(operation_name: str = "FFmpeg operation") -> Any:  # Callable[[Callable[P, T | None]], Callable[P, T | None]]
     """Async decorator to handle common FFmpeg errors consistently.
 
     Args:
@@ -62,9 +65,9 @@ def handle_ffmpeg_errors_async(operation_name: str = "FFmpeg operation") -> Call
         Decorated async function that handles FFmpeg errors
     """
 
-    def decorator(func: Callable[..., T | None]) -> Callable[..., T | None]:
+    def decorator(func: Any) -> Any:  # Callable[P, T | None] -> Callable[P, T | None]
         @wraps(func)
-        async def wrapper(*args: Any, **kwargs: Any) -> T | None:
+        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T | None:
             try:
                 return await func(*args, **kwargs)
             except subprocess.CalledProcessError as e:

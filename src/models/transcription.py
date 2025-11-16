@@ -119,7 +119,7 @@ class TranscriptionResult:
     # Generic metadata storage
     metadata: dict[str, Any] | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Initialize empty collections if None."""
         if self.provider_features is None:
             self.provider_features = []
