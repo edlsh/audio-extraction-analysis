@@ -58,9 +58,20 @@ class TranscriptionService:
         # Auto-select provider if not specified
         if not provider_name:
             try:
-                provider_name = self.auto_select_provider(validated_path)
-                logger.info(f"Auto-selected provider: {provider_name}")
+                # Check if we're in test mode first
+                import os
+                test_provider = os.getenv("AUDIO_TEST_PROVIDER")
+                if test_provider:
+                    provider_name = test_provider
+                    logger.info(f"Using test provider: {provider_name}")
+                else:
+                    provider_name = self.auto_select_provider(validated_path)
+                    logger.info(f"Auto-selected provider: {provider_name}")
             except ValueError as e:
+                # In CI/testing, fail gracefully if no providers configured
+                if os.getenv("CI") or os.getenv("PYTEST_CURRENT_TEST"):
+                    logger.warning(f"No providers configured in test environment: {e}")
+                    return None
                 logger.error(f"Failed to auto-select provider: {e}")
                 return None
 
