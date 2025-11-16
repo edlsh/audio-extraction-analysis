@@ -10,8 +10,8 @@ in environments where Whisper/PyTorch are not installed, enabling graceful
 degradation in multi-provider setups.
 
 Dependencies:
-    - openai-whisper: The core Whisper model (install: pip install openai-whisper)
-    - torch: PyTorch for model execution (install: pip install torch)
+    - openai-whisper: The core Whisper model (install: uv add openai-whisper)
+    - torch: PyTorch for model execution (install: uv add torch)
     - ffmpeg: Audio format conversion (system package)
 
 Configuration:
@@ -171,7 +171,7 @@ class WhisperTranscriber(BaseTranscriptionProvider):
         """
         if not _ensure_whisper_available():
             logger.error(
-                "Whisper dependencies not installed. Install with: pip install openai-whisper torch"
+                "Whisper dependencies not installed. Install with: uv add openai-whisper torch"
             )
             return False
 

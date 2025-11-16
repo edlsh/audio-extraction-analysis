@@ -217,7 +217,7 @@ class TestProviderAvailabilityCheckerCheckImport:
             "test_provider dependencies not installed" in record.message
             for record in caplog.records
         )
-        assert any("pip install nonexistent-package" in record.message for record in caplog.records)
+        assert any("uv add nonexistent-package" in record.message for record in caplog.records)
 
     def test_check_import_module_exists_but_class_not_found(self) -> None:
         """Test when module exists but expected class doesn't match."""

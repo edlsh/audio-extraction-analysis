@@ -122,7 +122,7 @@ fi
 # Check if pytest is available
 if ! command -v pytest &> /dev/null; then
     echo -e "${RED}Error: pytest not found. Please install test dependencies:${NC}" >&2
-    echo "pip install -e \".[dev]\"" >&2
+    echo "uv sync --dev" >&2
     exit 1
 fi
 

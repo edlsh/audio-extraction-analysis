@@ -271,6 +271,23 @@ def _create_export_markdown_subparser(subparsers) -> None:
     )
 
 
+def _create_tui_subparser(subparsers) -> None:
+    """Create the TUI subcommand parser.
+    
+    Args:
+        subparsers: Subparsers object to add the TUI parser to
+    """
+    tui_parser = subparsers.add_parser(
+        "tui",
+        help="Launch interactive Terminal User Interface",
+        description=(
+            "Launch the interactive TUI for audio extraction and transcription "
+            "with live progress updates, provider health checks, and artifact management."
+        ),
+    )
+    # TUI doesn't need any arguments - it's interactive
+
+
 def create_parser() -> argparse.ArgumentParser:
     """Create and configure the argument parser.
 
@@ -331,6 +348,7 @@ For more information, see: https://github.com/lucchesi-sec/audio-extraction-anal
     _create_transcribe_subparser(subparsers)
     _create_process_subparser(subparsers)
     _create_export_markdown_subparser(subparsers)
+    _create_tui_subparser(subparsers)
 
     return parser
 
@@ -1056,6 +1074,39 @@ def export_markdown_command(args, console_manager: ConsoleManager | None = None)
         return 1
 
 
+def tui_command(args: argparse.Namespace, console_manager: ConsoleManager | None = None) -> int:
+    """Handle the TUI subcommand.
+    
+    This command launches the interactive Terminal User Interface.
+    
+    Args:
+        args: Parsed CLI arguments (unused for TUI)
+        console_manager: Optional console manager (unused for TUI)
+    
+    Returns:
+        Exit code (0 for success, non-zero for failure)
+    """
+    try:
+        # Import the TUI app here to avoid circular imports and only load when needed
+        from .ui.tui.app import AudioExtractionApp
+        
+        # Create and run the TUI application
+        app = AudioExtractionApp()
+        app.run()
+        return 0
+        
+    except ImportError as e:
+        logger.error(
+            "TUI dependencies not installed. Install with: pip install -e '.[tui]'. Error: %s", e
+        )
+        return 1
+    except Exception as e:
+        logger.critical(
+            "An unexpected error occurred in tui_command: %s", e, exc_info=True
+        )
+        return 1
+
+
 def main() -> int:
     """Main CLI entry point.
 
@@ -1085,6 +1136,9 @@ def main() -> int:
         elif args.command == "export-markdown":
             # Handle export-markdown command
             return export_markdown_command(args, console_manager)
+        elif args.command == "tui":
+            # Handle TUI command
+            return tui_command(args, console_manager)
     except KeyboardInterrupt:
         logger.error("Operation cancelled by user")
         return 1

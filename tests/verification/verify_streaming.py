@@ -159,7 +159,7 @@ def verify_streaming_implementation() -> None:
     print("  ✓ No regression on normal-sized files")
     print("  ✓ Tests created to verify streaming behavior")
     print("\nNext steps:")
-    print("  - Install pytest to run full test suite: pip install pytest pytest-asyncio")
+    print("  - Install pytest to run full test suite: uv add pytest pytest-asyncio --dev")
     print("  - Run: pytest tests/unit/test_deepgram_provider.py -v")
     print("  - Test with actual large file if Deepgram API key is available")
     print()

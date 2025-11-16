@@ -721,7 +721,7 @@ class ParakeetTranscriber(BaseTranscriptionProvider):
             # Check dependencies
             if not NEMO_AVAILABLE:
                 logger.error(
-                    "NeMo toolkit not installed. Install with: pip install nemo-toolkit[asr]"
+                    "NeMo toolkit not installed. Install with: uv add \"nemo-toolkit[asr]@1.20.0\" --extra parakeet"
                 )
                 return False
 

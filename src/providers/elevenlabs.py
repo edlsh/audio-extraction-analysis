@@ -66,7 +66,7 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
         config = get_config()
         self.api_key = api_key or config.ELEVENLABS_API_KEY
         if not PROVIDER_AVAILABLE:
-            raise ImportError("ElevenLabs SDK not available. Install with: pip install elevenlabs")
+            raise ImportError("ElevenLabs SDK not available. Install with: uv add elevenlabs")
 
         if not self.api_key:
             raise ValueError(
