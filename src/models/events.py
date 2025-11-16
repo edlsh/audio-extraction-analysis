@@ -9,7 +9,7 @@ import sys
 import threading
 import uuid
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Any, Literal, Protocol
 
 EventType = Literal[
@@ -38,7 +38,7 @@ class Event:
     """
 
     type: EventType
-    ts: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    ts: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     run_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     stage: str | None = None
     data: dict[str, Any] = field(default_factory=dict)

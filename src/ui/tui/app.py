@@ -298,7 +298,7 @@ class AudioExtractionApp(App):
                     self.state.is_running = False
                     break
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # No event available, continue
                 continue
             except Exception as e:

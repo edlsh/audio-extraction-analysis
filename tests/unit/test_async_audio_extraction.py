@@ -26,14 +26,14 @@ class TestAsyncAudioExtractor:
 
     @pytest.mark.asyncio
     async def test_extract_audio_async_handles_timeout_error(self, tmp_path):
-        """Test that asyncio.TimeoutError is properly caught and handled."""
+        """Test that TimeoutError is properly caught and handled."""
         extractor = AsyncAudioExtractor()
         input_file = tmp_path / "test_video.mp4"
         input_file.write_bytes(b"fake video data")
 
-        # Mock _run_ffmpeg_with_progress to raise asyncio.TimeoutError
+        # Mock _run_ffmpeg_with_progress to raise TimeoutError
         with patch.object(
-            extractor, "_run_ffmpeg_with_progress", side_effect=asyncio.TimeoutError("Timeout")
+            extractor, "_run_ffmpeg_with_progress", side_effect=TimeoutError("Timeout")
         ):
             # Mock _get_video_duration to return a value
             with patch.object(extractor, "_get_video_duration", return_value=100.0):

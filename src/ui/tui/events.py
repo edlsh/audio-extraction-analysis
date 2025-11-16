@@ -155,7 +155,7 @@ class EventConsumer:
 
                     try:
                         event = await asyncio.wait_for(self.queue.get(), timeout=timeout)
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         break
 
                     if event is _STOP_SENTINEL:

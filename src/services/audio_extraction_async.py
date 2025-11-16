@@ -88,7 +88,7 @@ class AsyncAudioExtractor(AudioExtractor):
         except (
             subprocess.CalledProcessError,
             subprocess.TimeoutExpired,
-            asyncio.TimeoutError,  # Async timeout from readline() or other async operations
+            TimeoutError,  # Async timeout from readline() or other async operations
             FileNotFoundError,
             PermissionError,
             OSError,

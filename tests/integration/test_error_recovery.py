@@ -36,7 +36,7 @@ class TestNetworkFailureSimulation:
             mock_process = AsyncMock()
             # Mock stdout.readline to raise TimeoutError when awaited
             mock_stdout = AsyncMock()
-            mock_stdout.readline = AsyncMock(side_effect=asyncio.TimeoutError("Test timeout"))
+            mock_stdout.readline = AsyncMock(side_effect=TimeoutError("Test timeout"))
             mock_process.stdout = mock_stdout
             mock_process.wait = AsyncMock()
             mock_process.returncode = 1

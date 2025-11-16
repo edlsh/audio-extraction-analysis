@@ -197,7 +197,7 @@ class TestCancellationAndTimeouts:
                 ),
                 timeout=0.001,  # 1ms - should timeout
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             pass  # Expected for such short timeout
 
         # Test should complete without hanging
@@ -215,7 +215,7 @@ class TestCancellationAndTimeouts:
                 ),
                 timeout=30.0,  # 30 second timeout
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             pytest.fail("Task hung - exceeded 30 second timeout")
 
 
