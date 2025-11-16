@@ -356,7 +356,11 @@ class SerializationHelper:
                 return str(value_data)
             else:
                 # Return as object (dict, list, etc.)
-                return value_data if isinstance(value_data, (dict, list, str, int, float, bool, type(None))) else None
+                return (
+                    value_data
+                    if isinstance(value_data, (dict, list, str, int, float, bool, type(None)))
+                    else None
+                )
 
         except Exception as e:
             logger.error(f"Failed to deserialize value: {e}")

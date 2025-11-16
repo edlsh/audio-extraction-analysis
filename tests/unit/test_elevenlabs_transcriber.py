@@ -184,38 +184,48 @@ class TestElevenLabsTranscriberTranscription:
         assert result.utterances[0].text == "This is a test transcription"
 
     def test_transcribe_async_file_not_found(self):
-        """Test transcription with non-existent file."""
+        """Test transcription with non-existent file raises ValidationError."""
+        from src.exceptions import ValidationError
+
         transcriber = ElevenLabsTranscriber(api_key="test_key")
-
         non_existent_file = Path("/non/existent/file.mp3")
-        result = transcriber.transcribe(non_existent_file, "en")
 
-        assert result is None
+        with pytest.raises(ValidationError, match="Audio file validation failed"):
+            transcriber.transcribe(non_existent_file, "en")
 
     def test_transcribe_async_file_too_large(self, large_audio_file):
-        """Test transcription with file exceeding size limit."""
+        """Test transcription with file exceeding size limit raises FileSizeError."""
+        from src.exceptions import FileSizeError
+
         transcriber = ElevenLabsTranscriber(api_key="test_key")
 
-        result = transcriber.transcribe(large_audio_file, "en")
-
-        assert result is None
+        with patch(
+            "src.providers.elevenlabs.safe_validate_audio_file", return_value=large_audio_file
+        ):
+            with pytest.raises(FileSizeError, match="exceeds.*MB limit"):
+                transcriber.transcribe(large_audio_file, "en")
 
     @patch("src.providers.elevenlabs.ElevenLabsClient")
     def test_transcribe_async_elevenlabs_not_installed(
         self, mock_elevenlabs_class, temp_audio_file
     ):
-        """Test transcription when ElevenLabs SDK is not installed."""
-        mock_elevenlabs_class.side_effect = ImportError("No module named 'elevenlabs'")
+        """Test transcription when ElevenLabs SDK is not installed raises ProviderNotAvailableError."""
+        from src.exceptions import ProviderNotAvailableError
 
+        mock_elevenlabs_class.side_effect = ImportError("No module named 'elevenlabs'")
         transcriber = ElevenLabsTranscriber(api_key="test_key")
 
-        result = transcriber.transcribe(temp_audio_file, "en")
-
-        assert result is None
+        with patch(
+            "src.providers.elevenlabs.safe_validate_audio_file", return_value=temp_audio_file
+        ):
+            with pytest.raises(ProviderNotAvailableError, match="ElevenLabs SDK not available"):
+                transcriber.transcribe(temp_audio_file, "en")
 
     @patch("src.providers.elevenlabs.ElevenLabsClient")
     def test_transcribe_async_api_error(self, mock_elevenlabs_class, temp_audio_file):
-        """Test transcription with API error."""
+        """Test transcription with API error raises ProviderAPIError."""
+        from src.exceptions import ProviderAPIError
+
         mock_client = Mock()
         mock_speech_to_text_client = Mock()
         mock_speech_to_text_client.convert.side_effect = Exception("API Error")
@@ -225,9 +235,13 @@ class TestElevenLabsTranscriberTranscription:
         transcriber = ElevenLabsTranscriber(api_key="test_key")
 
         with patch("builtins.open", mock_open(read_data=b"fake_audio_data")):
-            result = transcriber.transcribe(temp_audio_file, "en")
-
-        assert result is None
+            with patch(
+                "src.providers.elevenlabs.safe_validate_audio_file", return_value=temp_audio_file
+            ):
+                with patch("src.providers.elevenlabs.asyncio.wait_for") as mock_wait:
+                    mock_wait.side_effect = Exception("API Error")
+                    with pytest.raises(ProviderAPIError, match="Unexpected ElevenLabs error"):
+                        transcriber.transcribe(temp_audio_file, "en")
 
     @patch("src.providers.elevenlabs.ElevenLabsClient")
     def test_transcribe_async_response_variations(self, mock_elevenlabs_class, temp_audio_file):
@@ -593,13 +607,15 @@ class TestElevenLabsTranscriberMemoryManagement:
     def test_transcribe_validation_failure(
         self, mock_validate, mock_elevenlabs_class, temp_audio_file
     ):
-        """Test transcription when file validation fails."""
+        """Test transcription when file validation fails raises ValidationError."""
+        from src.exceptions import ValidationError
+
         mock_validate.return_value = None  # Validation failed
-
         transcriber = ElevenLabsTranscriber(api_key="test_key")
-        result = transcriber.transcribe(temp_audio_file, "en")
 
-        assert result is None
+        with pytest.raises(ValidationError, match="Audio file validation failed"):
+            transcriber.transcribe(temp_audio_file, "en")
+
         mock_validate.assert_called_once()
 
 
@@ -631,7 +647,9 @@ class TestElevenLabsTranscriberEdgeCases:
 
     @patch("src.providers.elevenlabs.ElevenLabsClient")
     def test_transcribe_permission_error(self, mock_elevenlabs_class, temp_audio_file):
-        """Test transcription with permission error."""
+        """Test transcription with permission error raises FileAccessError."""
+        from src.exceptions import FileAccessError
+
         mock_client = Mock()
         mock_speech_to_text_client = Mock()
         mock_speech_to_text_client.convert.side_effect = PermissionError("Permission denied")
@@ -641,13 +659,19 @@ class TestElevenLabsTranscriberEdgeCases:
         transcriber = ElevenLabsTranscriber(api_key="test_key")
 
         with patch("builtins.open", mock_open(read_data=b"test_audio")):
-            result = transcriber.transcribe(temp_audio_file, "en")
-
-        assert result is None
+            with patch(
+                "src.providers.elevenlabs.safe_validate_audio_file", return_value=temp_audio_file
+            ):
+                with patch("src.providers.elevenlabs.asyncio.wait_for") as mock_wait:
+                    mock_wait.side_effect = PermissionError("Permission denied")
+                    with pytest.raises(FileAccessError, match="Permission denied"):
+                        transcriber.transcribe(temp_audio_file, "en")
 
     @patch("src.providers.elevenlabs.ElevenLabsClient")
     def test_transcribe_memory_error(self, mock_elevenlabs_class, temp_audio_file):
-        """Test transcription with memory error."""
+        """Test transcription with memory error raises ProviderAPIError."""
+        from src.exceptions import ProviderAPIError
+
         mock_client = Mock()
         mock_speech_to_text_client = Mock()
         mock_speech_to_text_client.convert.side_effect = MemoryError("Out of memory")
@@ -657,13 +681,17 @@ class TestElevenLabsTranscriberEdgeCases:
         transcriber = ElevenLabsTranscriber(api_key="test_key")
 
         with patch("builtins.open", mock_open(read_data=b"test_audio")):
-            result = transcriber.transcribe(temp_audio_file, "en")
-
-        assert result is None
+            with patch(
+                "src.providers.elevenlabs.safe_validate_audio_file", return_value=temp_audio_file
+            ):
+                with patch("src.providers.elevenlabs.asyncio.wait_for") as mock_wait:
+                    mock_wait.side_effect = MemoryError("Out of memory")
+                    with pytest.raises(ProviderAPIError, match="Insufficient memory"):
+                        transcriber.transcribe(temp_audio_file, "en")
 
     @patch("src.providers.elevenlabs.ElevenLabsClient")
     def test_transcribe_os_error(self, mock_elevenlabs_class, temp_audio_file):
-        """Test transcription with OS error."""
+        """Test transcription with OS error lets OSError propagate."""
         mock_client = Mock()
         mock_speech_to_text_client = Mock()
         mock_speech_to_text_client.convert.side_effect = OSError("Disk I/O error")
@@ -673,13 +701,19 @@ class TestElevenLabsTranscriberEdgeCases:
         transcriber = ElevenLabsTranscriber(api_key="test_key")
 
         with patch("builtins.open", mock_open(read_data=b"test_audio")):
-            result = transcriber.transcribe(temp_audio_file, "en")
-
-        assert result is None
+            with patch(
+                "src.providers.elevenlabs.safe_validate_audio_file", return_value=temp_audio_file
+            ):
+                with patch("src.providers.elevenlabs.asyncio.wait_for") as mock_wait:
+                    mock_wait.side_effect = OSError("Disk I/O error")
+                    with pytest.raises(OSError, match="Disk I/O error"):
+                        transcriber.transcribe(temp_audio_file, "en")
 
     @patch("src.providers.elevenlabs.ElevenLabsClient")
     def test_transcribe_value_error(self, mock_elevenlabs_class, temp_audio_file):
-        """Test transcription with value error."""
+        """Test transcription with value error raises ProviderAPIError."""
+        from src.exceptions import ProviderAPIError
+
         mock_client = Mock()
         mock_speech_to_text_client = Mock()
         mock_speech_to_text_client.convert.side_effect = ValueError("Invalid audio format")
@@ -689,14 +723,19 @@ class TestElevenLabsTranscriberEdgeCases:
         transcriber = ElevenLabsTranscriber(api_key="test_key")
 
         with patch("builtins.open", mock_open(read_data=b"test_audio")):
-            result = transcriber.transcribe(temp_audio_file, "en")
-
-        assert result is None
+            with patch(
+                "src.providers.elevenlabs.safe_validate_audio_file", return_value=temp_audio_file
+            ):
+                with patch("src.providers.elevenlabs.asyncio.wait_for") as mock_wait:
+                    mock_wait.side_effect = ValueError("Invalid audio format")
+                    with pytest.raises(ProviderAPIError, match="Unexpected ElevenLabs error"):
+                        transcriber.transcribe(temp_audio_file, "en")
 
     @pytest.mark.asyncio
     @patch("src.providers.elevenlabs.ElevenLabsClient")
     async def test_transcribe_async_timeout(self, mock_elevenlabs_class, temp_audio_file):
-        """Test async transcription with timeout."""
+        """Test async transcription with timeout raises TimeoutError."""
+        import asyncio
 
         mock_client = Mock()
 
@@ -718,9 +757,12 @@ class TestElevenLabsTranscriberEdgeCases:
         mock_config.ELEVENLABS_TIMEOUT = 0.1
         with patch("src.providers.elevenlabs.get_config", return_value=mock_config):
             with patch("builtins.open", mock_open(read_data=b"test_audio")):
-                result = transcriber.transcribe(temp_audio_file, "en")
-
-        assert result is None
+                with patch(
+                    "src.providers.elevenlabs.safe_validate_audio_file",
+                    return_value=temp_audio_file,
+                ):
+                    with pytest.raises(asyncio.TimeoutError):
+                        await transcriber._transcribe_impl(temp_audio_file, "en")
 
 
 class TestElevenLabsTranscriberIntegration:

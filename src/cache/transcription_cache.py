@@ -83,7 +83,7 @@ class CacheKey:
     def from_dict(cls, data: dict[str, object]) -> CacheKey:
         """Create from dictionary."""
         from typing import cast
-        
+
         return cls(
             file_hash=cast(str, data["file_hash"]),
             provider=cast(str, data["provider"]),
@@ -275,7 +275,7 @@ class CacheEntry:
         """
         # Reconstruct the cache key
         from typing import cast
-        
+
         cache_key = CacheKey.from_dict(cast(dict[str, object], data["key"]))
 
         # Reconstruct the value based on its type
@@ -483,12 +483,21 @@ class TranscriptionCache:
 
             self.backends = [InMemoryCache()]
         else:
-            self.backends = backends
+            from typing import TYPE_CHECKING
+
+            if TYPE_CHECKING:
+                from .backends import InMemoryCache
+            # Type assertion: backends can be any CacheBackend subclass list
+            self.backends = backends  # type: ignore[assignment]
 
         self.max_size_bytes = max_size_mb * 1024 * 1024
         self.max_entries = max_entries
         self.default_ttl = default_ttl
         self.enable_compression = enable_compression
+
+        # Cache warming support
+        self.enable_warming = False  # Cache warming is currently disabled by default
+        self._warm_keys: set[str] = set()
 
         self.stats = CacheStats()
         self._lock = RLock()
@@ -533,8 +542,12 @@ class TranscriptionCache:
                         self._promote_entry(key_str, entry, i)
 
                     # Decompress if needed
+                    from typing import cast
+
                     value = (
-                        self._decompress(entry.value) if self.enable_compression else entry.value
+                        self._decompress(cast(bytes, entry.value))
+                        if self.enable_compression
+                        else entry.value
                     )
 
                     logger.debug(f"Cache hit for {key_str} from backend {i}")

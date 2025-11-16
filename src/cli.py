@@ -24,6 +24,13 @@ if TYPE_CHECKING:
 # Backwards compatibility imports for tests
 try:
     from .config import Config
+    from .error_handlers import handle_cli_error, handle_keyboard_interrupt
+    from .exceptions import (
+        AudioAnalysisError,
+        AudioExtractionError,
+        FFmpegNotFoundError,
+        ValidationError as CustomValidationError,
+    )
     from .formatters.markdown_formatter import MarkdownFormatter
     from .pipeline.audio_pipeline import AudioProcessingPipeline
     from .pipeline.simple_pipeline import process_pipeline
@@ -36,6 +43,13 @@ try:
     from .utils.sanitization import PathSanitizer
 except ImportError:  # pragma: no cover - fallback for installed package layout
     from src.config import Config
+    from src.error_handlers import handle_cli_error, handle_keyboard_interrupt
+    from src.exceptions import (
+        AudioAnalysisError,
+        AudioExtractionError,
+        FFmpegNotFoundError,
+        ValidationError as CustomValidationError,
+    )
     from src.formatters.markdown_formatter import MarkdownFormatter
     from src.pipeline.audio_pipeline import AudioProcessingPipeline
     from src.pipeline.simple_pipeline import process_pipeline
@@ -551,18 +565,9 @@ def extract_command(args: argparse.Namespace, console_manager: ConsoleManager | 
             logger.error("Audio extraction failed")
             return 1
 
-    except (OSError, ValueError, RuntimeError) as e:
-        error_msg = _redact_sensitive_data(str(e))
-        logger.error("Extract command failed: %s", error_msg)
-        print(f"Error: {error_msg}", file=sys.stderr)
-        return 1
     except Exception as e:
-        error_msg = _redact_sensitive_data(str(e))
-        # Don't use exc_info=True as it includes full traceback with original exception message
-        # which may contain sensitive data. Log the redacted message instead.
-        logger.critical("An unexpected error occurred in extract_command: %s", error_msg)
-        print(f"Error: {error_msg}", file=sys.stderr)
-        return 1
+        # Use centralized error handler for all exceptions
+        return handle_cli_error(e, "extract")
 
 
 def export_markdown_transcript(
@@ -776,18 +781,9 @@ def transcribe_command(
             logger.error("Transcription failed")
             return 1
 
-    except (OSError, ValueError, RuntimeError, ValidationError) as e:
-        error_msg = _redact_sensitive_data(str(e))
-        logger.error("Transcribe command failed: %s", error_msg)
-        print(f"Error: {error_msg}", file=sys.stderr)
-        return 1
     except Exception as e:
-        error_msg = _redact_sensitive_data(str(e))
-        # Don't use exc_info=True as it includes full traceback with original exception message
-        # which may contain sensitive data. Log the redacted message instead.
-        logger.critical("An unexpected error occurred in transcribe_command: %s", error_msg)
-        print(f"Error: {error_msg}", file=sys.stderr)
-        return 1
+        # Use centralized error handler for all exceptions
+        return handle_cli_error(e, "transcribe")
 
 
 def _parse_quality_preset(quality_str: str) -> AudioQuality:
@@ -977,8 +973,8 @@ def process_command(args: argparse.Namespace, console_manager: ConsoleManager | 
                 input_path, output_dir, quality, args, console_manager
             )
         except Exception as e:
-            logger.error(f"Process command failed during pipeline: {e}")
-            return 1
+            # Use centralized error handler for pipeline errors
+            return handle_cli_error(e, "process")
 
         # Handle results
         if result:
@@ -988,18 +984,9 @@ def process_command(args: argparse.Namespace, console_manager: ConsoleManager | 
             logger.error("Processing failed")
             return 1
 
-    except (OSError, ValueError, RuntimeError) as e:
-        error_msg = _redact_sensitive_data(str(e))
-        logger.error("Process command failed: %s", error_msg)
-        print(f"Error: {error_msg}", file=sys.stderr)
-        return 1
     except Exception as e:
-        error_msg = _redact_sensitive_data(str(e))
-        # Don't use exc_info=True as it includes full traceback with original exception message
-        # which may contain sensitive data. Log the redacted message instead.
-        logger.critical("An unexpected error occurred in process_command: %s", error_msg)
-        print(f"Error: {error_msg}", file=sys.stderr)
-        return 1
+        # Use centralized error handler for all exceptions
+        return handle_cli_error(e, "process")
 
 
 def _validate_and_setup_paths(args: argparse.Namespace) -> tuple[Path, Path]:
@@ -1192,18 +1179,9 @@ def export_markdown_command(
         logger.info("Export completed successfully!")
         return 0
 
-    except (OSError, ValueError, RuntimeError, ValidationError) as e:
-        error_msg = _redact_sensitive_data(str(e))
-        logger.error("Export markdown command failed: %s", error_msg)
-        print(f"Error: {error_msg}", file=sys.stderr)
-        return 1
     except Exception as e:
-        error_msg = _redact_sensitive_data(str(e))
-        # Don't use exc_info=True as it includes full traceback with original exception message
-        # which may contain sensitive data. Log the redacted message instead.
-        logger.critical("An unexpected error occurred in export_markdown_command: %s", error_msg)
-        print(f"Error: {error_msg}", file=sys.stderr)
-        return 1
+        # Use centralized error handler for all exceptions
+        return handle_cli_error(e, "export-markdown")
 
 
 def tui_command(args: argparse.Namespace, console_manager: ConsoleManager | None = None) -> int:
@@ -1228,13 +1206,16 @@ def tui_command(args: argparse.Namespace, console_manager: ConsoleManager | None
         return 0
 
     except ImportError as e:
+        # Special handling for missing TUI dependencies
         logger.error(
             "TUI dependencies not installed. Install with: pip install -e '.[tui]'. Error: %s", e
         )
+        print("✗ TUI Error: Missing dependencies", file=sys.stderr)
+        print("  Install with: pip install -e '.[tui]'", file=sys.stderr)
         return 1
     except Exception as e:
-        logger.critical("An unexpected error occurred in tui_command: %s", e, exc_info=True)
-        return 1
+        # Use centralized error handler for all other exceptions
+        return handle_cli_error(e, "tui")
 
 
 def main() -> int:
@@ -1270,8 +1251,8 @@ def main() -> int:
             # Handle TUI command
             return tui_command(args, console_manager)
     except KeyboardInterrupt:
-        logger.error("Operation cancelled by user")
-        return 1
+        # Handle user cancellation (Ctrl+C)
+        handle_keyboard_interrupt()
 
 
 if __name__ == "__main__":

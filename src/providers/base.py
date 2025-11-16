@@ -261,7 +261,7 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
         """
 
         @retry_async(config=self._retry_config)
-        async def _transcribe_with_retry() -> TranscriptionResult:
+        async def _transcribe_with_retry() -> TranscriptionResult | None:
             return await self._transcribe_impl(audio_file_path, language)
 
         # Let exceptions propagate - circuit breaker and retry handle retries
@@ -406,7 +406,9 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
         self._retry_config = config
 
     # ---------------------- Progress Helper ----------------------
-    def _report_progress(self, callback: Callable[[int, int], None] | None, completed: int, total: int) -> None:
+    def _report_progress(
+        self, callback: Callable[[int, int], None] | None, completed: int, total: int
+    ) -> None:
         """Helper to safely report progress if a callback is provided.
 
         This method wraps the progress callback in exception handling to ensure

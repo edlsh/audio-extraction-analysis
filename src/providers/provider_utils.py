@@ -7,6 +7,7 @@ reducing code duplication and ensuring consistent configuration.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from ..config import get_config
 from ..utils.retry import RetryConfig

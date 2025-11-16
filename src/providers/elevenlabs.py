@@ -171,7 +171,23 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
 
         Returns:
             TranscriptionResult with available features, or None if failed
+
+        Raises:
+            ProviderNotAvailableError: If ElevenLabs SDK not installed
+            ValidationError: If audio file validation fails or file not found
+            FileAccessError: If file permissions prevent access
+            FileSizeError: If file exceeds size limits
+            ProviderAPIError: If ElevenLabs API returns an error
+            ProviderTimeoutError: If request times out
         """
+        from ..exceptions import (
+            ProviderNotAvailableError,
+            ProviderAPIError,
+            ValidationError,
+            FileAccessError,
+            FileSizeError,
+        )
+
         # Validate audio file with ElevenLabs size limits
         validated_path = safe_validate_audio_file(
             audio_file_path,
@@ -179,7 +195,10 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
             provider_name="elevenlabs",
         )
         if validated_path is None:
-            return None
+            raise ValidationError(
+                f"Audio file validation failed: {audio_file_path}",
+                context={"file_path": str(audio_file_path), "provider": "elevenlabs"},
+            )
         audio_file_path = validated_path
 
         # Check file size limit (ElevenLabs has 50MB limit)
@@ -188,7 +207,14 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
             logger.error(
                 f"File size {file_size_mb:.2f}MB exceeds ElevenLabs {self.MAX_FILE_SIZE_MB}MB limit"
             )
-            return None
+            raise FileSizeError(
+                f"File size {file_size_mb:.2f}MB exceeds {self.MAX_FILE_SIZE_MB}MB limit",
+                context={
+                    "file_path": str(audio_file_path),
+                    "file_size_mb": file_size_mb,
+                    "limit_mb": self.MAX_FILE_SIZE_MB,
+                },
+            )
 
         try:
             # Check SDK availability
@@ -252,43 +278,63 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
 
             # Parse timestamps if available in response
             if hasattr(response, "segments") and response.segments:
-                for segment in response.segments:
-                    utterance = TranscriptionUtterance(
-                        speaker=0,  # ElevenLabs doesn't provide speaker ID
-                        start=getattr(segment, "start", 0.0),
-                        end=getattr(segment, "end", duration),
-                        text=getattr(segment, "text", ""),
-                    )
-                    result.utterances.append(utterance)
+                if hasattr(response, "segments") and response.segments:
+                    if result.utterances is None:
+                        result.utterances = []
+                    for segment in response.segments:
+                        utterance = TranscriptionUtterance(
+                            speaker=0,  # ElevenLabs doesn't provide speaker ID
+                            start=getattr(segment, "start", 0.0),
+                            end=getattr(segment, "end", duration),
+                            text=getattr(segment, "text", ""),
+                        )
+                        result.utterances.append(utterance)
 
             # Note: ElevenLabs doesn't provide advanced features like
             # speaker diarization, topics, intents, sentiment analysis
             # These would need to be handled by post-processing
 
             logger.info(f"Transcription completed. Length: {len(transcript)} characters")
+            assert result is not None, "Result should be initialized"
             return result
 
         except ImportError as e:
             logger.error(f"ElevenLabs SDK not installed: {e}")
-            raise ConnectionError(f"ElevenLabs SDK not available: {e}") from e
+            raise ProviderNotAvailableError(
+                "ElevenLabs SDK not available",
+                context={"provider": "elevenlabs", "install_command": "uv add elevenlabs"},
+            ) from e
         except FileNotFoundError as e:
             logger.error(f"Audio file not found: {e}")
-            raise ValueError(f"Audio file not found: {e}") from e
+            raise ValidationError(
+                f"Audio file not found: {audio_file_path}",
+                context={"file_path": str(audio_file_path)},
+            ) from e
         except PermissionError as e:
             logger.error(f"Permission denied accessing file: {e}")
-            raise ValueError(f"Permission denied: {e}") from e
+            raise FileAccessError(
+                f"Permission denied: {audio_file_path}", context={"file_path": str(audio_file_path)}
+            ) from e
         except MemoryError as e:
             logger.error(f"Insufficient memory to process file: {e}")
-            raise OSError(f"Memory error: {e}") from e
-        except OSError as e:
-            logger.error(f"System error during transcription: {e}")
-            raise
-        except ValueError as e:
-            logger.error(f"Invalid input for transcription: {e}")
+            raise ProviderAPIError(
+                "Insufficient memory to process file",
+                context={
+                    "file_path": str(audio_file_path),
+                    "file_size_mb": file_size_mb,
+                    "error": str(e),
+                },
+            ) from e
+        except (OSError, ConnectionError, TimeoutError):
+            # Let provider-specific errors propagate directly
+            logger.error(f"ElevenLabs API error")
             raise
         except Exception as e:
             logger.error(f"ElevenLabs transcription failed: {e}")
-            raise ConnectionError(f"Transcription error: {e}") from e
+            raise ProviderAPIError(
+                f"Unexpected ElevenLabs error: {e}",
+                context={"error_type": type(e).__name__, "file_path": str(audio_file_path)},
+            ) from e
 
     def _read_file_chunked(self, file_path: Path) -> bytes:
         """Read file in chunks to manage memory usage.

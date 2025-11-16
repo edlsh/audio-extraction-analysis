@@ -57,7 +57,7 @@ logger = logging.getLogger(__name__)
 # This ensures that DEEPGRAM_API_KEY and other secrets are available to subprocess
 # commands executed from different working directories during tests
 try:
-    from dotenv import load_dotenv  # type: ignore
+    from dotenv import load_dotenv
 
     _root_env = Path(__file__).parent.parent / ".env"
     if _root_env.exists():

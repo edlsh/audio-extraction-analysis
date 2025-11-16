@@ -24,7 +24,7 @@ def detect_mimetype(path: Path) -> str:
 
 
 def build_prerecorded_options(language: str) -> Any:
-    from deepgram import PrerecordedOptions  # type: ignore
+    from deepgram import PrerecordedOptions
 
     return PrerecordedOptions(
         model="nova-3",

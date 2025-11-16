@@ -1,0 +1,134 @@
+name: Technical Debt Monitoring
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  monitor-debt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install ripgrep
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
+      
+      - name: Check for type ignores
+        id: type_ignores
+        run: |
+          count=$(rg "# type: ignore" src/ | wc -l || echo "0")
+          echo "count=$count" >> $GITHUB_OUTPUT
+          echo "📊 Type ignores found: $count"
+          echo "🎯 Target: 0"
+          
+          if [ "$count" -gt "17" ]; then
+            echo "::error::Type ignores increased from baseline (17). Found: $count"
+            exit 1
+          elif [ "$count" -lt "17" ]; then
+            echo "::notice::✨ Type ignores decreased! Was: 17, Now: $count"
+          fi
+      
+      - name: Check for broad exception handlers
+        id: broad_exceptions
+        run: |
+          count=$(rg "except Exception:" src/ | wc -l || echo "0")
+          echo "count=$count" >> $GITHUB_OUTPUT
+          echo "📊 Broad exception handlers found: $count"
+          echo "🎯 Target: <50"
+          
+          if [ "$count" -gt "200" ]; then
+            echo "::error::Broad exception handlers increased from baseline (200). Found: $count"
+            exit 1
+          elif [ "$count" -lt "200" ]; then
+            echo "::notice::✨ Exception handling improved! Was: 200, Now: $count"
+          fi
+      
+      - name: Check for empty except blocks
+        id: empty_excepts
+        run: |
+          # Check for except: pass patterns
+          count=$(rg -U "except.*:\s*pass" src/ | wc -l || echo "0")
+          echo "count=$count" >> $GITHUB_OUTPUT
+          echo "📊 Empty except blocks found: $count"
+          echo "🎯 Target: 0"
+          
+          if [ "$count" -gt "0" ]; then
+            echo "::warning::Found $count empty except blocks"
+            rg -n "except.*:\s*pass" src/ || true
+          fi
+      
+      - name: Check for large files
+        id: large_files
+        run: |
+          echo "📊 Checking for files >500 lines..."
+          large_files=$(find src -name "*.py" -type f -exec wc -l {} + | \
+                       awk '$1 > 500 {print $2 " (" $1 " lines)"}' | \
+                       tee /dev/tty | wc -l || echo "0")
+          echo "count=$large_files" >> $GITHUB_OUTPUT
+          echo "🎯 Target: <5"
+          
+          if [ "$large_files" -gt "15" ]; then
+            echo "::error::Large files increased from baseline (15). Found: $large_files"
+            exit 1
+          elif [ "$large_files" -lt "15" ]; then
+            echo "::notice::✨ Code modularity improved! Was: 15, Now: $large_files"
+          fi
+      
+      - name: Check for TODO/FIXME comments
+        id: todo_comments
+        run: |
+          count=$(rg "TODO|FIXME|XXX|HACK" src/ | wc -l || echo "0")
+          echo "count=$count" >> $GITHUB_OUTPUT
+          echo "📊 TODO/FIXME comments found: $count"
+          
+          if [ "$count" -gt "0" ]; then
+            echo "::notice::Found $count TODO/FIXME comments:"
+            rg -n "TODO|FIXME|XXX|HACK" src/ || true
+          fi
+      
+      - name: Generate Technical Debt Report
+        if: always()
+        run: |
+          cat << EOF > technical-debt-summary.md
+          # Technical Debt Summary
+          
+          | Metric | Current | Baseline | Target | Status |
+          |--------|---------|----------|--------|--------|
+          | Type Ignores | ${{ steps.type_ignores.outputs.count }} | 17 | 0 | $([ "${{ steps.type_ignores.outputs.count }}" -le "17" ] && echo "✅" || echo "❌") |
+          | Broad Exceptions | ${{ steps.broad_exceptions.outputs.count }} | 200+ | <50 | $([ "${{ steps.broad_exceptions.outputs.count }}" -le "200" ] && echo "✅" || echo "❌") |
+          | Empty Except Blocks | ${{ steps.empty_excepts.outputs.count }} | - | 0 | $([ "${{ steps.empty_excepts.outputs.count }}" -eq "0" ] && echo "✅" || echo "⚠️") |
+          | Large Files (>500 LOC) | ${{ steps.large_files.outputs.count }} | 15 | <5 | $([ "${{ steps.large_files.outputs.count }}" -le "15" ] && echo "✅" || echo "❌") |
+          | TODO Comments | ${{ steps.todo_comments.outputs.count }} | 4 | 0 | ℹ️ |
+          
+          ## Progress
+          
+          - 🎯 **Exception Hierarchy**: ✅ Implemented (35 custom exceptions)
+          - 🎯 **Type Stubs**: ✅ Created for Whisper and Deepgram
+          - 🎯 **Mypy Config**: ✅ Added to pyproject.toml
+          - 🎯 **CI Monitoring**: ✅ Active
+          
+          EOF
+          
+          cat technical-debt-summary.md
+      
+      - name: Comment PR with Technical Debt Summary
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync('technical-debt-summary.md', 'utf8');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            });

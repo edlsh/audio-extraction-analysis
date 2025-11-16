@@ -11,7 +11,7 @@ import threading
 import time
 from contextlib import contextmanager
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from rich.progress import TaskID
@@ -53,7 +53,7 @@ class ConsoleManager:
         """
 
         # Prevent duplicate handlers if called multiple times
-        def _has_handler_of_type(h_type):
+        def _has_handler_of_type(h_type: type[logging.Handler]) -> bool:
             return any(isinstance(h, h_type) for h in logger.handlers)
 
         if self.json_output:
@@ -73,7 +73,7 @@ class ConsoleManager:
         logger.setLevel(logging.DEBUG if self.verbose else logging.INFO)
 
     @contextmanager
-    def progress_context(self, description: str, total: int | None = None):
+    def progress_context(self, description: str, total: int | None = None) -> Any:
         """Progress context manager with cleanup."""
         task_id = None
         progress = None
@@ -288,7 +288,17 @@ class RichProgressTracker:
                 self._last_percentage = current_percentage
 
         if should_update or not hasattr(self, "_last_percentage"):
-            self.progress.update(self.task_id, **kwargs)
+            # Cast kwargs to proper types for Rich Progress
+            from typing import cast
+
+            update_kwargs: dict[str, object] = {}
+            if "completed" in kwargs:
+                update_kwargs["completed"] = kwargs["completed"]
+            if "total" in kwargs:
+                update_kwargs["total"] = kwargs["total"]
+            if "description" in kwargs:
+                update_kwargs["description"] = cast(str, kwargs["description"])
+            self.progress.update(self.task_id, **update_kwargs)
 
 
 class JsonProgressTracker:

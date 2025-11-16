@@ -59,8 +59,10 @@ class TestDeepgramTranscriber:
     def test_validate_configuration_without_api_key(self):
         """Test configuration validation when API key is missing."""
         with patch.dict("os.environ", {}, clear=True):
-            with pytest.raises(ValueError, match="DEEPGRAM_API_KEY not found"):
-                DeepgramTranscriber(api_key=None)
+            with patch("src.providers.deepgram.get_config") as mock_config:
+                mock_config.return_value.DEEPGRAM_API_KEY = None
+                with pytest.raises(ValueError, match="DEEPGRAM_API_KEY not found"):
+                    DeepgramTranscriber(api_key=None)
 
     def test_get_provider_name(self, deepgram_transcriber):
         """Test getting provider name."""

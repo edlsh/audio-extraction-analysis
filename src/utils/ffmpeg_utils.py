@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import subprocess
 from functools import wraps
-from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar
+from typing import TYPE_CHECKING, Any, Coroutine, ParamSpec, TypeVar
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -59,7 +59,9 @@ def handle_ffmpeg_errors(
 
 def handle_ffmpeg_errors_async(
     operation_name: str = "FFmpeg operation",
-) -> Callable[[Callable[P, T]], Callable[P, T | None]]:
+) -> Callable[
+    [Callable[P, Coroutine[object, object, T]]], Callable[P, Coroutine[object, object, T | None]]
+]:
     """Async decorator to handle common FFmpeg errors consistently.
 
     Args:
@@ -69,7 +71,9 @@ def handle_ffmpeg_errors_async(
         Decorated async function that handles FFmpeg errors
     """
 
-    def decorator(func: Callable[P, T]) -> Callable[P, T | None]:
+    def decorator(
+        func: Callable[P, Coroutine[object, object, T]],
+    ) -> Callable[P, Coroutine[object, object, T | None]]:
         @wraps(func)
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T | None:
             try:
