@@ -84,10 +84,13 @@ class TestElevenLabsTranscriberInit:
 
     def test_init_with_env_api_key(self, monkeypatch):
         """Test initialization with API key from environment."""
-        monkeypatch.setenv("ELEVENLABS_API_KEY", "env_key")
-
-        transcriber = ElevenLabsTranscriber()
-        assert transcriber.api_key == "env_key"
+        # Mock get_config to return a config with the API key set
+        mock_config = Mock()
+        mock_config.ELEVENLABS_API_KEY = "env_key"
+        
+        with patch("src.providers.elevenlabs.get_config", return_value=mock_config):
+            transcriber = ElevenLabsTranscriber()
+            assert transcriber.api_key == "env_key"
 
     def test_init_without_api_key_raises_error(self, clear_elevenlabs_env):
         """Test initialization without API key raises ValueError."""
