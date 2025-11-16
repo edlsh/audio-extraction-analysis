@@ -42,7 +42,7 @@ def mock_elevenlabs_client():
 
     # Mock speech_to_text as a client object with convert method
     mock_speech_to_text_client = Mock()
-    
+
     # Mock a successful response
     mock_response = Mock()
     mock_response.text = "This is a test transcription from ElevenLabs."
@@ -539,9 +539,7 @@ class TestElevenLabsTranscriberMemoryManagement:
 
     @patch("src.providers.elevenlabs.ElevenLabsClient")
     @patch("src.providers.elevenlabs.safe_validate_audio_file")
-    def test_transcribe_streaming_approach(
-        self, mock_validate, mock_elevenlabs_class, tmp_path
-    ):
+    def test_transcribe_streaming_approach(self, mock_validate, mock_elevenlabs_class, tmp_path):
         """Test transcription uses streaming approach for large files."""
         # Note: MAX_FILE_SIZE_MB = MAX_MEMORY_SIZE = 50MB
         # Since chunked reading only triggers when file_size_mb * 1024 * 1024 > MAX_MEMORY_SIZE,
@@ -572,7 +570,7 @@ class TestElevenLabsTranscriberMemoryManagement:
         # Use 49MB to be under MAX_FILE_SIZE_MB but we'll mock it to trigger chunked reading
         # Actually, since MAX_FILE_SIZE_MB = MAX_MEMORY_SIZE, we need to mock MAX_FILE_SIZE_MB too
         mock_stat_result.st_size = 49 * 1024 * 1024  # 49MB (under both limits)
-        
+
         # Mock MAX_FILE_SIZE_MB to be higher so the file passes the size check
         # but mock the actual file size to be > MAX_MEMORY_SIZE to trigger chunked reading
         with patch.object(transcriber, "MAX_FILE_SIZE_MB", 60):  # Increase limit to 60MB
