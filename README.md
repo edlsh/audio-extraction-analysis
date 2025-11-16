@@ -577,8 +577,21 @@ uv add openai-whisper torch
 # Install Parakeet for testing
 uv add "nemo-toolkit[asr]@1.20.0" --extra parakeet
 
-# Run tests
+# Run tests (default - unit tests only)
 pytest
+
+# Run specific test profiles
+./scripts/run_tests.sh --profile fast       # Fast unit tests only
+./scripts/run_tests.sh --profile integration # Integration tests
+./scripts/run_tests.sh --profile e2e        # End-to-end tests
+./scripts/run_tests.sh --profile benchmark  # Performance benchmarks
+./scripts/run_tests.sh --profile all        # Complete test suite
+
+# Run with mock provider (no API keys needed)
+AUDIO_TEST_MODE=1 pytest
+
+# Run with coverage
+pytest --cov=src --cov-report=html
 
 # Code formatting
 black src/ tests/
