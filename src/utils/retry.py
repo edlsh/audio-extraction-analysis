@@ -10,6 +10,7 @@ Legacy functions are maintained for compatibility with existing code.
 
 # Import legacy retry utilities for backward compatibility
 from .retry_legacy import (
+    RetryBudget,  # Import but not export in __all__
     RetryConfig,
     RetryExhaustedError,
     calculate_delay,
@@ -21,39 +22,39 @@ from .retry_legacy import (
 
 # Import new tenacity-based retry decorators
 from .retry_tenacity import (
-    retry_on_network_error,
-    retry_on_rate_limit,
-    retry_on_transient_error,
-    retry_ffmpeg_operation,
-    create_custom_retry,
-    log_retry_attempt,
     DEFAULT_MAX_NETWORK_ATTEMPTS,
     DEFAULT_MAX_RATE_LIMIT_ATTEMPTS,
     FFMPEG_MAX_ATTEMPTS,
-    PROVIDER_MAX_ATTEMPTS,
     PERMANENT_EXCEPTIONS,
+    PROVIDER_MAX_ATTEMPTS,
+    create_custom_retry,
+    log_retry_attempt,
+    retry_ffmpeg_operation,
+    retry_on_network_error,
+    retry_on_rate_limit,
+    retry_on_transient_error,
 )
 
 __all__ = [
-    # Legacy utilities (for backward compatibility)
-    "RetryConfig",
-    "RetryExhaustedError",
-    "calculate_delay",
-    "is_retriable_exception",
-    "retry_async",
-    "retry_on_network_error_async",
-    "retry_sync",
-    # New tenacity-based decorators (recommended for new code)
-    "retry_on_network_error",
-    "retry_on_rate_limit",
-    "retry_on_transient_error",
-    "retry_ffmpeg_operation",
-    "create_custom_retry",
-    "log_retry_attempt",
     # Configuration constants
     "DEFAULT_MAX_NETWORK_ATTEMPTS",
     "DEFAULT_MAX_RATE_LIMIT_ATTEMPTS",
     "FFMPEG_MAX_ATTEMPTS",
-    "PROVIDER_MAX_ATTEMPTS",
     "PERMANENT_EXCEPTIONS",
+    "PROVIDER_MAX_ATTEMPTS",
+    # Legacy utilities (for backward compatibility)
+    "RetryConfig",
+    "RetryExhaustedError",
+    "calculate_delay",
+    # New tenacity-based decorators (recommended for new code)
+    "create_custom_retry",
+    "is_retriable_exception",
+    "log_retry_attempt",
+    "retry_async",
+    "retry_ffmpeg_operation",
+    "retry_on_network_error",
+    "retry_on_network_error_async",
+    "retry_on_rate_limit",
+    "retry_on_transient_error",
+    "retry_sync",
 ]

@@ -202,7 +202,7 @@ class TestElevenLabsTranscriberTranscription:
         with patch(
             "src.providers.elevenlabs.safe_validate_audio_file", return_value=large_audio_file
         ):
-            with pytest.raises(FileSizeError, match="exceeds.*MB limit"):
+            with pytest.raises(FileSizeError, match=r"exceeds.*MB limit"):
                 transcriber.transcribe(large_audio_file, "en")
 
     @patch("src.providers.elevenlabs.ElevenLabsClient")

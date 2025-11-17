@@ -6,6 +6,7 @@ All custom exceptions should inherit from AudioAnalysisError.
 """
 
 from __future__ import annotations
+
 from typing import Any, Optional
 
 
@@ -20,8 +21,8 @@ class AudioAnalysisError(Exception):
         self,
         message: str,
         *,
-        context: Optional[dict[str, Any]] = None,
-        original_error: Optional[Exception] = None,
+        context: dict[str, Any] | None = None,
+        original_error: Exception | None = None,
     ) -> None:
         """Initialize exception with message and optional context.
 
@@ -66,11 +67,15 @@ class FFmpegExecutionError(AudioExtractionError):
     """
 
 
-class AudioExtractionTimeout(AudioExtractionError):
+class AudioExtractionTimeoutError(AudioExtractionError):
     """Audio extraction operation timed out.
 
     Raised when audio extraction exceeds the configured timeout period.
     """
+
+
+# Alias for backward compatibility
+AudioExtractionTimeout = AudioExtractionTimeoutError
 
 
 class UnsupportedAudioFormatError(AudioExtractionError):
@@ -139,8 +144,8 @@ class ProviderAPIError(ProviderError):
         self,
         message: str,
         *,
-        status_code: Optional[int] = None,
-        response_body: Optional[str] = None,
+        status_code: int | None = None,
+        response_body: str | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize provider API error with HTTP details.
@@ -195,7 +200,7 @@ class ValidationError(AudioAnalysisError):
     """Base exception for validation errors."""
 
 
-class FileNotFoundError(ValidationError):  # noqa: A001
+class FileNotFoundError(ValidationError):
     """File not found at specified path.
 
     Note: This shadows the builtin FileNotFoundError for consistency.
@@ -330,48 +335,48 @@ class AnalysisFormatError(AnalysisError):
 # ============================================================================
 
 __all__ = [
-    # Base
-    "AudioAnalysisError",
-    # Audio Extraction
-    "AudioExtractionError",
-    "FFmpegNotFoundError",
-    "FFmpegExecutionError",
-    "AudioExtractionTimeout",
-    "UnsupportedAudioFormatError",
-    "AudioFileCorruptedError",
-    # Transcription
-    "TranscriptionError",
-    "ProviderError",
-    "ProviderNotAvailableError",
-    "ProviderAuthenticationError",
-    "ProviderRateLimitError",
-    "ProviderTimeoutError",
-    "ProviderAPIError",
-    "TranscriptionFormatError",
-    "TranscriptionServiceError",
-    "ProviderSelectionError",
-    "ProviderValidationError",
-    # Validation
-    "ValidationError",
-    "FileNotFoundError",
-    "FileAccessError",
-    "FileSizeError",
-    "PathTraversalError",
-    # Cache
-    "CacheError",
-    "CacheWriteError",
-    "CacheReadError",
-    "CacheCorruptionError",
-    # URL Ingestion
-    "UrlIngestionError",
-    "UrlDownloadError",
-    "UnsupportedUrlError",
-    # Configuration
-    "ConfigurationError",
-    "InvalidConfigError",
-    "MissingConfigError",
     # Analysis
     "AnalysisError",
-    "AnalysisTimeoutError",
     "AnalysisFormatError",
+    "AnalysisTimeoutError",
+    # Audio Extraction
+    "AudioAnalysisError",
+    "AudioExtractionError",
+    "AudioExtractionTimeout",  # Backward compatibility alias
+    "AudioExtractionTimeoutError",
+    "AudioFileCorruptedError",
+    # Cache
+    "CacheCorruptionError",
+    "CacheError",
+    "CacheReadError",
+    "CacheWriteError",
+    # Configuration
+    "ConfigurationError",
+    "FFmpegExecutionError",
+    "FFmpegNotFoundError",
+    "FileAccessError",
+    "FileNotFoundError",
+    "FileSizeError",
+    "InvalidConfigError",
+    "MissingConfigError",
+    "PathTraversalError",
+    # Transcription
+    "ProviderAPIError",
+    "ProviderAuthenticationError",
+    "ProviderError",
+    "ProviderNotAvailableError",
+    "ProviderRateLimitError",
+    "ProviderSelectionError",
+    "ProviderTimeoutError",
+    "ProviderValidationError",
+    "TranscriptionError",
+    "TranscriptionFormatError",
+    "TranscriptionServiceError",
+    # URL Ingestion
+    "UnsupportedAudioFormatError",
+    "UnsupportedUrlError",
+    "UrlDownloadError",
+    "UrlIngestionError",
+    # Validation
+    "ValidationError",
 ]

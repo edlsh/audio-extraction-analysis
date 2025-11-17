@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import logging
 import subprocess
+from collections.abc import Coroutine
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Coroutine, ParamSpec, TypeVar
+from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar
 
 if TYPE_CHECKING:
     from collections.abc import Callable

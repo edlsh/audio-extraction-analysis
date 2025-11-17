@@ -12,26 +12,27 @@ covering:
 
 from __future__ import annotations
 
-import pytest
-from unittest.mock import Mock, patch
 from pathlib import Path
+from unittest.mock import Mock, patch
 
+import pytest
+
+from src.exceptions import (
+    AudioFileCorruptedError,
+    FFmpegExecutionError,
+    ProviderAuthenticationError,
+    ProviderRateLimitError,
+    ProviderTimeoutError,
+    ValidationError,
+)
 from src.utils.retry import (
+    PERMANENT_EXCEPTIONS,
+    create_custom_retry,
+    log_retry_attempt,
+    retry_ffmpeg_operation,
     retry_on_network_error,
     retry_on_rate_limit,
     retry_on_transient_error,
-    retry_ffmpeg_operation,
-    create_custom_retry,
-    log_retry_attempt,
-    PERMANENT_EXCEPTIONS,
-)
-from src.exceptions import (
-    ProviderTimeoutError,
-    ProviderRateLimitError,
-    ProviderAuthenticationError,
-    ValidationError,
-    FFmpegExecutionError,
-    AudioFileCorruptedError,
 )
 
 
@@ -409,8 +410,9 @@ class TestLogRetryAttempt:
     @patch("src.utils.retry_tenacity.logger")
     def test_logs_retry_attempt(self, mock_logger):
         """Test that retry attempts are logged correctly."""
-        from tenacity import RetryCallState
         from unittest.mock import MagicMock
+
+        from tenacity import RetryCallState
 
         # Create a mock retry state
         retry_state = MagicMock(spec=RetryCallState)

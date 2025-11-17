@@ -7,50 +7,51 @@ and preserve context and error chaining.
 """
 
 from __future__ import annotations
+
 import pytest
 
 from src.exceptions import (
+    # Analysis
+    AnalysisError,
+    AnalysisFormatError,
+    AnalysisTimeoutError,
     # Base
     AudioAnalysisError,
     # Audio Extraction
     AudioExtractionError,
-    FFmpegNotFoundError,
-    FFmpegExecutionError,
-    AudioExtractionTimeout,
-    UnsupportedAudioFormatError,
+    AudioExtractionTimeoutError,
     AudioFileCorruptedError,
-    # Transcription
-    TranscriptionError,
-    ProviderError,
-    ProviderNotAvailableError,
-    ProviderAuthenticationError,
-    ProviderRateLimitError,
-    ProviderTimeoutError,
-    ProviderAPIError,
-    TranscriptionFormatError,
-    # Validation
-    ValidationError,
-    FileNotFoundError,
-    FileAccessError,
-    FileSizeError,
-    PathTraversalError,
+    CacheCorruptionError,
     # Cache
     CacheError,
-    CacheWriteError,
     CacheReadError,
-    CacheCorruptionError,
-    # URL Ingestion
-    UrlIngestionError,
-    UrlDownloadError,
-    UnsupportedUrlError,
+    CacheWriteError,
     # Configuration
     ConfigurationError,
+    FFmpegExecutionError,
+    FFmpegNotFoundError,
+    FileAccessError,
+    FileNotFoundError,
+    FileSizeError,
     InvalidConfigError,
     MissingConfigError,
-    # Analysis
-    AnalysisError,
-    AnalysisTimeoutError,
-    AnalysisFormatError,
+    PathTraversalError,
+    ProviderAPIError,
+    ProviderAuthenticationError,
+    ProviderError,
+    ProviderNotAvailableError,
+    ProviderRateLimitError,
+    ProviderTimeoutError,
+    # Transcription
+    TranscriptionError,
+    TranscriptionFormatError,
+    UnsupportedAudioFormatError,
+    UnsupportedUrlError,
+    UrlDownloadError,
+    # URL Ingestion
+    UrlIngestionError,
+    # Validation
+    ValidationError,
 )
 
 
@@ -86,7 +87,7 @@ class TestBaseException:
 
     def test_create_with_all_parameters(self):
         """Test creating exception with all parameters."""
-        original = IOError("File not found")
+        original = OSError("File not found")
         error = AudioAnalysisError(
             "Complete failure",
             context={"path": "/test/file.mp3", "operation": "read"},
@@ -126,8 +127,8 @@ class TestAudioExtractionExceptions:
         assert "Invalid codec" in error.context["stderr"]
 
     def test_audio_extraction_timeout(self):
-        """Test AudioExtractionTimeout."""
-        error = AudioExtractionTimeout("Extraction timed out", context={"timeout_seconds": 300})
+        """Test AudioExtractionTimeoutError."""
+        error = AudioExtractionTimeoutError("Extraction timed out", context={"timeout_seconds": 300})
 
         assert error.context["timeout_seconds"] == 300
         assert isinstance(error, AudioExtractionError)
@@ -350,7 +351,7 @@ class TestExceptionInheritance:
             AudioExtractionError,
             FFmpegNotFoundError,
             FFmpegExecutionError,
-            AudioExtractionTimeout,
+            AudioExtractionTimeoutError,
             UnsupportedAudioFormatError,
             AudioFileCorruptedError,
             # Transcription
@@ -433,8 +434,8 @@ class TestExceptionChaining:
         """Test raising with 'from' clause for proper exception chaining."""
         with pytest.raises(AudioExtractionError) as exc_info:
             try:
-                raise IOError("Disk full")
-            except IOError as e:
+                raise OSError("Disk full")
+            except OSError as e:
                 raise AudioExtractionError("Extraction failed", original_error=e) from e
 
         # Verify exception chain

@@ -29,8 +29,8 @@ try:
         AudioAnalysisError,
         AudioExtractionError,
         FFmpegNotFoundError,
-        ValidationError as CustomValidationError,
     )
+    from .exceptions import ValidationError as CustomValidationError
     from .formatters.markdown_formatter import MarkdownFormatter
     from .pipeline.audio_pipeline import AudioProcessingPipeline
     from .pipeline.simple_pipeline import process_pipeline
@@ -48,8 +48,8 @@ except ImportError:  # pragma: no cover - fallback for installed package layout
         AudioAnalysisError,
         AudioExtractionError,
         FFmpegNotFoundError,
-        ValidationError as CustomValidationError,
     )
+    from src.exceptions import ValidationError as CustomValidationError
     from src.formatters.markdown_formatter import MarkdownFormatter
     from src.pipeline.audio_pipeline import AudioProcessingPipeline
     from src.pipeline.simple_pipeline import process_pipeline

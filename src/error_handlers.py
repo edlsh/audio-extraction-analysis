@@ -6,24 +6,25 @@ mapping internal exceptions to clear error messages and exit codes.
 """
 
 from __future__ import annotations
-import sys
+
 import logging
+import sys
 from typing import NoReturn
 
 from src.exceptions import (
     AudioAnalysisError,
-    ValidationError,
-    FFmpegNotFoundError,
-    FFmpegExecutionError,
     AudioExtractionError,
-    ProviderNotAvailableError,
+    ConfigurationError,
+    FFmpegExecutionError,
+    FFmpegNotFoundError,
+    ProviderAPIError,
     ProviderAuthenticationError,
+    ProviderNotAvailableError,
     ProviderRateLimitError,
     ProviderTimeoutError,
-    ProviderAPIError,
     TranscriptionError,
     UrlIngestionError,
-    ConfigurationError,
+    ValidationError,
 )
 
 logger = logging.getLogger(__name__)

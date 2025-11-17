@@ -181,11 +181,11 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
             ProviderTimeoutError: If request times out
         """
         from ..exceptions import (
-            ProviderNotAvailableError,
-            ProviderAPIError,
-            ValidationError,
             FileAccessError,
             FileSizeError,
+            ProviderAPIError,
+            ProviderNotAvailableError,
+            ValidationError,
         )
 
         # Validate audio file with ElevenLabs size limits
@@ -327,7 +327,7 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
             ) from e
         except (OSError, ConnectionError, TimeoutError):
             # Let provider-specific errors propagate directly
-            logger.error(f"ElevenLabs API error")
+            logger.error("ElevenLabs API error")
             raise
         except Exception as e:
             logger.error(f"ElevenLabs transcription failed: {e}")

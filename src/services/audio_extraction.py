@@ -12,7 +12,7 @@ from typing import Any
 
 from ..exceptions import (
     AudioExtractionError,
-    AudioExtractionTimeout,
+    AudioExtractionTimeoutError,
     AudioFileCorruptedError,
     FFmpegExecutionError,
     FFmpegNotFoundError,
@@ -186,7 +186,7 @@ class AudioExtractor:
             Path to extracted audio file
 
         Raises:
-            AudioExtractionTimeout: If extraction exceeds timeout (600s)
+            AudioExtractionTimeoutError: If extraction exceeds timeout (600s)
             FFmpegNotFoundError: If FFmpeg is not installed
             FFmpegExecutionError: If FFmpeg execution fails
             AudioFileCorruptedError: If input file is corrupted
@@ -235,8 +235,8 @@ class AudioExtractor:
             logger.info(f"Successfully extracted audio: {final_size:.2f} MB")
             return output_path
         except subprocess.TimeoutExpired as e:
-            logger.error(f"Audio extraction timed out after 600s")
-            raise AudioExtractionTimeout(
+            logger.error("Audio extraction timed out after 600s")
+            raise AudioExtractionTimeoutError(
                 f"Audio extraction timed out after 600s for {input_path.name}",
                 context={"input_path": str(input_path), "timeout": 600, "quality": quality.value},
             ) from e

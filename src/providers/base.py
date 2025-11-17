@@ -10,10 +10,11 @@ import asyncio
 import logging
 import time
 from abc import ABC, abstractmethod
+from collections.abc import Awaitable
 from dataclasses import dataclass
 from enum import Enum
 from threading import Lock
-from typing import TYPE_CHECKING, Any, Awaitable, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 T = TypeVar("T")
 

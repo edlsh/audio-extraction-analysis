@@ -7,29 +7,31 @@ are displayed.
 """
 
 from __future__ import annotations
+
 import sys
 from io import StringIO
+
 import pytest
 
 from src.error_handlers import (
-    handle_validation_error,
-    handle_ffmpeg_error,
     handle_audio_extraction_error,
-    handle_provider_error,
-    handle_provider_api_error,
     handle_cli_error,
+    handle_ffmpeg_error,
+    handle_provider_api_error,
+    handle_provider_error,
+    handle_validation_error,
 )
 from src.exceptions import (
-    ValidationError,
-    FileNotFoundError,
-    FFmpegNotFoundError,
-    FFmpegExecutionError,
     AudioExtractionError,
-    ProviderNotAvailableError,
-    ProviderAuthenticationError,
+    FFmpegExecutionError,
+    FFmpegNotFoundError,
+    FileNotFoundError,
     ProviderAPIError,
+    ProviderAuthenticationError,
+    ProviderNotAvailableError,
     ProviderRateLimitError,
     ProviderTimeoutError,
+    ValidationError,
 )
 
 

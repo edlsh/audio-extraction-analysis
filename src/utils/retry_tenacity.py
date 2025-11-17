@@ -36,27 +36,28 @@ Example Usage:
 from __future__ import annotations
 
 import logging
-from typing import Callable, TypeVar, Any
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 from tenacity import (
+    RetryCallState,
+    before_sleep_log,
     retry,
+    retry_if_exception_type,
+    retry_if_not_exception_type,
     stop_after_attempt,
     stop_after_delay,
     wait_exponential,
     wait_exponential_jitter,
     wait_fixed,
-    retry_if_exception_type,
-    retry_if_not_exception_type,
-    before_sleep_log,
-    RetryCallState,
 )
 
 from src.exceptions import (
-    ProviderTimeoutError,
-    ProviderRateLimitError,
-    ProviderAuthenticationError,
-    ValidationError,
     AudioFileCorruptedError,
+    ProviderAuthenticationError,
+    ProviderRateLimitError,
+    ProviderTimeoutError,
+    ValidationError,
 )
 
 logger = logging.getLogger(__name__)
@@ -276,7 +277,7 @@ def retry_ffmpeg_operation(
         - Don't retry corrupted files - they won't get better
         - Keep max_attempts low (2 is usually sufficient)
     """
-    from src.exceptions import FFmpegExecutionError, AudioFileCorruptedError
+    from src.exceptions import AudioFileCorruptedError, FFmpegExecutionError
 
     return retry(
         retry=retry_if_exception_type(FFmpegExecutionError)
@@ -385,18 +386,18 @@ def log_retry_attempt(retry_state: RetryCallState) -> None:
 
 
 __all__ = [
-    # Retry decorators
-    "retry_on_network_error",
-    "retry_on_rate_limit",
-    "retry_on_transient_error",
-    "retry_ffmpeg_operation",
-    "create_custom_retry",
-    # Utility functions
-    "log_retry_attempt",
     # Configuration constants
     "DEFAULT_MAX_NETWORK_ATTEMPTS",
     "DEFAULT_MAX_RATE_LIMIT_ATTEMPTS",
     "FFMPEG_MAX_ATTEMPTS",
-    "PROVIDER_MAX_ATTEMPTS",
     "PERMANENT_EXCEPTIONS",
+    "PROVIDER_MAX_ATTEMPTS",
+    # Retry decorators
+    "create_custom_retry",
+    # Utility functions
+    "log_retry_attempt",
+    "retry_ffmpeg_operation",
+    "retry_on_network_error",
+    "retry_on_rate_limit",
+    "retry_on_transient_error",
 ]

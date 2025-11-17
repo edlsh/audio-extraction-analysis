@@ -494,10 +494,10 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
             ProviderTimeoutError: If request times out
         """
         from ..exceptions import (
-            ProviderNotAvailableError,
-            ProviderAPIError,
-            ValidationError,
             FileAccessError,
+            ProviderAPIError,
+            ProviderNotAvailableError,
+            ValidationError,
         )
 
         # Validate audio file
@@ -547,7 +547,7 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
             ) from e
         except (ConnectionError, TimeoutError):
             # Let provider-specific errors propagate directly
-            logger.error(f"Deepgram API error")
+            logger.error("Deepgram API error")
             raise
         except OSError as e:
             logger.error(f"System error during transcription: {e}")

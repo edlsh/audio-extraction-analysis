@@ -59,10 +59,10 @@ class TranscriptionService:
             ProviderNotAvailableError: If no providers configured (test environments)
         """
         from ..exceptions import (
-            ValidationError,
+            ProviderNotAvailableError,
             ProviderSelectionError,
             ProviderValidationError,
-            ProviderNotAvailableError,
+            ValidationError,
         )
 
         # Validate audio file
@@ -148,7 +148,7 @@ class TranscriptionService:
 
         if not result:
             raise TranscriptionError(
-                f"Transcription returned no result",
+                "Transcription returned no result",
                 context={
                     "provider": provider_name,
                     "file_path": str(audio_file_path),
@@ -222,7 +222,7 @@ class TranscriptionService:
 
         if not result:
             raise TranscriptionError(
-                f"Transcription returned no result",
+                "Transcription returned no result",
                 context={
                     "provider": provider_name,
                     "file_path": str(audio_file_path),
