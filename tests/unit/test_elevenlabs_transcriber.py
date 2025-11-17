@@ -694,7 +694,7 @@ class TestElevenLabsTranscriberEdgeCases:
     def test_transcribe_os_error(self, mock_asyncio_run, mock_elevenlabs_class, temp_audio_file):
         """Test transcription with OS error raises the error through retry mechanism."""
         from src.utils.retry_legacy import RetryExhaustedError
-        
+
         mock_client = Mock()
         mock_speech_to_text_client = Mock()
         mock_speech_to_text_client.convert.side_effect = OSError("Disk I/O error")
@@ -703,9 +703,7 @@ class TestElevenLabsTranscriberEdgeCases:
 
         # Mock asyncio.run to raise RetryExhaustedError as would happen after retries fail
         mock_asyncio_run.side_effect = RetryExhaustedError(
-            attempts=3,
-            last_exception=OSError("Disk I/O error"),
-            total_delay=3.02
+            attempts=3, last_exception=OSError("Disk I/O error"), total_delay=3.02
         )
 
         transcriber = ElevenLabsTranscriber(api_key="test_key")

@@ -291,6 +291,7 @@ class TestConfigInitialization:
             assert config.cache_dir == Path("./cache")
             # Use the actual system temp directory for comparison
             import tempfile
+
             assert config.temp_dir == Path(tempfile.gettempdir())
 
             # File handling - validation and limits

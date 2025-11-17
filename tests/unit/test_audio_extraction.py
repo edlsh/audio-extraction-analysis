@@ -153,10 +153,10 @@ class TestAudioExtractor:
         extractor = AudioExtractor()
 
         non_existent_path = Path("/non/existent/file.mp4")
-        
+
         with pytest.raises(ValueError) as exc_info:
             extractor.extract_audio(non_existent_path)
-        
+
         assert "Invalid media file" in str(exc_info.value)
 
     @patch("subprocess.run")

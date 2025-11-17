@@ -128,7 +128,9 @@ class TestAudioExtractionExceptions:
 
     def test_audio_extraction_timeout(self):
         """Test AudioExtractionTimeoutError."""
-        error = AudioExtractionTimeoutError("Extraction timed out", context={"timeout_seconds": 300})
+        error = AudioExtractionTimeoutError(
+            "Extraction timed out", context={"timeout_seconds": 300}
+        )
 
         assert error.context["timeout_seconds"] == 300
         assert isinstance(error, AudioExtractionError)
