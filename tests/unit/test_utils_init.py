@@ -44,14 +44,27 @@ class TestUtilsPackage:
         import src.utils
 
         expected_exports = [
+            # Legacy utilities (for backward compatibility)
             "RetryConfig",
             "RetryExhaustedError",
             "calculate_delay",
             "is_retriable_exception",
             "retry_async",
-            "retry_on_network_error",
             "retry_on_network_error_async",
             "retry_sync",
+            # New tenacity-based decorators (recommended for new code)
+            "retry_on_network_error",
+            "retry_on_rate_limit",
+            "retry_on_transient_error",
+            "retry_ffmpeg_operation",
+            "create_custom_retry",
+            "log_retry_attempt",
+            # Configuration constants
+            "DEFAULT_MAX_NETWORK_ATTEMPTS",
+            "DEFAULT_MAX_RATE_LIMIT_ATTEMPTS",
+            "FFMPEG_MAX_ATTEMPTS",
+            "PROVIDER_MAX_ATTEMPTS",
+            "PERMANENT_EXCEPTIONS",
         ]
 
         assert set(src.utils.__all__) == set(
@@ -189,14 +202,27 @@ class TestUtilsPackage:
         # Check that only expected items are imported (plus builtins)
         imported_names = [name for name in namespace.keys() if not name.startswith("__")]
         expected_names = [
+            # Legacy utilities (for backward compatibility)
             "RetryConfig",
             "RetryExhaustedError",
             "calculate_delay",
             "is_retriable_exception",
             "retry_async",
-            "retry_on_network_error",
             "retry_on_network_error_async",
             "retry_sync",
+            # New tenacity-based decorators (recommended for new code)
+            "retry_on_network_error",
+            "retry_on_rate_limit",
+            "retry_on_transient_error",
+            "retry_ffmpeg_operation",
+            "create_custom_retry",
+            "log_retry_attempt",
+            # Configuration constants
+            "DEFAULT_MAX_NETWORK_ATTEMPTS",
+            "DEFAULT_MAX_RATE_LIMIT_ATTEMPTS",
+            "FFMPEG_MAX_ATTEMPTS",
+            "PROVIDER_MAX_ATTEMPTS",
+            "PERMANENT_EXCEPTIONS",
         ]
 
         assert set(imported_names) == set(

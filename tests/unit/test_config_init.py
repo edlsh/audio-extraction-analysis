@@ -289,7 +289,9 @@ class TestConfigInitialization:
             # Paths - filesystem locations for data persistence
             assert config.data_dir == Path("./data")
             assert config.cache_dir == Path("./cache")
-            assert config.temp_dir == Path("/tmp")
+            # Use the actual system temp directory for comparison
+            import tempfile
+            assert config.temp_dir == Path(tempfile.gettempdir())
 
             # File handling - validation and limits
             assert config.max_file_size == 100000000  # 100MB default

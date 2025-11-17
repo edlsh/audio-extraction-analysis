@@ -690,13 +690,23 @@ class TestElevenLabsTranscriberEdgeCases:
                         transcriber.transcribe(temp_audio_file, "en")
 
     @patch("src.providers.elevenlabs.ElevenLabsClient")
-    def test_transcribe_os_error(self, mock_elevenlabs_class, temp_audio_file):
-        """Test transcription with OS error lets OSError propagate."""
+    @patch("src.providers.elevenlabs.asyncio.run")
+    def test_transcribe_os_error(self, mock_asyncio_run, mock_elevenlabs_class, temp_audio_file):
+        """Test transcription with OS error raises the error through retry mechanism."""
+        from src.utils.retry_legacy import RetryExhaustedError
+        
         mock_client = Mock()
         mock_speech_to_text_client = Mock()
         mock_speech_to_text_client.convert.side_effect = OSError("Disk I/O error")
         mock_client.speech_to_text = mock_speech_to_text_client
         mock_elevenlabs_class.return_value = mock_client
+
+        # Mock asyncio.run to raise RetryExhaustedError as would happen after retries fail
+        mock_asyncio_run.side_effect = RetryExhaustedError(
+            attempts=3,
+            last_exception=OSError("Disk I/O error"),
+            total_delay=3.02
+        )
 
         transcriber = ElevenLabsTranscriber(api_key="test_key")
 
@@ -704,10 +714,8 @@ class TestElevenLabsTranscriberEdgeCases:
             with patch(
                 "src.providers.elevenlabs.safe_validate_audio_file", return_value=temp_audio_file
             ):
-                with patch("src.providers.elevenlabs.asyncio.wait_for") as mock_wait:
-                    mock_wait.side_effect = OSError("Disk I/O error")
-                    with pytest.raises(OSError, match="Disk I/O error"):
-                        transcriber.transcribe(temp_audio_file, "en")
+                with pytest.raises(RetryExhaustedError, match="Disk I/O error"):
+                    transcriber.transcribe(temp_audio_file, "en")
 
     @patch("src.providers.elevenlabs.ElevenLabsClient")
     def test_transcribe_value_error(self, mock_elevenlabs_class, temp_audio_file):

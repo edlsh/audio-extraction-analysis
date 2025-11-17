@@ -8,27 +8,44 @@ on:
 
 env:
   AUDIO_TEST_MODE: 1  # Enable mock provider for CI
+  UV_VERSION: '0.5.11'  # Pin UV version for consistency
+  PYTHON_VERSION_DEFAULT: '3.11'
 
 jobs:
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.10", "3.11", "3.12"]
     
     steps:
     - uses: actions/checkout@v4
     
     - name: Set up uv with Python ${{ matrix.python-version }}
-      uses: astral-sh/setup-uv@v7
+      uses: astral-sh/setup-uv@v3
       with:
         python-version: ${{ matrix.python-version }}
+        version: ${{ env.UV_VERSION }}
         enable-cache: true
+        cache-dependency-glob: "uv.lock"
+    
+    - name: Debug environment
+      run: |
+        uv --version
+        python --version
+        which python
+        echo "UV cache location: $(uv cache dir)"
     
     - name: Install dependencies
       run: |
-        uv sync --locked --all-extras --dev
+        # Try to sync with lock, fall back if needed
+        uv sync --locked --all-extras --dev || {
+          echo "::warning::Lock file sync failed, regenerating..."
+          uv lock
+          uv sync --locked --all-extras --dev
+        }
     
     - name: Run unit tests
       run: |

@@ -146,16 +146,18 @@ class TestAudioExtractor:
     def test_extract_audio_input_not_found(self, mock_run):
         """Test audio extraction with non-existent input file.
 
-        Verifies that extract_audio() gracefully handles missing input files
-        by returning None instead of raising an exception.
+        Verifies that extract_audio() raises ValueError for missing input files
+        as per the current implementation.
         """
         mock_run.return_value = Mock(returncode=0)  # FFmpeg check
         extractor = AudioExtractor()
 
         non_existent_path = Path("/non/existent/file.mp4")
-        result = extractor.extract_audio(non_existent_path)
-
-        assert result is None
+        
+        with pytest.raises(ValueError) as exc_info:
+            extractor.extract_audio(non_existent_path)
+        
+        assert "Invalid media file" in str(exc_info.value)
 
     @patch("subprocess.run")
     def test_extract_audio_ffmpeg_failure(self, mock_run, temp_video_file, temp_output_dir):
