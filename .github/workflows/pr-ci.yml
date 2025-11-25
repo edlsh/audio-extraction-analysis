@@ -1,0 +1,139 @@
+name: Pull Request CI
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+  push:
+    branches: [ develop ]
+
+env:
+  PYTHON_VERSION: '3.11'
+  UV_VERSION: '0.5.11'  # Pin UV version for consistency
+  AUDIO_TEST_MODE: '1'  # Enable mock providers for CI
+
+jobs:
+  lint-and-arch:
+    name: Lint and Architecture
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          version: ${{ env.UV_VERSION }}
+          cache-dependency-glob: "uv.lock"
+
+      - name: Verify UV installation
+        run: |
+          uv --version
+          echo "Python version: $(python --version)"
+
+      - name: Install dependencies
+        run: |
+          # Clear cache if needed
+          uv cache prune --ci || true
+          # Sync with locked dependencies
+          uv sync --locked --all-extras --dev || {
+            echo "::warning::Lock file may be out of sync, attempting to update..."
+            uv lock
+            uv sync --locked --all-extras --dev
+          }
+
+      - name: Ruff lint
+        run: uv run ruff check src tests
+
+      - name: Black format check
+        run: uv run black --check src tests
+
+      - name: Architecture checks
+        run: uv run lint-imports
+
+  fast-tests:
+    name: Fast Unit Tests
+    runs-on: ubuntu-latest
+    needs: lint-and-arch
+    env:
+      AUDIO_TEST_MODE: 1  # Enable mock providers
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install dependencies (minimal)
+        run: |
+          uv sync --locked --dev
+
+      - name: Run fast unit tests (respects pyproject.toml markers)
+        run: |
+          # Note: Integration and E2E tests are excluded from PR runs for speed.
+          # They run separately on merge to main/develop via test.yml workflow.
+          uv run pytest \
+            -m "not integration and not e2e and not slow and not network" \
+            --cov=src \
+            --cov-branch \
+            --cov-report=xml:coverage.xml \
+            --cov-report=term-missing \
+            --cov-fail-under=45 \
+            --maxfail=10 \
+            -x
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.xml
+          fail_ci_if_error: false
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: lint-and-arch
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: |
+          uv sync --locked --all-extras --dev
+
+      - name: Secret scanning
+        run: |
+          if [ ! -f .secrets.baseline ]; then
+            echo "Missing .secrets.baseline" >&2
+            exit 1
+          fi
+          uv run detect-secrets scan --baseline .secrets.baseline
+
+      - name: Bandit
+        run: uv run bandit -r src -ll
+        continue-on-error: true
+
+      - name: pip-audit
+        run: uv run pip-audit --strict
+        continue-on-error: true

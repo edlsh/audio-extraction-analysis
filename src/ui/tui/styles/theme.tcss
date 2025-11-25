@@ -1,0 +1,166 @@
+/* Textual CSS theme for audio extraction TUI */
+
+/* Global styles */
+Screen {
+    background: $surface;
+}
+
+/* Header and Footer */
+Header {
+    background: $primary;
+    color: $text;
+    text-style: bold;
+}
+
+Footer {
+    background: $panel;
+}
+
+/* Containers and panels */
+Container {
+    background: $surface;
+}
+
+Panel {
+    border: solid $accent;
+    background: $panel;
+}
+
+/* Progress and status */
+.progress-card {
+    border: solid $accent;
+    padding: 1;
+    margin: 1;
+    background: $panel;
+}
+
+.progress-complete {
+    border: solid $success;
+}
+
+.progress-error {
+    border: solid $error;
+}
+
+/* Log entries */
+.log-entry {
+    color: $text-muted;
+}
+
+.log-info {
+    color: $text;
+}
+
+.log-warning {
+    color: $warning;
+}
+
+.log-error {
+    color: $error;
+    text-style: bold;
+}
+
+/* Buttons */
+Button {
+    margin: 0 1;
+}
+
+Button:focus {
+    text-style: bold;
+}
+
+/* Tables */
+DataTable {
+    height: 100%;
+}
+
+DataTable > .datatable--header {
+    text-style: bold;
+    background: $primary;
+}
+
+DataTable > .datatable--cursor {
+    background: $accent;
+}
+
+/* Input fields */
+Input {
+    border: solid $primary;
+}
+
+Input:focus {
+    border: solid $accent;
+}
+
+/* Select widgets */
+Select {
+    border: solid $primary;
+}
+
+Select:focus {
+    border: solid $accent;
+}
+
+/* Tree widgets */
+Tree {
+    background: $surface;
+}
+
+TreeNode:hover {
+    background: $panel;
+}
+
+TreeNode.-selected {
+    background: $accent;
+}
+
+/* Labels */
+Label {
+    color: $text;
+}
+
+.title {
+    text-style: bold;
+    text-align: center;
+    color: $accent;
+}
+
+.subtitle {
+    text-style: italic;
+    color: $text-muted;
+}
+
+/* Status indicators */
+.status-ok {
+    color: $success;
+}
+
+.status-warning {
+    color: $warning;
+}
+
+.status-error {
+    color: $error;
+}
+
+/* Artifacts table */
+.artifact-row {
+    color: $text;
+}
+
+.artifact-row:hover {
+    background: $panel;
+}
+
+/* Health check panel */
+.health-ok {
+    color: $success;
+}
+
+.health-error {
+    color: $error;
+}
+
+.health-unknown {
+    color: $text-muted;
+}
