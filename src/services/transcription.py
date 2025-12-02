@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from ..models.transcription import TranscriptionResult
+    from .cache import TranscriptionCache
 from ..config import Config
 from ..exceptions import ProviderTimeoutError, TranscriptionError
 from ..providers.factory import TranscriptionProviderFactory
@@ -25,10 +26,17 @@ logger = logging.getLogger(__name__)
 class TranscriptionService:
     """Coordinates transcription operations across providers."""
 
-    def __init__(self) -> None:
+    def __init__(self, cache: TranscriptionCache | None = None) -> None:
+        """Initialize transcription service.
+
+        Args:
+            cache: Optional TranscriptionCache instance for caching results.
+                   If None, caching is disabled.
+        """
         self.factory = TranscriptionProviderFactory
         self._config = Config()
         self._provider_timeout = float(self._config.transcription_timeout_seconds)
+        self._cache = cache
 
     def get_available_providers(self) -> list[str]:
         """List all registered providers."""
@@ -124,7 +132,8 @@ class TranscriptionService:
                 logger.debug("Failed to update provider timeout: %s", exc)
 
     def transcribe(
-        self, audio_file_path: Path, provider_name: str | None = None, language: str = "en"
+        self, audio_file_path: Path, provider_name: str | None = None, language: str = "en",
+        *, use_cache: bool = True
     ) -> TranscriptionResult:
         """Transcribe an audio file using the specified or auto-selected provider.
 
@@ -132,6 +141,7 @@ class TranscriptionService:
             audio_file_path: Path to the audio file to transcribe
             provider_name: Optional provider name. If None, auto-selects best provider
             language: Language code for transcription (default: 'en')
+            use_cache: Whether to use caching (default: True). Requires cache to be configured.
 
         Returns:
             TranscriptionResult with available features
@@ -148,6 +158,17 @@ class TranscriptionService:
         """
         # Validate and prepare for transcription (now raises exceptions)
         audio_file_path, provider_name = self._prepare_transcription(audio_file_path, provider_name)
+
+        # Check cache first if enabled
+        if use_cache and self._cache is not None:
+            try:
+                cached_result = self._cache.get(audio_file_path, provider_name, language)
+                if cached_result is not None:
+                    logger.info(f"Using cached transcription for {audio_file_path.name}")
+                    return cached_result
+            except Exception as e:
+                # Log but don't fail on cache errors
+                logger.warning(f"Cache lookup failed, proceeding with transcription: {e}")
 
         # Create provider instance
         provider = self.factory.create_provider(provider_name)
@@ -175,6 +196,14 @@ class TranscriptionService:
 
         logger.info(f"Transcription completed successfully with {provider.get_provider_name()}")
         logger.info(f"Transcript length: {len(result.transcript)} characters")
+
+        # Cache the result if enabled
+        if use_cache and self._cache is not None:
+            try:
+                self._cache.put(audio_file_path, provider_name, language, result)
+            except Exception as e:
+                # Log but don't fail on cache errors
+                logger.warning(f"Failed to cache transcription result: {e}")
 
         return result
 
@@ -235,7 +264,8 @@ class TranscriptionService:
         )
 
     async def transcribe_async(
-        self, audio_file_path: Path, provider_name: str | None = None, language: str = "en"
+        self, audio_file_path: Path, provider_name: str | None = None, language: str = "en",
+        *, use_cache: bool = True
     ) -> TranscriptionResult:
         """Transcribe an audio file asynchronously.
 
@@ -243,6 +273,7 @@ class TranscriptionService:
             audio_file_path: Path to the audio file to transcribe
             provider_name: Optional provider name. If None, auto-selects best provider
             language: Language code for transcription (default: 'en')
+            use_cache: Whether to use caching (default: True). Requires cache to be configured.
 
         Returns:
             TranscriptionResult with available features
@@ -259,6 +290,17 @@ class TranscriptionService:
         """
         # Validate and prepare for transcription (now raises exceptions)
         audio_file_path, provider_name = self._prepare_transcription(audio_file_path, provider_name)
+
+        # Check cache first if enabled
+        if use_cache and self._cache is not None:
+            try:
+                cached_result = self._cache.get(audio_file_path, provider_name, language)
+                if cached_result is not None:
+                    logger.info(f"Using cached transcription for {audio_file_path.name}")
+                    return cached_result
+            except Exception as e:
+                # Log but don't fail on cache errors
+                logger.warning(f"Cache lookup failed, proceeding with transcription: {e}")
 
         # Create provider instance
         provider = self.factory.create_provider(provider_name)
@@ -289,6 +331,14 @@ class TranscriptionService:
 
         logger.info(f"Transcription completed successfully with {provider.get_provider_name()}")
         logger.info(f"Transcript length: {len(result.transcript)} characters")
+
+        # Cache the result if enabled
+        if use_cache and self._cache is not None:
+            try:
+                self._cache.put(audio_file_path, provider_name, language, result)
+            except Exception as e:
+                # Log but don't fail on cache errors
+                logger.warning(f"Failed to cache transcription result: {e}")
 
         return result
 
