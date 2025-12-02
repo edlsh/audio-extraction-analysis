@@ -254,7 +254,7 @@ class RunScreen(Screen):
             self.notify(f"Pipeline failed: {e}", severity="error")
             self._running = False
             raise
-        except Exception as e:
+        except Exception:
             self.notify("Pipeline failed: unexpected error", severity="error")
             self._running = False
             raise

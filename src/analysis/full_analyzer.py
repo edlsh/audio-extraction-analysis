@@ -10,13 +10,17 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ..utils.constants import AnalysisConstants
+from ..utils.formatting import format_timestamp
+from .base_analyzer import BaseAnalyzer
+
 if TYPE_CHECKING:
     from ..models.transcription import TranscriptionResult, TranscriptionUtterance
 
 logger = logging.getLogger(__name__)
 
 
-class FullAnalyzer:
+class FullAnalyzer(BaseAnalyzer):
     """Generates 5 detailed markdown files from transcription results."""
 
     def analyze_and_save(
@@ -149,7 +153,11 @@ class FullAnalyzer:
 
     def _render_chapter_summary_table(self, chapters: list, total_duration: float) -> list[str]:
         """Render chapter summary table."""
-        lines = ["\n## Chapter Summary Table\n", "| # | Time Range | % | Title |", "|---|------------|---:|-------|"]
+        lines = [
+            "\n## Chapter Summary Table\n",
+            "| # | Time Range | % | Title |",
+            "|---|------------|---:|-------|",
+        ]
         for idx, ch in enumerate(chapters, 1):
             start = self._format_hms(ch.start_time)
             end = self._format_hms(ch.end_time)
@@ -241,9 +249,7 @@ class FullAnalyzer:
             if current_min > last_section_min:
                 lines.append(f"\n## Section starting at [{self._format_hms(utt.start)}]\n")
                 last_section_min = current_min
-            lines.append(
-                f"[{self._format_hms(utt.start)}] Speaker {utt.speaker + 1}: {utt.text}"
-            )
+            lines.append(f"[{self._format_hms(utt.start)}] Speaker {utt.speaker + 1}: {utt.text}")
         return lines
 
     def _render_speaker_statistics(
@@ -326,19 +332,8 @@ class FullAnalyzer:
 
     # ---------------------- Helpers ----------------------
     def _format_hms(self, seconds: float) -> str:
-        """Format seconds as HH:MM:SS timestamp string.
-
-        Args:
-            seconds: Time in seconds (negative values are clamped to 0)
-
-        Returns:
-            Zero-padded timestamp string in HH:MM:SS format (e.g., "01:23:45")
-        """
-        seconds = max(0.0, float(seconds))
-        h = int(seconds // 3600)
-        m = int((seconds % 3600) // 60)
-        s = int(seconds % 60)
-        return f"{h:02d}:{m:02d}:{s:02d}"
+        """Format seconds as HH:MM:SS timestamp string."""
+        return format_timestamp(seconds)
 
     def _overall_sentiment(self, result: TranscriptionResult) -> str:
         """Determine the dominant sentiment from sentiment distribution.
@@ -357,64 +352,6 @@ class FullAnalyzer:
         if not dist:
             return "Unknown"
         return max(dist.items(), key=lambda x: x[1])[0].title()
-
-    def _fallback_summary(self, transcript: str) -> str:
-        """Generate a simple fallback summary when no AI-generated summary is available.
-
-        Extracts either the first 3 sentences or the first 300 characters from
-        the transcript to create a basic summary.
-
-        Args:
-            transcript: Raw transcript text
-
-        Returns:
-            Simple summary text: first 3 sentences (if available), or first 300 chars,
-            or "No summary available." for empty transcripts
-        """
-        # Fallback strategy: Extract first 3 complete sentences if available,
-        # otherwise use first 300 characters. This provides a basic summary
-        # when AI-generated summaries are not present in the TranscriptionResult.
-        if not transcript:
-            return "No summary available."
-        # Split by period and filter out empty strings
-        parts = [s.strip() for s in transcript.split(".") if s.strip()]
-        if len(parts) >= 3:
-            # We have at least 3 sentences - use them as summary
-            return ". ".join(parts[:3]) + "."
-        # Fewer than 3 sentences - truncate to 300 chars
-        return (transcript[:300] + ("..." if len(transcript) > 300 else "")).strip()
-
-    def _find_action_sentences(self, transcript: str) -> list[str]:
-        """Extract sentences containing action-oriented keywords.
-
-        Uses a heuristic approach to identify actionable content by searching for
-        sentences containing specific keywords like "should", "must", "will", etc.
-
-        Action keywords:
-            should, need to, must, will, plan to, going to, have to, recommend, priority
-
-        Args:
-            transcript: Raw transcript text
-
-        Returns:
-            List of sentences (strings) containing at least one action keyword.
-            Returns empty list if transcript is empty.
-        """
-        if not transcript:
-            return []
-        action_keywords = [
-            "should",
-            "need to",
-            "must",
-            "will",
-            "plan to",
-            "going to",
-            "have to",
-            "recommend",
-            "priority",
-        ]
-        sentences = [s.strip() for s in transcript.split(".") if s.strip()]
-        return [s for s in sentences if any(k in s.lower() for k in action_keywords)]
 
     def _approx_timestamp_for_sentence(
         self, sentence: str, utterances: list[TranscriptionUtterance]

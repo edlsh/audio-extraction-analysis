@@ -1,4 +1,4 @@
-# Audio Extraction Analysis v2.0.0
+# Audio Extraction Analysis v2.1.0
 
 🎥➡️🎵➡️📝 **Professional Audio-to-Transcript Pipeline with Multiple Providers**
 
@@ -62,7 +62,13 @@ FFmpeg    Quality Presets   4 Providers    Smart Analysis  Actionable Docs
          (speech/high)    (Cloud/Local)   (GPT/Gemini)    (MD/HTML/JSON)
 ```
 
-### ✨ New in v2.0.0
+### ✨ New in v2.1.0
+- **Standardized Health Checks**: Consistent response format across all providers
+- **Simplified Codebase**: Reduced duplication with shared helpers and centralized exceptions
+- **Better CLI**: Consolidated transcription options with shared argument helpers
+- **Improved Maintainability**: ~175 lines of redundant code removed
+
+### ✨ v2.0.0 Highlights
 - **URL Ingestion**: Direct processing from YouTube, Vimeo, and other platforms
 - **Multiple Providers**: Deepgram, ElevenLabs, Whisper, Parakeet support
 - **Interactive TUI**: Terminal UI with live progress and health monitoring

@@ -12,12 +12,11 @@ import concurrent.futures
 import logging
 import time
 from abc import ABC, abstractmethod
+from asyncio import timeout as asyncio_timeout
 from collections.abc import Awaitable
 from dataclasses import dataclass
 from threading import Lock
 from typing import TYPE_CHECKING, Any, TypeVar
-
-from asyncio import timeout as asyncio_timeout
 
 T = TypeVar("T")
 
@@ -27,6 +26,7 @@ if TYPE_CHECKING:
 
     from ..models.transcription import TranscriptionResult
 
+from ..utils.constants import Limits, RetryDefaults, Timeouts
 from ..utils.retry import RetryConfig, retry_async
 
 logger = logging.getLogger(__name__)
@@ -139,16 +139,20 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
 
     # Default configurations for all providers
     DEFAULT_RETRY_CONFIG = RetryConfig(
-        max_attempts=3, base_delay=1.0, exponential_base=2, max_delay=30.0, jitter=True
+        max_attempts=RetryDefaults.MAX_ATTEMPTS,
+        base_delay=RetryDefaults.BASE_DELAY,
+        exponential_base=RetryDefaults.EXPONENTIAL_BASE,
+        max_delay=RetryDefaults.NETWORK_MAX_DELAY,
+        jitter=RetryDefaults.JITTER,
     )
 
     DEFAULT_CIRCUIT_CONFIG = CircuitBreakerConfig(
-        failure_threshold=5,
-        recovery_timeout=60.0,
+        failure_threshold=Limits.CIRCUIT_FAILURE_THRESHOLD,
+        recovery_timeout=Limits.CIRCUIT_RECOVERY_TIMEOUT,
     )
-    _SYNC_EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=4)
+    _SYNC_EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=Limits.DEFAULT_MAX_WORKERS)
     atexit.register(_SYNC_EXECUTOR.shutdown, wait=False)
-    _DEFAULT_TIMEOUT_SECONDS = 300.0
+    _DEFAULT_TIMEOUT_SECONDS = Timeouts.TRANSCRIPTION_DEFAULT
 
     def __init__(
         self,
@@ -297,6 +301,39 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
         """
         pass
 
+    def _build_health_response(
+        self,
+        healthy: bool,
+        status: str,
+        response_time_ms: float,
+        **details: Any,
+    ) -> dict[str, Any]:
+        """Build a standardized health check response dictionary.
+
+        This helper ensures consistent health check response format across all
+        providers. Subclasses should use this method in their health_check_async
+        implementations.
+
+        Args:
+            healthy: Whether the provider is healthy and operational.
+            status: Status string (e.g., 'operational', 'error', 'sdk_not_available').
+            response_time_ms: Time taken for the health check in milliseconds.
+            **details: Additional provider-specific details to include.
+
+        Returns:
+            Standardized health check response dictionary with keys:
+            - healthy (bool)
+            - status (str)
+            - response_time_ms (float)
+            - details (dict) including provider name and any additional details
+        """
+        return {
+            "healthy": healthy,
+            "status": status,
+            "response_time_ms": response_time_ms,
+            "details": {"provider": self.get_provider_name(), **details},
+        }
+
     @abstractmethod
     async def health_check_async(self) -> dict[str, Any]:
         """Perform asynchronous health check for the provider.
@@ -334,7 +371,7 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
 
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 future = executor.submit(asyncio.run, self.health_check_async())
-                return future.result(timeout=30)  # 30s timeout for health check
+                return future.result(timeout=Timeouts.HEALTH_CHECK)
         except RuntimeError:
             # No running loop - safe to use asyncio.run()
             return asyncio.run(self.health_check_async())
@@ -344,5 +381,3 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
         if timeout_seconds <= 0:
             raise ValueError("Transcription timeout must be positive")
         self._transcribe_timeout = timeout_seconds
-
-

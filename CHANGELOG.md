@@ -5,6 +5,41 @@ All notable changes to the Audio Extraction Analysis project will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2025-12-02
+
+### Changed
+- **Provider Health Checks**: Standardized health check responses across all providers using new `_build_health_response()` helper method in `BaseTranscriptionProvider`
+- **TranscriptionService**: Simplified async transcription with extracted `_execute_transcription_with_fallback()` method for clearer control flow
+- **CLI Arguments**: Consolidated transcription options (`--language`, `--provider`) into shared `add_transcription_options()` helper
+- **ElevenLabs Provider**: Simplified error handling with direct if/elif pattern instead of error map dictionary
+
+### Added
+- `_build_health_response()` helper in `BaseTranscriptionProvider` for consistent health check formatting
+- `add_transcription_options()` helper in CLI utils for DRY argument definitions
+- `TRANSCRIPTION_PROVIDERS` constant for centralized provider list
+- Parakeet exceptions (`ParakeetError`, `ParakeetAudioError`, `ParakeetGPUError`, `ParakeetModelError`) to central exceptions module
+
+### Removed
+- Unused `_get_provider_speed()` method from `TranscriptionService` (consolidated into `_get_provider_speed_by_name()`)
+- Redundant error helper methods from ElevenLabs provider (`_import_error`, `_file_not_found_error`, `_permission_error`, `_memory_error`)
+- Duplicate Parakeet exception definitions (now imported from central module)
+
+### Fixed
+- Consistent health check response format across Deepgram, ElevenLabs, Whisper, and Parakeet providers
+- Provider name now automatically included in all health check responses
+
+### Developer Experience
+- Reduced code duplication by ~175 lines
+- Improved maintainability with centralized exception hierarchy
+- Single source of truth for CLI transcription options
+
+## [2.0.0] - 2024-12-01
+
+### Added
+- Initial v2.0.0 release with modernized architecture
+- Multi-provider transcription support
+- Comprehensive analysis pipelines
+
 ## [1.0.0+emergency] - 2024-11-15
 
 ### Added

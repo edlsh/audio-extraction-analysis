@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 from ..config import get_config
 from ..models.transcription import TranscriptionResult, TranscriptionUtterance
+from ..utils.constants import Limits
 from ..utils.file_validation import safe_validate_audio_file
 
 if TYPE_CHECKING:
@@ -39,12 +40,10 @@ except ImportError as e:
 class ElevenLabsTranscriber(BaseTranscriptionProvider):
     """ElevenLabs speech-to-text transcription service."""
 
-    # File size limits
-    MAX_FILE_SIZE_MB = 50  # Maximum file size in MB for processing
-
-    # Memory management constants
-    CHUNK_SIZE = 1024 * 1024  # 1MB chunks for file reading
-    MAX_MEMORY_SIZE = 50 * 1024 * 1024  # 50MB max in memory
+    # File size limits - use centralized constants
+    MAX_FILE_SIZE_MB = Limits.MAX_FILE_SIZE_MB
+    CHUNK_SIZE = Limits.CHUNK_SIZE
+    MAX_MEMORY_SIZE = Limits.MAX_MEMORY_BUFFER
 
     def __init__(
         self,
@@ -106,12 +105,12 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
 
         try:
             if not PROVIDER_AVAILABLE:
-                return {
-                    "healthy": False,
-                    "status": "sdk_not_available",
-                    "response_time_ms": (time.time() - start_time) * 1000,
-                    "details": {"provider": "ElevenLabs", "error": "ElevenLabs SDK not installed"},
-                }
+                return self._build_health_response(
+                    healthy=False,
+                    status="sdk_not_available",
+                    response_time_ms=(time.time() - start_time) * 1000,
+                    error="ElevenLabs SDK not installed",
+                )
 
             # Initialize client
             client = ElevenLabsClient(api_key=self.api_key)
@@ -126,36 +125,30 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
 
             response_time = (time.time() - start_time) * 1000
 
-            return {
-                "healthy": True,
-                "status": "operational",
-                "response_time_ms": response_time,
-                "details": {
-                    "provider": "ElevenLabs",
-                    "api_accessible": True,
-                    "authentication": "valid",
-                    "user_id": getattr(response, "user_id", "unknown"),
-                },
-            }
+            return self._build_health_response(
+                healthy=True,
+                status="operational",
+                response_time_ms=response_time,
+                api_accessible=True,
+                authentication="valid",
+                user_id=getattr(response, "user_id", "unknown"),
+            )
 
         except ImportError:
-            return {
-                "healthy": False,
-                "status": "sdk_not_available",
-                "response_time_ms": (time.time() - start_time) * 1000,
-                "details": {"provider": "ElevenLabs", "error": "ElevenLabs SDK not installed"},
-            }
+            return self._build_health_response(
+                healthy=False,
+                status="sdk_not_available",
+                response_time_ms=(time.time() - start_time) * 1000,
+                error="ElevenLabs SDK not installed",
+            )
         except Exception as e:
-            return {
-                "healthy": False,
-                "status": "error",
-                "response_time_ms": (time.time() - start_time) * 1000,
-                "details": {
-                    "provider": "ElevenLabs",
-                    "error": str(e),
-                    "error_type": type(e).__name__,
-                },
-            }
+            return self._build_health_response(
+                healthy=False,
+                status="error",
+                response_time_ms=(time.time() - start_time) * 1000,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
 
     def _validate_file_size(self, audio_file_path: Path) -> float:
         """Validate file size against ElevenLabs limits.
@@ -237,16 +230,33 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
             ValidationError,
         )
 
-        error_map = {
-            ImportError: lambda: self._import_error(e),
-            FileNotFoundError: lambda: self._file_not_found_error(e, audio_file_path),
-            PermissionError: lambda: self._permission_error(e, audio_file_path),
-            MemoryError: lambda: self._memory_error(e, audio_file_path, file_size_mb),
-        }
+        if isinstance(e, ImportError):
+            logger.error(f"ElevenLabs SDK not installed: {e}")
+            raise ProviderNotAvailableError(
+                "ElevenLabs SDK not available",
+                context={"provider": "elevenlabs", "install_command": "uv add elevenlabs"},
+            ) from e
 
-        for exc_type, handler in error_map.items():
-            if isinstance(e, exc_type):
-                raise handler() from e
+        if isinstance(e, FileNotFoundError):
+            logger.error(f"Audio file not found: {e}")
+            raise ValidationError(
+                f"Audio file not found: {audio_file_path}",
+                context={"file_path": str(audio_file_path)},
+            ) from e
+
+        if isinstance(e, PermissionError):
+            logger.error(f"Permission denied accessing file: {e}")
+            raise FileAccessError(
+                f"Permission denied: {audio_file_path}",
+                context={"file_path": str(audio_file_path)},
+            ) from e
+
+        if isinstance(e, MemoryError):
+            logger.error(f"Insufficient memory to process file: {e}")
+            raise ProviderAPIError(
+                "Insufficient memory to process file",
+                context={"file_path": str(audio_file_path), "file_size_mb": file_size_mb},
+            ) from e
 
         if isinstance(e, (OSError, ConnectionError, TimeoutError)):
             logger.error("ElevenLabs API error")
@@ -257,42 +267,6 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
             f"Unexpected ElevenLabs error: {e}",
             context={"error_type": type(e).__name__, "file_path": str(audio_file_path)},
         ) from e
-
-    def _import_error(self, e: Exception) -> Exception:
-        """Create ProviderNotAvailableError for import errors."""
-        from ..exceptions import ProviderNotAvailableError
-        logger.error(f"ElevenLabs SDK not installed: {e}")
-        return ProviderNotAvailableError(
-            "ElevenLabs SDK not available",
-            context={"provider": "elevenlabs", "install_command": "uv add elevenlabs"},
-        )
-
-    def _file_not_found_error(self, e: Exception, audio_file_path: Path) -> Exception:
-        """Create ValidationError for file not found."""
-        from ..exceptions import ValidationError
-        logger.error(f"Audio file not found: {e}")
-        return ValidationError(
-            f"Audio file not found: {audio_file_path}",
-            context={"file_path": str(audio_file_path)},
-        )
-
-    def _permission_error(self, e: Exception, audio_file_path: Path) -> Exception:
-        """Create FileAccessError for permission errors."""
-        from ..exceptions import FileAccessError
-        logger.error(f"Permission denied accessing file: {e}")
-        return FileAccessError(
-            f"Permission denied: {audio_file_path}",
-            context={"file_path": str(audio_file_path)},
-        )
-
-    def _memory_error(self, e: Exception, audio_file_path: Path, file_size_mb: float) -> Exception:
-        """Create ProviderAPIError for memory errors."""
-        from ..exceptions import ProviderAPIError
-        logger.error(f"Insufficient memory to process file: {e}")
-        return ProviderAPIError(
-            "Insufficient memory to process file",
-            context={"file_path": str(audio_file_path), "file_size_mb": file_size_mb},
-        )
 
     async def _transcribe_impl(
         self, audio_file_path: Path, language: str = "en"
@@ -362,9 +336,7 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
         """Validate file size is within memory limits."""
         file_size = file_path.stat().st_size
         if file_size > self.MAX_MEMORY_SIZE:
-            raise MemoryError(
-                f"File size {file_size} exceeds memory limit {self.MAX_MEMORY_SIZE}"
-            )
+            raise MemoryError(f"File size {file_size} exceeds memory limit {self.MAX_MEMORY_SIZE}")
 
     def _read_chunks(self, file_path: Path) -> list[bytes]:
         """Read file in chunks with memory safety checks."""

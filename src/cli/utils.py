@@ -9,6 +9,33 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_OUTPUT_DIR = "output"
 
+# Available transcription providers
+TRANSCRIPTION_PROVIDERS = ["deepgram", "elevenlabs", "whisper", "parakeet", "auto"]
+
+
+def add_transcription_options(parser: argparse.ArgumentParser) -> None:
+    """Add common transcription options to a parser.
+
+    Adds --language and --provider options that are shared across
+    transcribe and process commands.
+
+    Args:
+        parser: ArgumentParser to add options to
+    """
+    parser.add_argument(
+        "--language",
+        "-l",
+        default="en",
+        help="Language code for transcription (default: en)",
+    )
+    parser.add_argument(
+        "--provider",
+        "-p",
+        choices=TRANSCRIPTION_PROVIDERS,
+        default="auto",
+        help="Transcription provider to use (default: auto)",
+    )
+
 
 def add_markdown_export_options(parser: argparse.ArgumentParser) -> None:
     """Add common markdown export options to a parser.
@@ -46,6 +73,7 @@ def add_markdown_export_options(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="Include confidence field in Markdown output",
     )
+
 
 def parse_quality_preset(quality_str: str) -> AudioQuality:
     """Parse quality preset string to AudioQuality enum.

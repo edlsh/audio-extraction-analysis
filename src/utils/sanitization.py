@@ -6,7 +6,6 @@ import re
 import shlex
 from pathlib import Path
 
-
 # Precompiled patterns for performance
 _FILENAME_INVALID = re.compile(r"[^\w\s.-]")
 _DIRNAME_INVALID = re.compile(r"[^\w\s-]")

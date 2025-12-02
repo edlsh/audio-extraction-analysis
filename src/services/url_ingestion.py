@@ -3,15 +3,19 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-
 from urllib.parse import ParseResult, urlparse
 
 from yt_dlp import YoutubeDL
 
-from ..exceptions import AudioExtractionError, UnsupportedUrlError, UrlDownloadError, UrlIngestionError
-from .audio_extraction import AudioExtractor, AudioQuality
+from ..exceptions import (
+    AudioExtractionError,
+    UnsupportedUrlError,
+    UrlDownloadError,
+    UrlIngestionError,
+)
 from ..utils.paths import ensure_subpath
 from ..utils.sanitization import PathSanitizer
+from .audio_extraction import AudioExtractor, AudioQuality
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +24,7 @@ logger = logging.getLogger(__name__)
 class UrlIngestionResult:
     audio_path: Path
     source_video_path: Path | None
+
 
 class UrlIngestionService:
     """Service responsible for downloading a single video URL and returning an audio file.
@@ -103,7 +108,9 @@ class UrlIngestionService:
                 result = ydl.extract_info(url, download=True)
         except Exception as exc:
             logger.exception("URL ingestion failed for %s", url)
-            raise UrlDownloadError("Failed to download URL", context={"url": url}, original_error=exc) from exc
+            raise UrlDownloadError(
+                "Failed to download URL", context={"url": url}, original_error=exc
+            ) from exc
 
         downloaded_path = self._resolve_download_path(downloaded_path, result, safe_dir, url)
         return downloaded_path
@@ -121,7 +128,9 @@ class UrlIngestionService:
             downloaded_path = self._sanitize_download_path(downloaded_path, safe_dir, url)
 
         if not downloaded_path or not downloaded_path.exists():
-            raise UrlDownloadError("yt-dlp did not produce a downloadable file", context={"url": url})
+            raise UrlDownloadError(
+                "yt-dlp did not produce a downloadable file", context={"url": url}
+            )
 
         return downloaded_path
 
@@ -141,7 +150,9 @@ class UrlIngestionService:
     ) -> UrlIngestionResult:
         """Extract audio from video file."""
         try:
-            audio_path = self._extractor.extract_audio(input_path=downloaded_path, output_path=None, quality=quality)
+            audio_path = self._extractor.extract_audio(
+                input_path=downloaded_path, output_path=None, quality=quality
+            )
         except AudioAnalysisError as exc:
             logger.exception("Audio extraction from downloaded video failed: %s", downloaded_path)
             raise UrlIngestionError(

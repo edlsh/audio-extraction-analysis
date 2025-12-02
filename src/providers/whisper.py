@@ -59,21 +59,7 @@ get_writer = None  # Whisper output writer utility, optional
 
 
 def _ensure_whisper_available() -> bool:
-    """Ensure Whisper dependencies are available and loaded.
-
-    This function performs lazy initialization of Whisper and PyTorch dependencies.
-    It caches the result to avoid repeated import attempts. The function is safe
-    to call multiple times as it returns immediately after the first successful check.
-
-    Returns:
-        True if all required Whisper dependencies are available, False otherwise.
-
-    Note:
-        This function modifies module-level globals (whisper, torch, get_writer)
-        and should be called before any Whisper operations. Failure to load
-        dependencies is logged as a warning, not an error, to support graceful
-        degradation in multi-provider environments.
-    """
+    """Check and lazily load Whisper dependencies. Returns True if available."""
     global PROVIDER_AVAILABLE, whisper, torch, get_writer
     if PROVIDER_AVAILABLE is not None:
         return PROVIDER_AVAILABLE
@@ -82,48 +68,21 @@ def _ensure_whisper_available() -> bool:
         import whisper as _whisper
 
         try:
-            # get_writer is optional and may not be available in all Whisper versions
             from whisper.utils import get_writer as get_writer_
-        except Exception:
+        except ImportError:
             get_writer_ = None
         torch = _torch
         whisper = _whisper
         get_writer = get_writer_
         PROVIDER_AVAILABLE = True
-    except Exception as e:
-        logger.warning(f"Whisper provider dependencies not installed: {e}")
+    except ImportError as e:
+        logger.warning(f"Whisper dependencies not installed: {e}")
         PROVIDER_AVAILABLE = False
     return PROVIDER_AVAILABLE
 
 
 class WhisperTranscriber(BaseTranscriptionProvider):
-    """OpenAI Whisper transcription service with local processing.
-
-    This provider implements transcription using OpenAI's Whisper model, which
-    runs locally on the machine (CPU or GPU). It supports multiple model sizes,
-    automatic language detection, and produces high-quality transcriptions without
-    requiring API calls or internet connectivity (after initial model download).
-
-    Key features:
-        - Local processing (no API required after model download)
-        - Multiple model sizes (tiny to large-v3)
-        - Automatic language detection
-        - Word-level timestamps (when enabled)
-        - GPU acceleration support (CUDA)
-        - Offline capability (after initial setup)
-
-    Limitations:
-        - No speaker diarization (all utterances assigned to speaker 1)
-        - Requires significant computational resources for larger models
-        - Initial model download required (75MB to 2.9GB depending on model)
-        - Processing time scales with audio length and model size
-
-    Example:
-        >>> transcriber = WhisperTranscriber()
-        >>> if transcriber.validate_configuration():
-        ...     result = await transcriber.transcribe_async(audio_path)
-        ...     print(result.transcript)
-    """
+    """Local Whisper transcription. No speaker diarization. Supports GPU acceleration."""
 
     def __init__(
         self,
@@ -161,7 +120,7 @@ class WhisperTranscriber(BaseTranscriptionProvider):
         """Run transcription and return None on failure for graceful degradation."""
         try:
             return await super().transcribe_async(audio_file_path, language, timeout=timeout)
-        except (asyncio.TimeoutError, TimeoutError) as exc:
+        except TimeoutError as exc:
             logger.error("Whisper transcription timed out: %s", exc)
             raise
         except Exception as exc:
@@ -440,40 +399,33 @@ class WhisperTranscriber(BaseTranscriptionProvider):
 
         try:
             if not PROVIDER_AVAILABLE:
-                return {
-                    "healthy": False,
-                    "status": "dependencies_missing",
-                    "response_time_ms": 0,
-                    "details": {
-                        "provider": "whisper",
-                        "error": "Whisper dependencies not installed",
-                    },
-                }
+                return self._build_health_response(
+                    healthy=False,
+                    status="dependencies_missing",
+                    response_time_ms=0,
+                    error="Whisper dependencies not installed",
+                )
 
             # Test model loading if not already loaded
             if self.model is None:
                 await self._load_model()
 
-            health_status = {
-                "healthy": self.model is not None,
-                "status": "ready" if self.model else "model_not_loaded",
-                "response_time_ms": (time.time() - start_time) * 1000,
-                "details": {
-                    "provider": "whisper",
-                    "model_loaded": self.model is not None,
-                    "model_name": self.model_name,
-                    "device": self.device,
-                    "compute_type": self.compute_type,
-                    "cuda_available": torch.cuda.is_available() if torch else False,
-                },
-            }
-
-            return health_status
+            return self._build_health_response(
+                healthy=self.model is not None,
+                status="ready" if self.model else "model_not_loaded",
+                response_time_ms=(time.time() - start_time) * 1000,
+                model_loaded=self.model is not None,
+                model_name=self.model_name,
+                device=self.device,
+                compute_type=self.compute_type,
+                cuda_available=torch.cuda.is_available() if torch else False,
+            )
 
         except Exception as e:
-            return {
-                "healthy": False,
-                "status": "health_check_failed",
-                "response_time_ms": (time.time() - start_time) * 1000,
-                "details": {"provider": "whisper", "error": str(e), "error_type": type(e).__name__},
-            }
+            return self._build_health_response(
+                healthy=False,
+                status="health_check_failed",
+                response_time_ms=(time.time() - start_time) * 1000,
+                error=str(e),
+                error_type=type(e).__name__,
+            )

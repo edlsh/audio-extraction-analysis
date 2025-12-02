@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
 def create_extract_subparser(subparsers: "_SubParsersAction[argparse.ArgumentParser]") -> None:
     """Create the extract subcommand parser."""
     extract_parser = subparsers.add_parser(
@@ -41,6 +42,7 @@ def create_extract_subparser(subparsers: "_SubParsersAction[argparse.ArgumentPar
         help="Force overwrite of existing output file",
     )
 
+
 def _validate_extract_input(input_path: Path) -> None:
     """Validate input file for extraction."""
     try:
@@ -61,11 +63,13 @@ def _validate_extract_input(input_path: Path) -> None:
         logger.debug("Missing input path attempted: %s", input_path)
         raise ValueError(f"File not found: {input_path}")
 
+
 def _determine_extract_output_path(input_path: Path, output_arg: str | None) -> Path:
     """Determine output path for extracted audio."""
     if output_arg:
         return Path(output_arg)
     return input_path.with_suffix(".mp3")
+
 
 def _execute_audio_extraction(
     extractor: AudioExtractor,
@@ -85,6 +89,7 @@ def _execute_audio_extraction(
 
     return result_path
 
+
 def extract_command(args: argparse.Namespace, console_manager: ConsoleManager | None = None) -> int:
     """Handle the extract subcommand."""
     try:
@@ -101,12 +106,12 @@ def extract_command(args: argparse.Namespace, console_manager: ConsoleManager | 
         quality = parse_quality_preset(args.quality)
 
         extractor = AudioExtractor()
-        
+
         if console_manager:
             console_manager.print_stage("Audio Extraction", "starting")
-            
+
         logger.info(f"Extracting audio from {input_path} (quality: {quality.value})")
-        
+
         result = _execute_audio_extraction(
             extractor, input_path, output_path, quality, console_manager
         )

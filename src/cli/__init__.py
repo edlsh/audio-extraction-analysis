@@ -13,9 +13,10 @@ from .commands.process import create_process_subparser, process_command
 from .commands.transcribe import create_transcribe_subparser, transcribe_command
 from .commands.tui import create_tui_subparser, tui_command
 
-__version__ = "2.0.0"
+__version__ = "2.1.0"
 
 logger = logging.getLogger(__name__)
+
 
 def setup_logging(verbose: bool = False) -> None:
     """Setup logging configuration based on verbosity level."""
@@ -24,6 +25,7 @@ def setup_logging(verbose: bool = False) -> None:
 
     # Set specific loggers
     logging.getLogger("src").setLevel(level)
+
 
 def create_parser() -> argparse.ArgumentParser:
     """Create and configure the argument parser."""
@@ -85,6 +87,7 @@ For more information, see: https://github.com/lucchesi-sec/audio-extraction-anal
 
     return parser
 
+
 def main() -> int:
     """Main CLI entry point."""
     # Parse arguments
@@ -115,8 +118,9 @@ def main() -> int:
         # Handle user cancellation (Ctrl+C)
         handle_keyboard_interrupt()
         return 1
-    
+
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())

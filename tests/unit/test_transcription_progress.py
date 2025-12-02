@@ -39,14 +39,14 @@ class TestTranscriptionServiceProgress:
         assert hasattr(service, "transcribe_with_progress")
 
     def test_get_provider_speed_method_exists(self):
-        """Verify the _get_provider_speed private method is available.
+        """Verify the _get_provider_speed_by_name private method is available.
 
         This test ensures the internal method for estimating transcription speed
-        based on the selected provider exists. Speed estimation is used to
+        based on the provider name exists. Speed estimation is used to
         calculate realistic progress percentages during transcription operations.
         """
         service = TranscriptionService()
-        assert hasattr(service, "_get_provider_speed")
+        assert hasattr(service, "_get_provider_speed_by_name")
 
     def test_calculate_sigmoid_progress_method_exists(self):
         """Verify the _calculate_sigmoid_progress private method is available.

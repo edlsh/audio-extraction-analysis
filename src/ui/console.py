@@ -108,8 +108,8 @@ class ConsoleManager:
             if progress and self._active_progress:
                 try:
                     progress.stop()
-                except Exception:
-                    pass
+                except RuntimeError:
+                    pass  # Progress already stopped
                 finally:
                     self._active_progress = None
 
@@ -159,7 +159,7 @@ class ConsoleManager:
             summary = {
                 "duration": result.duration,
                 "transcript_length": len(result.transcript),
-                "provider": result.provider_name
+                "provider": result.provider_name,
             }
             print(
                 json.dumps(
@@ -175,14 +175,17 @@ class ConsoleManager:
             table = Table(title="Transcription Result")
             table.add_column("Metric", style="cyan")
             table.add_column("Value", style="green")
-            
+
             table.add_row("Provider", result.provider_name)
             table.add_row("Duration", f"{result.duration:.2f}s")
             table.add_row("Transcript Length", f"{len(result.transcript)} chars")
-            
+
             self.console.print(table)
         else:
-            print(f"Transcription Result: {result.provider_name}, {result.duration:.2f}s, {len(result.transcript)} chars", file=sys.stderr)
+            print(
+                f"Transcription Result: {result.provider_name}, {result.duration:.2f}s, {len(result.transcript)} chars",
+                file=sys.stderr,
+            )
 
     def _log_json_message(self, type_str: str, message: str) -> None:
         """Log a standard JSON message."""
@@ -325,9 +328,7 @@ class RichProgressTracker:
         self.task_id = task_id
         self._last_percentage = 0.0
 
-    def _should_update(
-        self, completed: int, total: int | None, description: str | None
-    ) -> bool:
+    def _should_update(self, completed: int, total: int | None, description: str | None) -> bool:
         """Determine if we should send an update (throttled to 10% changes)."""
         if description is not None:
             return True

@@ -18,7 +18,8 @@ from src.error_handlers import (
     handle_cli_error,
     handle_ffmpeg_error,
     handle_provider_api_error,
-    handle_provider_error,
+    handle_provider_auth_error,
+    handle_provider_not_available,
     handle_validation_error,
 )
 from src.exceptions import (
@@ -131,7 +132,7 @@ class TestProviderErrorHandler:
             },
         )
 
-        handle_provider_error(error)
+        handle_provider_not_available(error)
 
         captured = capsys.readouterr()
         assert "Provider Error" in captured.err
@@ -145,7 +146,7 @@ class TestProviderErrorHandler:
             "Invalid API key", context={"provider_name": "deepgram"}
         )
 
-        handle_provider_error(error)
+        handle_provider_auth_error(error)
 
         captured = capsys.readouterr()
         assert "Provider Error" in captured.err

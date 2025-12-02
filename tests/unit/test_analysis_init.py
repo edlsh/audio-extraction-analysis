@@ -201,8 +201,14 @@ class TestAnalysisPackage:
         # Get all public attributes (not starting with underscore)
         public_attrs = [attr for attr in dir(src.analysis) if not attr.startswith("_")]
 
-        # Expected: analyzer classes + their source submodules
-        expected_attrs = ["ConciseAnalyzer", "FullAnalyzer", "concise_analyzer", "full_analyzer"]
+        # Expected: analyzer classes + their source submodules (including base_analyzer)
+        expected_attrs = [
+            "ConciseAnalyzer",
+            "FullAnalyzer",
+            "base_analyzer",
+            "concise_analyzer",
+            "full_analyzer",
+        ]
         assert set(public_attrs) == set(
             expected_attrs
         ), f"Module should export {expected_attrs}, got {public_attrs}"

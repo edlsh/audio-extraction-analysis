@@ -9,23 +9,12 @@ from typing import Any
 
 from jinja2 import Environment, FileSystemLoader, TemplateError, select_autoescape
 
+from ...utils.formatting import format_duration
+
 
 def _format_duration(seconds: float | int | None) -> str:
     """Format seconds as human-readable duration string."""
-    if seconds is None:
-        return "—"
-    try:
-        seconds = float(seconds)
-    except (TypeError, ValueError):
-        return str(seconds)
-
-    minutes, secs = divmod(seconds, 60)
-    hours, minutes = divmod(int(minutes), 60)
-    if hours:
-        return f"{hours:d}h {minutes:02d}m {secs:04.1f}s"
-    if minutes:
-        return f"{minutes:d}m {secs:04.1f}s"
-    return f"{secs:.1f}s"
+    return format_duration(seconds, style="verbose")
 
 
 def _build_rendered_stages(stage_results: dict[str, Any]) -> list[dict[str, str]]:
@@ -55,10 +44,12 @@ def _build_files_list(files_created: list[Any], output_dir: Path) -> list[dict[s
             rel_path = path.relative_to(output_dir)
         except ValueError:
             rel_path = path
-        files.append({
-            "label": path.name,
-            "path": rel_path.as_posix() if isinstance(rel_path, Path) else str(rel_path),
-        })
+        files.append(
+            {
+                "label": path.name,
+                "path": rel_path.as_posix() if isinstance(rel_path, Path) else str(rel_path),
+            }
+        )
     return files
 
 

@@ -14,9 +14,9 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from ..models.transcription import TranscriptionResult
-from ..providers.factory import TranscriptionProviderFactory
 from ..config import Config
 from ..exceptions import ProviderTimeoutError, TranscriptionError
+from ..providers.factory import TranscriptionProviderFactory
 from ..utils.file_validation import safe_validate_audio_file
 
 logger = logging.getLogger(__name__)
@@ -156,10 +156,8 @@ class TranscriptionService:
         # Perform transcription (let provider exceptions propagate)
         logger.info(f"Starting transcription with {provider.get_provider_name()}")
         try:
-            result = provider.transcribe(
-                audio_file_path, language, timeout=self._provider_timeout
-            )
-        except (asyncio.TimeoutError, TimeoutError) as exc:
+            result = provider.transcribe(audio_file_path, language, timeout=self._provider_timeout)
+        except TimeoutError as exc:
             raise ProviderTimeoutError(
                 f"Transcription timed out after {self._provider_timeout}s",
                 context={"provider": provider_name, "file_path": str(audio_file_path)},
@@ -179,6 +177,62 @@ class TranscriptionService:
         logger.info(f"Transcript length: {len(result.transcript)} characters")
 
         return result
+
+    async def _execute_transcription_with_fallback(
+        self,
+        provider: Any,
+        audio_file_path: Path,
+        language: str,
+        timeout_seconds: float,
+    ) -> TranscriptionResult | None:
+        """Execute transcription with async-to-sync fallback.
+
+        Attempts async transcription first. If async method is unavailable or fails,
+        falls back to sync transcription in a thread executor.
+
+        Args:
+            provider: Transcription provider instance
+            audio_file_path: Path to the audio file
+            language: Language code for transcription
+            timeout_seconds: Timeout for the operation
+
+        Returns:
+            TranscriptionResult or None if transcription fails
+
+        Raises:
+            ProviderTimeoutError: If transcription times out
+            ValueError: If provider has no suitable transcription method
+        """
+        # Try async method first
+        if hasattr(provider, "transcribe_async") and callable(provider.transcribe_async):
+            try:
+                return await asyncio.wait_for(
+                    provider.transcribe_async(
+                        audio_file_path, language, timeout=timeout_seconds
+                    ),
+                    timeout=timeout_seconds,
+                )
+            except TimeoutError:
+                raise  # Re-raise timeout errors
+            except Exception as e:
+                logger.warning(f"Async transcription failed, falling back to sync: {e}")
+
+        # Fallback to sync method in executor
+        if hasattr(provider, "transcribe") and callable(provider.transcribe):
+            loop = asyncio.get_running_loop()
+            return await asyncio.wait_for(
+                loop.run_in_executor(
+                    None,
+                    lambda: provider.transcribe(
+                        audio_file_path, language, timeout=timeout_seconds
+                    ),
+                ),
+                timeout=timeout_seconds,
+            )
+
+        raise ValueError(
+            f"Provider {provider.__class__.__name__} has no suitable transcription method"
+        )
 
     async def transcribe_async(
         self, audio_file_path: Path, provider_name: str | None = None, language: str = "en"
@@ -210,52 +264,18 @@ class TranscriptionService:
         provider = self.factory.create_provider(provider_name)
         self._configure_provider_timeout(provider)
         timeout_seconds = self._provider_timeout
-        # Perform async transcription with safe method checking
+
         logger.info(f"Starting async transcription with {provider.get_provider_name()}")
 
-        # Check for async method first
-        if hasattr(provider, "transcribe_async") and callable(provider.transcribe_async):
-            try:
-                result = await asyncio.wait_for(
-                    provider.transcribe_async(audio_file_path, language, timeout=timeout_seconds),
-                    timeout=timeout_seconds,
-                )
-            except asyncio.TimeoutError as exc:
-                raise ProviderTimeoutError(
-                    f"Transcription timed out after {timeout_seconds}s",
-                    context={"provider": provider_name, "file_path": str(audio_file_path)},
-                ) from exc
-            except Exception as e:
-                logger.warning(f"Async transcription failed, falling back to sync: {e}")
-                # Fall through to sync method
-                result = None
-        else:
-            result = None
-
-        # Fallback to sync method wrapped in thread executor if async failed or doesn't exist
-        if result is None:
-            if hasattr(provider, "transcribe") and callable(provider.transcribe):
-                loop = asyncio.get_running_loop()
-
-                def sync_transcribe() -> TranscriptionResult | None:
-                    return provider.transcribe(
-                        audio_file_path, language, timeout=timeout_seconds
-                    )
-
-                try:
-                    result = await asyncio.wait_for(
-                        loop.run_in_executor(None, sync_transcribe),
-                        timeout=timeout_seconds,
-                    )
-                except asyncio.TimeoutError as exc:
-                    raise ProviderTimeoutError(
-                        f"Transcription timed out after {timeout_seconds}s",
-                        context={"provider": provider_name, "file_path": str(audio_file_path)},
-                    ) from exc
-            else:
-                raise ValueError(
-                    f"Provider {provider.__class__.__name__} has no suitable transcription method"
-                )
+        try:
+            result = await self._execute_transcription_with_fallback(
+                provider, audio_file_path, language, timeout_seconds
+            )
+        except TimeoutError as exc:
+            raise ProviderTimeoutError(
+                f"Transcription timed out after {timeout_seconds}s",
+                context={"provider": provider_name, "file_path": str(audio_file_path)},
+            ) from exc
 
         if not result:
             raise TranscriptionError(
@@ -368,11 +388,6 @@ class TranscriptionService:
 
         # Scale to 0-95% (leave 5% for completion)
         return sigmoid * 95
-
-    def _get_provider_speed(self, provider: Any) -> float:
-        """Get estimated processing speed for provider (MB/second)."""
-        provider_name = provider.__class__.__name__
-        return self._get_provider_speed_by_name(provider_name)
 
     def _get_provider_speed_by_name(self, provider_name: str) -> float:
         """Get estimated processing speed by provider name (MB/second)."""
