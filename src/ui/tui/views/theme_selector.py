@@ -124,12 +124,24 @@ class ThemeSelectorScreen(Screen):
         self._add_theme_section(option_list, "Custom Themes", custom_theme_names)
 
         # Add built-in dark themes
-        dark_themes = ["nord", "gruvbox", "dracula", "monokai", "catppuccin-mocha", "tokyo-night", "textual-dark"]
-        self._add_theme_section(option_list, "Built-in Dark Themes", self._get_available_themes(dark_themes))
+        dark_themes = [
+            "nord",
+            "gruvbox",
+            "dracula",
+            "monokai",
+            "catppuccin-mocha",
+            "tokyo-night",
+            "textual-dark",
+        ]
+        self._add_theme_section(
+            option_list, "Built-in Dark Themes", self._get_available_themes(dark_themes)
+        )
 
         # Add built-in light themes
         light_themes = ["textual-light", "catppuccin-latte", "solarized-light"]
-        self._add_theme_section(option_list, "Built-in Light Themes", self._get_available_themes(light_themes))
+        self._add_theme_section(
+            option_list, "Built-in Light Themes", self._get_available_themes(light_themes)
+        )
 
         # Finalize setup
         self._update_current_theme_display()

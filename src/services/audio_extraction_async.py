@@ -12,13 +12,13 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+from ..config import Config
 from ..exceptions import (
     AudioExtractionError,
     AudioExtractionTimeoutError,
     FFmpegExecutionError,
     ValidationError,
 )
-from ..config import Config
 from ..utils.file_validation import safe_validate_media_file
 from .audio_extraction import AudioExtractor, AudioQuality
 from .ffmpeg_core import build_extract_commands
@@ -98,7 +98,9 @@ class AsyncAudioExtractor(AudioExtractor):
         """Validate input and prepare output path."""
         validated_path = safe_validate_media_file(input_path, max_file_size=self.MAX_FILE_SIZE)
         if validated_path is None:
-            raise ValidationError(f"Invalid media file: {input_path}", context={"input_path": str(input_path)})
+            raise ValidationError(
+                f"Invalid media file: {input_path}", context={"input_path": str(input_path)}
+            )
 
         if output_path is None:
             output_path = validated_path.with_suffix(".mp3")
@@ -108,12 +110,15 @@ class AsyncAudioExtractor(AudioExtractor):
 
     def _log_input_info(self, input_path: Path) -> None:
         """Log input video information."""
-        info = self.get_video_info(input_path)
-        if info:
+        try:
+            info = self.get_video_info(input_path)
             logger.info(
                 f"Input video: {info.get('duration', 'unknown')} duration, "
                 f"{info.get('size_mb', 0):.2f} MB"
             )
+        except AudioExtractionError:
+            # Non-critical logging failure
+            logger.warning(f"Could not log info for {input_path}")
 
     async def _run_extraction_stages(
         self,
@@ -122,7 +127,11 @@ class AsyncAudioExtractor(AudioExtractor):
         progress_callback: Callable[[int, int], None] | None,
     ) -> None:
         """Run FFmpeg extraction stages."""
-        stage_names = ["Extracting audio", "Normalizing audio"] if len(cmds) == 2 else ["Extracting audio"] * len(cmds)
+        stage_names = (
+            ["Extracting audio", "Normalizing audio"]
+            if len(cmds) == 2
+            else ["Extracting audio"] * len(cmds)
+        )
         for cmd, stage in zip(cmds, stage_names, strict=False):
             await self._run_ffmpeg_with_progress(cmd, duration, progress_callback, stage=stage)
 
@@ -139,7 +148,9 @@ class AsyncAudioExtractor(AudioExtractor):
             context={"input_path": str(input_path), "expected_output": str(output_path)},
         )
 
-    def _map_extraction_error(self, exc: Exception, input_path: Path, output_path: Path) -> Exception:
+    def _map_extraction_error(
+        self, exc: Exception, input_path: Path, output_path: Path
+    ) -> Exception:
         """Map exception to appropriate AudioExtractionError subclass."""
         ctx = {"input_path": str(input_path), "output_path": str(output_path)}
 
@@ -153,11 +164,17 @@ class AsyncAudioExtractor(AudioExtractor):
             stderr = exc.stderr if hasattr(exc, "stderr") else None
             return FFmpegExecutionError(
                 f"FFmpeg failed with exit code {exc.returncode}",
-                context={**ctx, "return_code": exc.returncode, "stderr": stderr[:500] if stderr else None},
+                context={
+                    **ctx,
+                    "return_code": exc.returncode,
+                    "stderr": stderr[:500] if stderr else None,
+                },
                 original_error=exc,
             )
         if isinstance(exc, RuntimeError):
-            return FFmpegExecutionError("FFmpeg reported failure during processing", context=ctx, original_error=exc)
+            return FFmpegExecutionError(
+                "FFmpeg reported failure during processing", context=ctx, original_error=exc
+            )
         if isinstance(exc, (FileNotFoundError, PermissionError, OSError)):
             return AudioExtractionError(
                 f"File system error during audio extraction: {exc}",
@@ -168,7 +185,9 @@ class AsyncAudioExtractor(AudioExtractor):
             return ValidationError(str(exc), context={"input_path": str(input_path)})
         if isinstance(exc, (ValidationError, AudioExtractionError)):
             return exc
-        return AudioExtractionError("Unexpected error during async audio extraction", context=ctx, original_error=exc)
+        return AudioExtractionError(
+            "Unexpected error during async audio extraction", context=ctx, original_error=exc
+        )
 
     def _cleanup_temp_file(self, temp_path: Path | None) -> None:
         """Clean up temporary file if it exists."""
@@ -230,7 +249,7 @@ class AsyncAudioExtractor(AudioExtractor):
                 self._consume_ffmpeg_progress(proc, total_duration, progress_callback, stage),
                 timeout=self._ffmpeg_timeout,
             )
-        except asyncio.TimeoutError as exc:
+        except TimeoutError as exc:
             await self._terminate_process(proc, stage)
             raise TimeoutError(
                 f"FFmpeg stage '{stage}' timed out after {self._ffmpeg_timeout} seconds"
@@ -263,18 +282,16 @@ class AsyncAudioExtractor(AudioExtractor):
                             percentage = min(100, max(0, (current_seconds / total_duration) * 100))
                             progress_callback(int(percentage), 100)
                 except (ValueError, IndexError):
-                    logger.debug("Failed to parse FFmpeg progress line for stage %s: %s", stage, line_str)
+                    logger.debug(
+                        "Failed to parse FFmpeg progress line for stage %s: %s", stage, line_str
+                    )
                     continue
 
-    async def _ensure_process_succeeded(
-        self, proc: asyncio.subprocess.Process, stage: str
-    ) -> None:
+    async def _ensure_process_succeeded(self, proc: asyncio.subprocess.Process, stage: str) -> None:
         returncode = await proc.wait()
         if returncode != 0:
             stderr = await self._read_stream(proc.stderr)
-            raise RuntimeError(
-                f"FFmpeg stage '{stage}' failed with code {returncode}: {stderr}"
-            )
+            raise RuntimeError(f"FFmpeg stage '{stage}' failed with code {returncode}: {stderr}")
 
     async def _terminate_process(self, proc: asyncio.subprocess.Process, stage: str) -> None:
         if proc.returncode is not None:
@@ -288,7 +305,7 @@ class AsyncAudioExtractor(AudioExtractor):
         proc.terminate()
         try:
             await asyncio.wait_for(proc.wait(), timeout=self._ffmpeg_terminate_grace)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error(
                 "FFmpeg stage '%s' did not terminate gracefully; killing process",
                 stage,

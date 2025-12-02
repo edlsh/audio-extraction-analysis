@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
 def create_tui_subparser(subparsers: "_SubParsersAction[argparse.ArgumentParser]") -> None:
     """Create the TUI subcommand parser."""
     subparsers.add_parser(
@@ -23,6 +24,7 @@ def create_tui_subparser(subparsers: "_SubParsersAction[argparse.ArgumentParser]
             "with live progress updates, provider health checks, and artifact management."
         ),
     )
+
 
 def tui_command(args: argparse.Namespace, console_manager: ConsoleManager | None = None) -> int:
     """Handle the TUI subcommand."""

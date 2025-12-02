@@ -613,7 +613,7 @@ class TestElevenLabsTranscriberEdgeCases:
     @patch("src.providers.elevenlabs.ElevenLabsClient")
     def test_transcribe_os_error(self, mock_elevenlabs_class, temp_audio_file):
         """Test transcription with OS error raises the error through retry mechanism."""
-        from src.utils.retry_legacy import RetryExhaustedError
+        from src.utils.retry import RetryExhaustedError
 
         mock_client = Mock()
         mock_speech_to_text_client = Mock()

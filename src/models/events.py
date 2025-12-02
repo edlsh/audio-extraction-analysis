@@ -107,9 +107,6 @@ class QueueEventSink:
         pass
 
 
-
-
-
 # Thread-local storage for current event sink
 _thread_local = threading.local()
 
@@ -158,6 +155,3 @@ def emit_event(
         run_id=run_id or str(uuid.uuid4()),
     )
     sink.emit(event)
-
-
-

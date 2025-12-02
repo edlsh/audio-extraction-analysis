@@ -13,13 +13,19 @@ from ...models.transcription import TranscriptionResult
 from ...pipeline.simple_pipeline import process_pipeline
 from ...services.url_ingestion import UrlIngestionError, UrlIngestionService
 from ...ui.console import ConsoleManager
-from ..utils import DEFAULT_OUTPUT_DIR, add_markdown_export_options, parse_quality_preset
+from ..utils import (
+    DEFAULT_OUTPUT_DIR,
+    add_markdown_export_options,
+    add_transcription_options,
+    parse_quality_preset,
+)
 from .export import _prepare_source_info, _save_markdown_transcript
 
 if TYPE_CHECKING:
     from argparse import _SubParsersAction
 
 logger = logging.getLogger(__name__)
+
 
 def create_process_subparser(subparsers: "_SubParsersAction[argparse.ArgumentParser]") -> None:
     """Create the process subcommand parser."""
@@ -43,16 +49,7 @@ def create_process_subparser(subparsers: "_SubParsersAction[argparse.ArgumentPar
         default="speech",
         help="Audio quality preset (default: speech)",
     )
-    process_parser.add_argument(
-        "--language", "-l", default="en", help="Language code for transcription (default: en)"
-    )
-    process_parser.add_argument(
-        "--provider",
-        "-p",
-        choices=["deepgram", "elevenlabs", "whisper", "auto"],
-        default="auto",
-        help="Transcription provider to use (default: auto)",
-    )
+    add_transcription_options(process_parser)
     process_parser.add_argument(
         "--analysis-style",
         "-a",
@@ -65,6 +62,7 @@ def create_process_subparser(subparsers: "_SubParsersAction[argparse.ArgumentPar
     )
     add_markdown_export_options(process_parser)
 
+
 def _setup_process_output_dir(args: argparse.Namespace) -> Path:
     """Setup and create output directory for processing."""
     if args.output_dir:
@@ -75,10 +73,11 @@ def _setup_process_output_dir(args: argparse.Namespace) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
     return output_dir
 
+
 async def _execute_processing_pipeline(
     input_path: Path,
     output_dir: Path,
-    quality: str, # AudioQuality passed as enum, but type hint might be specific
+    quality: str,  # AudioQuality passed as enum, but type hint might be specific
     args: argparse.Namespace,
     console_manager: ConsoleManager | None,
 ) -> tuple[dict[str, object], TranscriptionResult | None]:
@@ -116,6 +115,7 @@ async def _execute_processing_pipeline(
 
     return pipeline_result, result
 
+
 def _handle_process_success(
     result: TranscriptionResult,
     output_dir: Path,
@@ -143,7 +143,9 @@ async def process_command(
         output_dir = _setup_process_output_dir(args)
         quality = parse_quality_preset(args.quality)
 
-        logger.info(f"Processing video {input_path} (quality: {quality.value}, provider: {args.provider})")
+        logger.info(
+            f"Processing video {input_path} (quality: {quality.value}, provider: {args.provider})"
+        )
 
         try:
             _pipeline_result, result = await _execute_processing_pipeline(

@@ -6,13 +6,17 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ..utils.constants import AnalysisConstants
+from ..utils.formatting import format_duration
+from .base_analyzer import BaseAnalyzer
+
 if TYPE_CHECKING:
     from ..models.transcription import TranscriptionResult
 
 logger = logging.getLogger(__name__)
 
 
-class ConciseAnalyzer:
+class ConciseAnalyzer(BaseAnalyzer):
     """Generates single comprehensive analysis file from transcription results."""
 
     def analyze_and_save(
@@ -103,14 +107,7 @@ class ConciseAnalyzer:
         if result.summary:
             overview += f"\n\n**Summary:** {result.summary}"
         else:
-            # Generate a simple summary from the first few sentences
-            sentences = result.transcript.split(". ")[:3]
-            simple_summary = (
-                ". ".join(sentences) + "..."
-                if len(sentences) >= 3
-                else result.transcript[:300] + "..."
-            )
-            overview += f"\n\n**Key Content:** {simple_summary}"
+            overview += f"\n\n**Key Content:** {self._fallback_summary(result.transcript)}"
 
         return overview
 
@@ -203,10 +200,17 @@ class ConciseAnalyzer:
 
         # Extract meaningful sentences (longer sentences often contain more substance)
         sentences = [s.strip() for s in result.transcript.split(".") if s.strip()]
-        meaningful_sentences = [s for s in sentences if len(s.split()) >= 15 and len(s) <= 200]
+        meaningful_sentences = [
+            s
+            for s in sentences
+            if len(s.split()) >= AnalysisConstants.MIN_SENTENCE_WORDS
+            and len(s) <= AnalysisConstants.MAX_SENTENCE_CHARS
+        ]
 
         # Take top sentences by length (simple heuristic)
-        top_sentences = sorted(meaningful_sentences, key=len, reverse=True)[:5]
+        top_sentences = sorted(meaningful_sentences, key=len, reverse=True)[
+            : AnalysisConstants.TOP_HIGHLIGHTS_COUNT
+        ]
 
         if top_sentences:
             for i, sentence in enumerate(top_sentences, 1):
@@ -221,8 +225,7 @@ class ConciseAnalyzer:
 
         If intent data is available from the provider, it displays unique identified
         intents. Otherwise, uses a keyword-based heuristic to detect potential action
-        items by searching for action-oriented language:
-        - "should", "need to", "must", "will", "plan to", "going to", "have to"
+        items by searching for action-oriented language.
 
         Limits fallback detection to 5 potential action items to avoid noise.
 
@@ -237,25 +240,7 @@ class ConciseAnalyzer:
             for intent in set(result.intents):  # Remove duplicates
                 content += f"- {intent.title()}\n"
         else:
-            # Look for action-oriented language in the transcript
-            action_keywords = [
-                "should",
-                "need to",
-                "must",
-                "will",
-                "plan to",
-                "going to",
-                "have to",
-            ]
-            action_sentences = []
-
-            for sentence in result.transcript.split("."):
-                sentence = sentence.strip()
-                if (
-                    any(keyword in sentence.lower() for keyword in action_keywords)
-                    and len(sentence) > 20
-                ):
-                    action_sentences.append(sentence)
+            action_sentences = self._find_action_sentences(result.transcript)
 
             if action_sentences:
                 content += "**Potential Action Items:**\n"
@@ -325,30 +310,6 @@ class ConciseAnalyzer:
             content += f"**Total Utterances:** {len(result.utterances)}\n"
 
         return content
-
-    def _format_duration(self, seconds: float) -> str:
-        """Format duration in seconds to HH:MM:SS or MM:SS format.
-
-        Args:
-            seconds: Duration in seconds (may include fractional seconds).
-
-        Returns:
-            str: Formatted duration string. If duration is >= 1 hour, returns HH:MM:SS.
-                Otherwise, returns MM:SS format.
-
-        Examples:
-            45.0 -> "00:45"
-            125.5 -> "02:05"
-            3661.0 -> "01:01:01"
-        """
-        hours = int(seconds // 3600)
-        minutes = int((seconds % 3600) // 60)
-        secs = int(seconds % 60)
-
-        if hours > 0:
-            return f"{hours:02d}:{minutes:02d}:{secs:02d}"
-        else:
-            return f"{minutes:02d}:{secs:02d}"
 
     def _get_sentiment_emoji(self, sentiment: str) -> str:
         """Get emoji representation for sentiment category.

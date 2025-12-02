@@ -13,6 +13,7 @@ from pathlib import Path
 from threading import Lock
 from typing import TYPE_CHECKING, Any
 
+from ..exceptions import ParakeetAudioError, ParakeetError, ParakeetGPUError, ParakeetModelError
 from ..models.transcription import TranscriptionResult, TranscriptionUtterance
 
 if TYPE_CHECKING:
@@ -64,35 +65,6 @@ try:
 except ImportError:
     AUDIO_LIBS_AVAILABLE = False
     logger.warning("Audio processing libraries (librosa, soundfile) not available")
-
-
-# =====================================================================
-# Custom exceptions
-# =====================================================================
-
-
-class ParakeetError(Exception):
-    """Base exception for Parakeet-specific errors."""
-
-    pass
-
-
-class ParakeetAudioError(Exception):
-    """Raised when audio processing fails."""
-
-    pass
-
-
-class ParakeetGPUError(Exception):
-    """Raised when GPU operations fail."""
-
-    pass
-
-
-class ParakeetModelError(Exception):
-    """Raised when model loading fails."""
-
-    pass
 
 
 # =====================================================================
@@ -884,9 +856,7 @@ class ParakeetTranscriber(BaseTranscriptionProvider):
             return False
         return True
 
-    def _validate_and_preprocess(
-        self, audio_file_path: Path
-    ) -> tuple[Path, float, bool] | None:
+    def _validate_and_preprocess(self, audio_file_path: Path) -> tuple[Path, float, bool] | None:
         """Validate and preprocess audio file. Returns (path, duration, is_temp)."""
         if not self.audio_preprocessor.validate_audio_file(audio_file_path):
             logger.error(f"Invalid audio file: {audio_file_path}")
@@ -980,9 +950,7 @@ class ParakeetTranscriber(BaseTranscriptionProvider):
         """Create utterances list from transcript."""
         if not transcript:
             return []
-        return [
-            TranscriptionUtterance(speaker=1, start=0.0, end=audio_duration, text=transcript)
-        ]
+        return [TranscriptionUtterance(speaker=1, start=0.0, end=audio_duration, text=transcript)]
 
     def _build_metadata(
         self,
@@ -1025,8 +993,8 @@ class ParakeetTranscriber(BaseTranscriptionProvider):
                 metadata["gpu_memory_available_mb"] = available_memory / 1024**2
 
             metadata["gpu_memory_allocated_mb"] = torch.cuda.memory_allocated() / 1024**2
-        except Exception:
-            pass
+        except (ImportError, RuntimeError):
+            pass  # torch not available or CUDA not initialized
 
     def _create_error_result(
         self,
@@ -1098,12 +1066,12 @@ class ParakeetTranscriber(BaseTranscriptionProvider):
 
         try:
             if not NEMO_AVAILABLE:
-                return {
-                    "healthy": False,
-                    "status": "dependencies_missing",
-                    "response_time_ms": 0,
-                    "details": {"provider": "parakeet", "error": "NeMo toolkit not installed"},
-                }
+                return self._build_health_response(
+                    healthy=False,
+                    status="dependencies_missing",
+                    response_time_ms=0,
+                    error="NeMo toolkit not installed",
+                )
 
             # Test model loading
             try:
@@ -1113,34 +1081,25 @@ class ParakeetTranscriber(BaseTranscriptionProvider):
                 logger.debug(f"Model loading test failed during health check: {e}")
                 model_available = False
 
-            health_status = {
-                "healthy": model_available,
-                "status": "ready" if model_available else "model_not_loaded",
-                "response_time_ms": (time.time() - start_time) * 1000,
-                "details": {
-                    "provider": "parakeet",
-                    "model_loaded": model_available,
-                    "model_name": self.model_name,
-                    "device": self.gpu_manager.device,
-                    "cuda_available": TORCH_AVAILABLE
-                    and self.gpu_manager.device.startswith("cuda"),
-                    "cache_stats": self.model_cache.get_cache_stats(),
-                },
-            }
-
-            return health_status
+            return self._build_health_response(
+                healthy=model_available,
+                status="ready" if model_available else "model_not_loaded",
+                response_time_ms=(time.time() - start_time) * 1000,
+                model_loaded=model_available,
+                model_name=self.model_name,
+                device=self.gpu_manager.device,
+                cuda_available=TORCH_AVAILABLE and self.gpu_manager.device.startswith("cuda"),
+                cache_stats=self.model_cache.get_cache_stats(),
+            )
 
         except Exception as e:
-            return {
-                "healthy": False,
-                "status": "health_check_failed",
-                "response_time_ms": (time.time() - start_time) * 1000,
-                "details": {
-                    "provider": "parakeet",
-                    "error": str(e),
-                    "error_type": type(e).__name__,
-                },
-            }
+            return self._build_health_response(
+                healthy=False,
+                status="health_check_failed",
+                response_time_ms=(time.time() - start_time) * 1000,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
 
 
 # Maintain backward compatibility by exposing all classes at module level

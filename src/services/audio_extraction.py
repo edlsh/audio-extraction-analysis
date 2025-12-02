@@ -17,6 +17,7 @@ from ..exceptions import (
     FFmpegExecutionError,
     FFmpegNotFoundError,
 )
+from ..utils.constants import MediaLimits, Timeouts
 from ..utils.file_validation import FileValidator, safe_validate_media_file
 from .ffmpeg_core import build_extract_commands
 
@@ -36,28 +37,8 @@ class AudioExtractor:
     """FFmpeg-based audio extraction service."""
 
     # Security: Define allowed file extensions and maximum file size
-    ALLOWED_EXTENSIONS = {
-        # Video formats
-        ".mp4",
-        ".avi",
-        ".mov",
-        ".mkv",
-        ".webm",
-        ".flv",
-        ".wmv",
-        ".m4v",
-        ".3gp",
-        # Audio formats
-        ".mp3",
-        ".wav",
-        ".flac",
-        ".m4a",
-        ".aac",
-        ".ogg",
-        ".wma",
-        ".opus",
-    }
-    MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024  # 2GB limit
+    ALLOWED_EXTENSIONS = MediaLimits.get_allowed_extensions()
+    MAX_FILE_SIZE = MediaLimits.MAX_FILE_SIZE_BYTES
 
     def __init__(self) -> None:
         self._check_ffmpeg()
@@ -107,7 +88,12 @@ class AudioExtractor:
             FFmpegNotFoundError: If FFmpeg is not installed or not accessible
         """
         try:
-            subprocess.run(["ffmpeg", "-version"], capture_output=True, check=True, timeout=10)
+            subprocess.run(
+                ["ffmpeg", "-version"],
+                capture_output=True,
+                check=True,
+                timeout=Timeouts.FFMPEG_VERSION_CHECK,
+            )
         except subprocess.CalledProcessError as e:
             logger.error("FFmpeg check failed")
             raise FFmpegNotFoundError(
@@ -120,13 +106,24 @@ class AudioExtractor:
                 "FFmpeg not found in PATH", context={"error": "not_in_path"}
             ) from e
         except subprocess.TimeoutExpired as e:
-            logger.error("FFmpeg version check timed out")
+            logger.error(f"FFmpeg version check timed out after {Timeouts.FFMPEG_VERSION_CHECK}s")
             raise FFmpegNotFoundError(
-                "FFmpeg version check timed out", context={"timeout": 10}
+                "FFmpeg version check timed out",
+                context={"timeout": Timeouts.FFMPEG_VERSION_CHECK},
             ) from e
 
     def get_video_info(self, input_path: Path) -> dict[str, Any]:
-        """Get video/audio file information using ffprobe."""
+        """Get video/audio file information using ffprobe.
+
+        Args:
+            input_path: Path to media file.
+
+        Returns:
+            Dictionary with 'duration' (float), 'size_bytes' (int), 'size_mb' (float).
+
+        Raises:
+            AudioExtractionError: If file info cannot be retrieved or parsed.
+        """
         try:
             # Security: Validate input path
             self._validate_path(input_path)
@@ -142,7 +139,13 @@ class AudioExtractor:
                 "default=noprint_wrappers=1:nokey=1",
                 str(input_path),
             ]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, check=True)
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=Timeouts.FFMPEG_PROBE,
+                check=True,
+            )
 
             # Parse duration from ffprobe output
             duration = None
@@ -161,13 +164,22 @@ class AudioExtractor:
             }
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
             logger.warning(f"FFmpeg failed to get video info: {e}")
-            return {}
+            raise AudioExtractionError(
+                f"Failed to retrieve media info for {input_path}",
+                context={"error": str(e), "input_path": str(input_path)},
+            ) from e
         except (FileNotFoundError, ValueError, PermissionError) as e:
             logger.warning(f"Could not get video info: {e}")
-            return {}
+            raise AudioExtractionError(
+                f"Failed to access media file {input_path}",
+                context={"error": str(e), "input_path": str(input_path)},
+            ) from e
         except OSError as e:
             logger.warning(f"System error getting video info: {e}")
-            return {}
+            raise AudioExtractionError(
+                f"System error accessing media file {input_path}",
+                context={"error": str(e), "input_path": str(input_path)},
+            ) from e
 
     def extract_audio(
         self,
@@ -231,17 +243,26 @@ class AudioExtractor:
 
     def _log_input_info(self, input_path: Path) -> None:
         """Log input video information."""
-        info = self.get_video_info(input_path)
-        if info:
+        try:
+            info = self.get_video_info(input_path)
             logger.info(
                 f"Input video: {info.get('duration', 'unknown')} duration, "
                 f"{info.get('size_mb', 0):.2f} MB"
             )
+        except AudioExtractionError:
+            # Non-critical logging failure
+            logger.warning(f"Could not log info for {input_path}")
 
     def _run_ffmpeg_commands(self, cmds: list[list[str]]) -> None:
         """Run FFmpeg commands sequentially."""
         for cmd in cmds:
-            subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=600)
+            subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=Timeouts.FFMPEG_EXTRACTION,
+            )
 
     def _verify_output(self, input_path: Path, output_path: Path) -> Path:
         """Verify output file was created and log success."""
@@ -256,16 +277,23 @@ class AudioExtractor:
         logger.info(f"Successfully extracted audio: {final_size:.2f} MB")
         return output_path
 
-    def _timeout_error(self, input_path: Path, quality: AudioQuality) -> AudioExtractionTimeoutError:
+    def _timeout_error(
+        self, input_path: Path, quality: AudioQuality
+    ) -> AudioExtractionTimeoutError:
         """Create timeout error."""
-        logger.error("Audio extraction timed out after 600s")
+        timeout = Timeouts.FFMPEG_EXTRACTION
+        logger.error(f"Audio extraction timed out after {timeout}s")
         return AudioExtractionTimeoutError(
-            f"Audio extraction timed out after 600s for {input_path.name}",
-            context={"input_path": str(input_path), "timeout": 600, "quality": quality.value},
+            f"Audio extraction timed out after {timeout}s for {input_path.name}",
+            context={"input_path": str(input_path), "timeout": timeout, "quality": quality.value},
         )
 
     def _process_ffmpeg_error(
-        self, e: subprocess.CalledProcessError, input_path: Path, output_path: Path, quality: AudioQuality
+        self,
+        e: subprocess.CalledProcessError,
+        input_path: Path,
+        output_path: Path,
+        quality: AudioQuality,
     ) -> Exception:
         """Process FFmpeg error and return appropriate exception."""
         stderr = e.stderr if hasattr(e, "stderr") else str(e)
@@ -300,4 +328,3 @@ class AudioExtractor:
                 logger.debug(f"Cleaned up temp file: {temp_path}")
             except OSError as e:
                 logger.warning(f"Failed to clean up temp file {temp_path}: {e}")
-

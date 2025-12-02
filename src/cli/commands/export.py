@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
 def create_export_markdown_subparser(
     subparsers: "_SubParsersAction[argparse.ArgumentParser]",
 ) -> None:
@@ -92,6 +93,7 @@ def create_export_markdown_subparser(
         help="Markdown template to use",
     )
 
+
 def _validate_and_setup_paths(args: argparse.Namespace) -> tuple[Path, Path]:
     """Validate input audio file and setup output directory."""
     audio_path = validate_audio_file(args.audio_path)
@@ -99,12 +101,14 @@ def _validate_and_setup_paths(args: argparse.Namespace) -> tuple[Path, Path]:
     output_dir.mkdir(parents=True, exist_ok=True)
     return audio_path, output_dir
 
+
 def _resolve_provider_name(provider: str) -> str | None:
     """Resolve provider name mapping."""
     # Simple pass through for now, logic was inline or implicit in CLI
     if provider == "auto":
         return None
     return provider
+
 
 def _perform_transcription(audio_path: Path, args: argparse.Namespace) -> TranscriptionResult:
     """Perform transcription of the audio file."""
@@ -119,6 +123,7 @@ def _perform_transcription(audio_path: Path, args: argparse.Namespace) -> Transc
 
     return result
 
+
 def _prepare_source_info(audio_path: Path, result: TranscriptionResult) -> dict[str, object]:
     """Prepare source information dictionary."""
     return {
@@ -127,6 +132,7 @@ def _prepare_source_info(audio_path: Path, result: TranscriptionResult) -> dict[
         "provider": result.provider_name,
         "total_duration": result.duration,
     }
+
 
 def _save_markdown_transcript(
     result: TranscriptionResult,
@@ -153,6 +159,7 @@ def _save_markdown_transcript(
 
     return md_path
 
+
 def _save_metadata(
     source_info: dict[str, object], result: TranscriptionResult, base_dir: Path
 ) -> None:
@@ -169,6 +176,7 @@ def _save_metadata(
         safe_write_json(base_dir / "metadata.json", metadata)
     except OSError as e:
         logger.error(f"Failed writing metadata.json: {e}")
+
 
 def _save_segments(result: TranscriptionResult, base_dir: Path) -> None:
     """Save segments to JSON file."""
@@ -187,6 +195,7 @@ def _save_segments(result: TranscriptionResult, base_dir: Path) -> None:
     except OSError as e:
         logger.error(f"Failed writing segments.json: {e}")
 
+
 def export_markdown_command(
     args: argparse.Namespace, console_manager: ConsoleManager | None = None
 ) -> int:
@@ -195,7 +204,7 @@ def export_markdown_command(
         # Validate input and setup paths
         try:
             audio_path, output_dir = _validate_and_setup_paths(args)
-        except Exception: # ValidationError might need import
+        except Exception:  # ValidationError might need import
             return 1
 
         # Perform transcription

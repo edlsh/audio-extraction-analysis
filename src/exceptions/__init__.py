@@ -192,6 +192,43 @@ class ProviderValidationError(TranscriptionServiceError):
 
 
 # ============================================================================
+# Parakeet Provider Errors
+# ============================================================================
+
+
+class ParakeetError(ProviderError):
+    """Base exception for Parakeet-specific errors.
+
+    Raised for general Parakeet provider failures not covered by more
+    specific exception types.
+    """
+
+
+class ParakeetAudioError(ParakeetError):
+    """Raised when Parakeet audio processing fails.
+
+    This includes audio format conversion, resampling, and preprocessing
+    operations required by the Parakeet model.
+    """
+
+
+class ParakeetGPUError(ParakeetError):
+    """Raised when Parakeet GPU operations fail.
+
+    This includes CUDA initialization errors, out-of-memory conditions,
+    and device allocation failures.
+    """
+
+
+class ParakeetModelError(ParakeetError):
+    """Raised when Parakeet model loading fails.
+
+    This includes model download failures, corrupted model files,
+    and incompatible model versions.
+    """
+
+
+# ============================================================================
 # File Validation Errors
 # ============================================================================
 
@@ -359,6 +396,11 @@ __all__ = [
     "FileSizeError",
     "InvalidConfigError",
     "MissingConfigError",
+    # Parakeet
+    "ParakeetAudioError",
+    "ParakeetError",
+    "ParakeetGPUError",
+    "ParakeetModelError",
     "PathTraversalError",
     # Transcription
     "ProviderAPIError",

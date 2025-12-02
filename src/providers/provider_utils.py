@@ -13,7 +13,7 @@ def get_default_configs(
 ) -> tuple[RetryConfig, CircuitBreakerConfig]:
     """Get retry and circuit breaker configs with defaults from global config."""
     config = get_config()
-    
+
     if retry_config is None:
         retry_config = RetryConfig(
             max_attempts=config.max_retries,
@@ -22,11 +22,11 @@ def get_default_configs(
             exponential_base=config.retry_exponential_base,
             jitter=config.retry_jitter,
         )
-    
+
     if circuit_config is None:
         circuit_config = CircuitBreakerConfig(
             failure_threshold=config.circuit_breaker_failure_threshold,
             recovery_timeout=config.circuit_breaker_recovery_timeout,
         )
-    
+
     return retry_config, circuit_config

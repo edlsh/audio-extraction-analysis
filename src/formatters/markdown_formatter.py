@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from ..config import Config
+from ..utils.formatting import format_timestamp
 
 if TYPE_CHECKING:
     from ..models.transcription import (
@@ -188,25 +189,8 @@ class MarkdownFormatter:
         return "".join(parts)
 
     def _format_timestamp(self, seconds: float) -> str:
-        """Convert seconds to HH:MM:SS format.
-
-        Converts a floating-point seconds value to a formatted timestamp string
-        in HH:MM:SS format. Handles negative values by clamping to zero.
-
-        Args:
-            seconds: Duration in seconds to convert. Negative values are clamped to 0.
-
-        Returns:
-            Formatted timestamp string in HH:MM:SS format (e.g., "01:23:45").
-        """
-        seconds = max(0.0, float(seconds or 0.0))
-        td = timedelta(seconds=int(seconds))
-        # Ensure HH:MM:SS
-        total_seconds = int(td.total_seconds())
-        h = total_seconds // 3600
-        m = (total_seconds % 3600) // 60
-        s = total_seconds % 60
-        return f"{h:02d}:{m:02d}:{s:02d}"
+        """Convert seconds to HH:MM:SS format."""
+        return format_timestamp(seconds)
 
     def save_transcript(self, content: str, output_path: Path) -> None:
         """Save formatted transcript to file.

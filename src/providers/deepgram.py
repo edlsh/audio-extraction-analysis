@@ -14,9 +14,19 @@ import logging
 import os
 import time
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, BinaryIO
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
+    from ..utils.retry import RetryConfig
+
+try:
+    from deepgram import DeepgramClient, PrerecordedOptions
+
+    # For response type, we might need to be generic if we don't know the exact class structure
+    # or use a Protocol. For now, we'll try to use specific types if available or Any if not sure.
+except ImportError:
     pass
 
 from ..config import get_config
@@ -31,11 +41,6 @@ from .base import BaseTranscriptionProvider, CircuitBreakerConfig
 from .deepgram_utils import build_prerecorded_options
 from .deepgram_utils import detect_mimetype as _dg_detect_mimetype
 from .provider_utils import get_default_configs
-
-if TYPE_CHECKING:
-    from pathlib import Path
-
-    from ..utils.retry import RetryConfig
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +74,7 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
     """
 
     # ---------------------- Internal helpers (extracted) ----------------------
-    def _create_client(self) -> Any:  # DeepgramClientProtocol
+    def _create_client(self) -> DeepgramClient:
         """Create and return a Deepgram client configured for production use.
 
         The client is configured with:
@@ -87,7 +92,7 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
         config = ClientOptionsFromEnv(options={"timeout": 600})
         return DeepgramClient(self.api_key, config=config)
 
-    def _build_options(self, language: str) -> Any:  # PrerecordedOptionsProtocol
+    def _build_options(self, language: str) -> PrerecordedOptions:
         """Build PrerecordedOptions for Nova-3 with all AI features enabled.
 
         Configures the Deepgram API request to enable speaker diarization, topic detection,
@@ -138,11 +143,11 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
 
     def _submit_transcription_job(
         self,
-        client: Any,  # DeepgramClientProtocol
+        client: DeepgramClient,
         audio_source: Any,  # BinaryIO
         mimetype: str,
-        options: Any,  # PrerecordedOptionsProtocol
-    ) -> Any:  # PrerecordedResponseProtocol
+        options: PrerecordedOptions,
+    ) -> Any:  # PrerecordedResponseProtocol or Any since response structure is complex
         """Submit the prerecorded transcription request to Deepgram API with streaming.
 
         Uses the Deepgram SDK's file streaming capabilities to upload audio data efficiently.
@@ -205,7 +210,9 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
                 s = segment.sentiment
                 result.sentiment_distribution[s] = result.sentiment_distribution.get(s, 0) + 1
 
-    def _extract_utterances(self, response: Any, result: TranscriptionResult, duration: float) -> None:
+    def _extract_utterances(
+        self, response: Any, result: TranscriptionResult, duration: float
+    ) -> None:
         """Extract speaker utterances and calculate speaker statistics."""
         if not hasattr(response.results, "utterances") or not response.results.utterances:
             return
@@ -356,61 +363,49 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
 
             # Validate API key format - Deepgram keys are typically 32-64 hex characters
             if not self.api_key or len(self.api_key) < 20:
-                return {
-                    "healthy": False,
-                    "status": "invalid_api_key",
-                    "response_time_ms": (time.time() - start_time) * 1000,
-                    "details": {
-                        "provider": "Deepgram Nova 3",
-                        "error": "API key appears to be invalid or missing",
-                    },
-                }
+                return self._build_health_response(
+                    healthy=False,
+                    status="invalid_api_key",
+                    response_time_ms=(time.time() - start_time) * 1000,
+                    error="API key appears to be invalid or missing",
+                )
 
             # Try to create a client instance
             try:
                 DeepgramClient(self.api_key)
                 response_time = (time.time() - start_time) * 1000
 
-                return {
-                    "healthy": True,
-                    "status": "operational",
-                    "response_time_ms": response_time,
-                    "details": {
-                        "provider": "Deepgram Nova 3",
-                        "api_accessible": True,
-                        "authentication": "key_format_valid",
-                        "note": "Health check validates SDK and key format only",
-                    },
-                }
+                return self._build_health_response(
+                    healthy=True,
+                    status="operational",
+                    response_time_ms=response_time,
+                    api_accessible=True,
+                    authentication="key_format_valid",
+                    note="Health check validates SDK and key format only",
+                )
             except Exception as client_error:
-                return {
-                    "healthy": False,
-                    "status": "client_creation_failed",
-                    "response_time_ms": (time.time() - start_time) * 1000,
-                    "details": {
-                        "provider": "Deepgram Nova 3",
-                        "error": f"Failed to create client: {client_error!s}",
-                    },
-                }
+                return self._build_health_response(
+                    healthy=False,
+                    status="client_creation_failed",
+                    response_time_ms=(time.time() - start_time) * 1000,
+                    error=f"Failed to create client: {client_error!s}",
+                )
 
         except ImportError:
-            return {
-                "healthy": False,
-                "status": "sdk_not_available",
-                "response_time_ms": (time.time() - start_time) * 1000,
-                "details": {"provider": "Deepgram Nova 3", "error": "Deepgram SDK not installed"},
-            }
+            return self._build_health_response(
+                healthy=False,
+                status="sdk_not_available",
+                response_time_ms=(time.time() - start_time) * 1000,
+                error="Deepgram SDK not installed",
+            )
         except Exception as e:
-            return {
-                "healthy": False,
-                "status": "error",
-                "response_time_ms": (time.time() - start_time) * 1000,
-                "details": {
-                    "provider": "Deepgram Nova 3",
-                    "error": str(e),
-                    "error_type": type(e).__name__,
-                },
-            }
+            return self._build_health_response(
+                healthy=False,
+                status="error",
+                response_time_ms=(time.time() - start_time) * 1000,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
 
     async def _transcribe_impl(
         self, audio_file_path: Path, language: str = "en"
@@ -545,8 +540,8 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
                 if loop is not None:
                     try:
                         loop.close()
-                    except Exception:
-                        pass
+                    except RuntimeError:
+                        pass  # Loop already closed or running
         except Exception as e:
             logger.error(f"Unexpected error in synchronous transcription: {e}")
             return None

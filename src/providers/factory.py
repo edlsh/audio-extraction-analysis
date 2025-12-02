@@ -105,16 +105,16 @@ class TranscriptionProviderFactory:
             import whisper
 
             configured.append("whisper")
-        except (ImportError, Exception):
-            pass
+        except ImportError:
+            pass  # Expected when whisper not installed
 
         # Parakeet: NVIDIA NeMo's local speech recognition model
         try:
             import nemo.collections.asr as nemo_asr
 
             configured.append("parakeet")
-        except (ImportError, Exception):
-            pass
+        except ImportError:
+            pass  # Expected when nemo not installed
 
         return configured
 
@@ -125,35 +125,7 @@ class TranscriptionProviderFactory:
         circuit_config: CircuitBreakerConfig | None,
         retry_config: RetryConfig | None,
     ) -> tuple[CircuitBreakerConfig, RetryConfig]:
-        """Get default circuit breaker and retry configurations (internal helper).
-
-        This method provides default configurations for fault tolerance and retry logic
-        when not explicitly provided. Defaults are pulled from the Config singleton.
-
-        Circuit Breaker Pattern:
-            Prevents cascading failures by opening circuit after threshold failures.
-            Automatically attempts recovery after timeout period.
-
-        Retry Pattern:
-            Implements exponential backoff with jitter for transient failures.
-            Helps handle temporary network issues and rate limiting.
-
-        Args:
-            provider_name: Name of the provider (currently unused, reserved for
-                future provider-specific default configuration)
-            circuit_config: Existing circuit breaker config or None. If None,
-                defaults from Config are used.
-            retry_config: Existing retry config or None. If None, defaults from
-                Config are used.
-
-        Returns:
-            Tuple of (circuit_config, retry_config) where None values are replaced
-            with defaults from Config
-
-        Note:
-            Both configs are always returned as non-None objects. If both inputs
-            are provided, they are returned unchanged for efficiency.
-        """
+        """Return default circuit breaker and retry configs from Config singleton."""
         if circuit_config is not None and retry_config is not None:
             return circuit_config, retry_config
 
@@ -178,21 +150,7 @@ class TranscriptionProviderFactory:
 
     @classmethod
     def _run_health_check(cls, provider: BaseTranscriptionProvider, provider_name: str) -> None:
-        """Run health check on provider and log results (internal helper).
-
-        This is a synchronous health check used during provider creation.
-        Health check failures are logged as warnings but do not prevent provider
-        creation, as the provider may recover or the issue may be transient.
-
-        Args:
-            provider: Provider instance to check
-            provider_name: Name of the provider for logging purposes
-
-        Note:
-            - Skipped if get_config().HEALTH_CHECK_ENABLED is False
-            - Failures are logged but not raised (non-blocking)
-            - Internal method, prefer check_provider_health() for external use
-        """
+        """Run health check if enabled. Failures are logged as warnings, not raised."""
         if not get_config().HEALTH_CHECK_ENABLED:
             return
 
@@ -202,12 +160,10 @@ class TranscriptionProviderFactory:
                 logger.warning(
                     f"Provider '{provider_name}' health check failed: {health_result.get('status')}"
                 )
-                # Don't raise error, just log warning - provider might recover
             else:
                 logger.info(f"Provider '{provider_name}' health check passed")
         except Exception as e:
             logger.warning(f"Health check failed for '{provider_name}': {e}")
-            # Don't raise error - health check is informational only
 
     @classmethod
     def _create_provider_instance(
@@ -218,30 +174,7 @@ class TranscriptionProviderFactory:
         circuit_config: CircuitBreakerConfig,
         retry_config: RetryConfig,
     ) -> BaseTranscriptionProvider:
-        """Create and validate provider instance (internal helper).
-
-        This method instantiates a provider class and validates its configuration
-        before returning it. Validation ensures API keys are present (for cloud providers)
-        and all required dependencies are available.
-
-        Args:
-            provider_class: Provider class to instantiate (e.g., DeepgramTranscriber)
-            provider_name: Name of the provider for error messages and logging
-            api_key: Optional API key for cloud providers. None for local providers.
-            circuit_config: Circuit breaker configuration for fault tolerance
-            retry_config: Retry configuration for transient failures
-
-        Returns:
-            Fully initialized and validated provider instance
-
-        Raises:
-            ValueError: If provider configuration is invalid (e.g., missing API key,
-                missing dependencies, or provider-specific validation failure)
-
-        Note:
-            Internal method used by create_provider(). Validation is performed by
-            calling the provider's validate_configuration() method.
-        """
+        """Instantiate and validate provider. Raises ValueError if validation fails."""
         provider = provider_class(
             api_key=api_key, circuit_config=circuit_config, retry_config=retry_config
         )
@@ -260,46 +193,17 @@ class TranscriptionProviderFactory:
         retry_config: RetryConfig | None = None,
         run_health_check: bool = True,
     ) -> BaseTranscriptionProvider:
-        """Create a transcription provider instance with validation and health checking.
-
-        This method creates a provider, validates its configuration, and optionally
-        performs a health check. Default configurations are applied if not provided.
-
-        Supported Providers:
-            - 'deepgram': Deepgram cloud API (requires DEEPGRAM_API_KEY)
-            - 'elevenlabs': ElevenLabs cloud API (requires ELEVENLABS_API_KEY)
-            - 'whisper': OpenAI Whisper local model (requires torch, whisper)
-            - 'parakeet': NVIDIA NeMo Parakeet local model (requires nemo)
+        """Create provider with validation and optional health check.
 
         Args:
-            provider_name: Name of the provider to create. Use get_available_providers()
-                to see registered providers.
-            api_key: Optional API key override. If None, reads from Config (environment).
-                Not used for local providers (whisper, parakeet).
-            circuit_config: Optional circuit breaker configuration. If None, uses defaults
-                from Config (failure_threshold, recovery_timeout).
-            retry_config: Optional retry configuration. If None, uses defaults from Config
-                (max_retries, retry_delay, exponential backoff settings).
-            run_health_check: Whether to run health check after creation. Health check
-                failures are logged but do not prevent provider creation.
-
-        Returns:
-            Fully configured and validated provider instance ready for transcription
+            provider_name: 'deepgram', 'elevenlabs', 'whisper', or 'parakeet'
+            api_key: Override API key (uses env config if None)
+            circuit_config: Override circuit breaker config
+            retry_config: Override retry config
+            run_health_check: Run health check after creation (default: True)
 
         Raises:
-            ValueError: If provider name is not registered, configuration is invalid,
-                or required dependencies are missing
-            ImportError: If provider module cannot be imported
-
-        Example:
-            >>> # Create with defaults
-            >>> provider = factory.create_provider('deepgram')
-            >>> # Create with custom configs
-            >>> provider = factory.create_provider(
-            ...     'deepgram',
-            ...     circuit_config=CircuitBreakerConfig(failure_threshold=5),
-            ...     run_health_check=False
-            ... )
+            ValueError: If provider unknown or config invalid
         """
         if provider_name not in cls._providers:
             available = ", ".join(cls.get_available_providers())
@@ -341,38 +245,7 @@ class TranscriptionProviderFactory:
     async def check_provider_health(
         cls, provider_name: str, api_key: str | None = None
     ) -> dict[str, Any]:
-        """Asynchronously check health of a specific provider.
-
-        This method creates a minimal provider instance and performs a health check
-        to verify the provider is operational and can accept requests.
-
-        Args:
-            provider_name: Name of the provider to check (e.g., 'deepgram', 'whisper')
-            api_key: Optional API key override. If None, uses configuration.
-                Not applicable to local providers.
-
-        Returns:
-            Dictionary containing health check results:
-                - healthy: bool indicating if provider is operational
-                - status: str status message (e.g., 'ok', 'creation_failed')
-                - response_time_ms: int response time in milliseconds
-                - details: dict with additional diagnostic information
-
-        Raises:
-            ValueError: If provider_name is not registered in the factory
-
-        Note:
-            For synchronous contexts, use check_provider_health_sync() instead.
-            This method does not throw exceptions on provider failures; errors are
-            returned in the result dictionary with healthy=False.
-
-        Example:
-            >>> health = await factory.check_provider_health('deepgram')
-            >>> if health['healthy']:
-            ...     print(f"Provider ready ({health['response_time_ms']}ms)")
-            ... else:
-            ...     print(f"Provider unavailable: {health['status']}")
-        """
+        """Check if provider is operational. Returns health dict, not exceptions."""
         if provider_name not in cls._providers:
             available = ", ".join(cls.get_available_providers())
             raise ValueError(
@@ -380,11 +253,9 @@ class TranscriptionProviderFactory:
             )
 
         try:
-            # Create provider without initial health check to avoid recursion
             provider = cls.create_provider(provider_name, api_key, run_health_check=False)
             return await provider.health_check_async()
         except Exception as e:
-            # Return structured error response instead of raising
             return {
                 "healthy": False,
                 "status": "creation_failed",
@@ -400,44 +271,17 @@ class TranscriptionProviderFactory:
     def check_provider_health_sync(
         cls, provider_name: str, api_key: str | None = None
     ) -> dict[str, Any]:
-        """Synchronous wrapper for async provider health check.
-
-        This method handles event loop management for synchronous contexts,
-        using a thread pool executor when called from an async context to avoid
-        "event loop already running" errors.
-
-        Event Loop Handling:
-            - Detects if there's a running event loop
-            - Uses thread pool executor if in async context (prevents conflicts)
-            - Uses asyncio.run() directly if in sync context (cleaner approach)
-
-        Args:
-            provider_name: Name of the provider to check (e.g., 'deepgram', 'whisper')
-            api_key: Optional API key override. If None, uses configuration.
-
-        Returns:
-            Dictionary containing health check results with keys:
-                - healthy: bool indicating if provider is operational
-                - status: str status message
-                - response_time_ms: int response time in milliseconds
-                - details: dict with additional information
-
-        Note:
-            Prefer check_provider_health() (async) when in async context for better performance.
-        """
+        """Sync wrapper for check_provider_health. Uses thread pool if in async context."""
         try:
-            # Check if there's a running event loop
             asyncio.get_running_loop()
-            # We're in async context - use thread pool to avoid conflict
             import concurrent.futures
 
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 future = executor.submit(
                     asyncio.run, cls.check_provider_health(provider_name, api_key)
                 )
-                return future.result(timeout=30)  # 30s timeout for health check
+                return future.result(timeout=30)
         except RuntimeError:
-            # No running loop - safe to use asyncio.run()
             return asyncio.run(cls.check_provider_health(provider_name, api_key))
 
 
