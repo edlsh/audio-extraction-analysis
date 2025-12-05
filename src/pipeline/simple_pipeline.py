@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import tempfile
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -31,10 +30,10 @@ logger = logging.getLogger(__name__)
 
 async def _extract_audio(
     input_path: Path,
-    temp_dir: Path,
+    output_dir: Path,
     cm: ConsoleManager,
 ) -> tuple[Path, float]:
-    """Extract audio from input file.
+    """Extract audio from input file directly to output directory.
 
     Returns:
         Tuple of (audio_path, extraction_duration)
@@ -45,7 +44,8 @@ async def _extract_audio(
     cm.print_stage("Audio Extraction", "starting")
     start = time.time()
 
-    audio_path = temp_dir / f"{input_path.stem}.mp3"
+    # Extract directly to output directory (no temp copy needed)
+    audio_path = output_dir / f"{input_path.stem}.mp3"
 
     with cm.progress_context("Extracting audio...", total=100) as progress:
         extractor = AsyncAudioExtractor()
@@ -74,8 +74,9 @@ async def _transcribe_audio(
     provider: str,
     language: str,
     cm: ConsoleManager,
+    service: TranscriptionService,
 ) -> tuple[TranscriptionResult, float]:
-    """Transcribe audio file.
+    """Transcribe audio file using provided service instance.
 
     Returns:
         Tuple of (transcript, transcription_duration)
@@ -87,7 +88,6 @@ async def _transcribe_audio(
     start = time.time()
 
     with cm.progress_context("Transcribing audio...", total=100) as progress:
-        service = TranscriptionService()
 
         def progress_callback(completed: int, total: int) -> None:
             progress.update(completed, total, "Transcribing audio...")
@@ -167,18 +167,6 @@ def _cleanup_on_failure(files: list[str]) -> None:
             logger.warning(f"Failed to cleanup {file_path}: {e}")
 
 
-def _cleanup_temp_dir(temp_dir: Path) -> None:
-    """Clean up temporary directory."""
-    try:
-        import shutil
-
-        if temp_dir.exists():
-            shutil.rmtree(temp_dir)
-            logger.debug(f"Cleaned up temporary directory: {temp_dir}")
-    except Exception as e:
-        logger.warning(f"Failed to clean up temp directory: {e}")
-
-
 async def process_pipeline(
     input_path: str | Path,
     output_dir: str | Path,
@@ -221,8 +209,8 @@ async def process_pipeline(
     cm = console_manager or ConsoleManager()
     cm.setup_logging(logger)
 
-    # Create temporary directory for intermediate files
-    temp_dir = Path(tempfile.mkdtemp(prefix="audio_pipeline_"))
+    # Create shared service instance (reused across stages)
+    service = TranscriptionService()
 
     # Initialize result tracking
     results = {
@@ -236,9 +224,9 @@ async def process_pipeline(
     try:
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Stage 1: Audio Extraction
+        # Stage 1: Audio Extraction (directly to output_dir, no temp copy needed)
         try:
-            audio_path, extraction_duration = await _extract_audio(input_path, temp_dir, cm)
+            audio_path, extraction_duration = await _extract_audio(input_path, output_dir, cm)
             results["audio_path"] = str(audio_path)
             results["files_created"].append(str(audio_path))
             results["stages_completed"].append("audio_extraction")
@@ -252,10 +240,10 @@ async def process_pipeline(
             logger.error(f"Audio extraction failed: {e}")
             raise
 
-        # Stage 2: Transcription
+        # Stage 2: Transcription (reuse service instance)
         try:
             transcript, transcription_duration = await _transcribe_audio(
-                audio_path, provider, language, cm
+                audio_path, provider, language, cm, service
             )
             results["transcript"] = transcript
             results["stages_completed"].append("transcription")
@@ -264,9 +252,8 @@ async def process_pipeline(
                 "duration": transcription_duration,
             }
 
-            # Save transcript file
+            # Save transcript file (reuse same service instance)
             transcript_path = output_dir / f"{input_path.stem}_transcript.txt"
-            service = TranscriptionService()
             service.save_transcription_result(
                 transcript, transcript_path, provider_name=transcript.provider_name
             )
@@ -296,14 +283,6 @@ async def process_pipeline(
             logger.error(f"Analysis failed: {e}")
             results["success"] = len(results["stages_completed"]) >= 2
 
-        # Copy audio to output directory
-        final_audio_path = output_dir / f"{input_path.stem}.mp3"
-        if not final_audio_path.exists() and audio_path.exists():
-            import shutil
-
-            shutil.copy2(audio_path, final_audio_path)
-            logger.info(f"Audio saved to: {final_audio_path}")
-
         # Finalize
         total_duration = time.time() - total_start
         results["stage_results"]["total"] = {"status": "complete", "duration": total_duration}
@@ -320,6 +299,3 @@ async def process_pipeline(
         cm.print_stage("Pipeline", "error")
         _cleanup_on_failure(results.get("files_created", []))
         return results
-
-    finally:
-        _cleanup_temp_dir(temp_dir)

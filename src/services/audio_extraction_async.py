@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import subprocess
 from pathlib import Path
@@ -12,7 +11,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-from ..config import Config
+from ..config import get_config
 from ..exceptions import (
     AudioExtractionError,
     AudioExtractionTimeoutError,
@@ -21,7 +20,7 @@ from ..exceptions import (
 )
 from ..utils.file_validation import safe_validate_media_file
 from .audio_extraction import AudioExtractor, AudioQuality
-from .ffmpeg_core import build_extract_commands
+from .ffmpeg_core import MediaProbeResult, build_extract_commands, probe_media_async
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +37,7 @@ class AsyncAudioExtractor(AudioExtractor):
         ffmpeg_timeout: float | None = None,
         termination_grace: float | None = None,
     ) -> None:
-        config = Config()
+        config = get_config()
         super().__init__()
         self._ffmpeg_timeout = float(
             ffmpeg_timeout if ffmpeg_timeout is not None else config.ffmpeg_timeout_seconds
@@ -78,11 +77,12 @@ class AsyncAudioExtractor(AudioExtractor):
 
         temp_path = None
         try:
-            duration = await self._get_video_duration(str(input_path)) or 100
-            self._log_input_info(input_path)
+            # Single probe call for all metadata (avoids duplicate ffprobe invocations)
+            probe = await probe_media_async(input_path)
+            self._log_probe_info(probe, input_path)
 
             cmds, temp_path = build_extract_commands(input_path, output_path, quality.value)
-            await self._run_extraction_stages(cmds, duration, progress_callback)
+            await self._run_extraction_stages(cmds, probe.duration or 100, progress_callback)
 
             return self._finalize_extraction(input_path, output_path)
 
@@ -108,17 +108,10 @@ class AsyncAudioExtractor(AudioExtractor):
 
         return validated_path, output_path
 
-    def _log_input_info(self, input_path: Path) -> None:
-        """Log input video information."""
-        try:
-            info = self.get_video_info(input_path)
-            logger.info(
-                f"Input video: {info.get('duration', 'unknown')} duration, "
-                f"{info.get('size_mb', 0):.2f} MB"
-            )
-        except AudioExtractionError:
-            # Non-critical logging failure
-            logger.warning(f"Could not log info for {input_path}")
+    def _log_probe_info(self, probe: MediaProbeResult, input_path: Path) -> None:
+        """Log input video information from probe result (no subprocess call)."""
+        duration_str = f"{probe.duration:.2f}s" if probe.duration else "unknown"
+        logger.info(f"Input video: {duration_str} duration, {probe.size_mb:.2f} MB")
 
     async def _run_extraction_stages(
         self,
@@ -196,36 +189,6 @@ class AsyncAudioExtractor(AudioExtractor):
                 temp_path.unlink()
             except OSError as exc:
                 logger.warning("Failed to clean up temp file %s: %s", temp_path, exc)
-
-    async def _get_video_duration(self, video_path: str) -> float | None:
-        """Get video duration in seconds using ffprobe."""
-        try:
-            cmd = [
-                "ffprobe",
-                "-v",
-                "quiet",
-                "-print_format",
-                "json",
-                "-show_entries",
-                "format=duration",
-                video_path,
-            ]
-
-            proc = await asyncio.create_subprocess_exec(
-                *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-            )
-
-            stdout, _ = await proc.communicate()
-
-            if proc.returncode == 0:
-                data = json.loads(stdout.decode())
-                duration = float(data.get("format", {}).get("duration", 0))
-                return duration if duration > 0 else None
-
-        except Exception as e:
-            logger.warning(f"Failed to get video duration: {e}")
-
-        return None
 
     async def _run_ffmpeg_with_progress(
         self,

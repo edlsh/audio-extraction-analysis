@@ -6,10 +6,161 @@ reduce duplication between `audio_extraction.py` and `audio_extraction_async.py`
 
 from __future__ import annotations
 
+import asyncio
+import json
+import logging
+import subprocess
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class MediaProbeResult:
+    """Result of probing a media file with ffprobe.
+
+    Consolidates all metadata needed by extraction and transcription
+    to avoid multiple ffprobe subprocess calls.
+    """
+
+    duration: float | None
+    """Duration in seconds, or None if unavailable."""
+
+    size_bytes: int
+    """File size in bytes."""
+
+    size_mb: float
+    """File size in megabytes."""
+
+
+def probe_media_sync(path: Path, timeout: float = 30.0) -> MediaProbeResult:
+    """Probe media file synchronously using ffprobe.
+
+    Single ffprobe call to get all needed metadata. Use this instead of
+    calling ffprobe multiple times for duration and info separately.
+
+    Args:
+        path: Path to the media file
+        timeout: Timeout in seconds for ffprobe subprocess
+
+    Returns:
+        MediaProbeResult with duration and file size info
+
+    Raises:
+        FileNotFoundError: If file doesn't exist
+        subprocess.TimeoutExpired: If ffprobe times out
+    """
+    if not path.exists():
+        raise FileNotFoundError(f"Media file not found: {path}")
+
+    file_size = path.stat().st_size
+    duration = None
+
+    try:
+        cmd = [
+            "ffprobe",
+            "-v", "quiet",
+            "-print_format", "json",
+            "-show_entries", "format=duration",
+            str(path),
+        ]
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+
+        if result.returncode == 0 and result.stdout.strip():
+            data = json.loads(result.stdout)
+            raw_duration = data.get("format", {}).get("duration")
+            if raw_duration:
+                duration = float(raw_duration)
+                if duration <= 0:
+                    duration = None
+
+    except (json.JSONDecodeError, ValueError, KeyError) as e:
+        logger.debug(f"Failed to parse ffprobe output: {e}")
+    except FileNotFoundError:
+        logger.debug("ffprobe not found in PATH")
+    except subprocess.TimeoutExpired:
+        logger.debug(f"ffprobe timed out after {timeout}s")
+
+    return MediaProbeResult(
+        duration=duration,
+        size_bytes=file_size,
+        size_mb=file_size / (1024 * 1024),
+    )
+
+
+async def probe_media_async(path: Path, timeout: float = 30.0) -> MediaProbeResult:
+    """Probe media file asynchronously using ffprobe.
+
+    Single ffprobe call to get all needed metadata. Use this instead of
+    calling ffprobe multiple times for duration and info separately.
+
+    Args:
+        path: Path to the media file
+        timeout: Timeout in seconds for ffprobe subprocess
+
+    Returns:
+        MediaProbeResult with duration and file size info
+
+    Raises:
+        FileNotFoundError: If file doesn't exist
+        asyncio.TimeoutError: If ffprobe times out
+    """
+    if not path.exists():
+        raise FileNotFoundError(f"Media file not found: {path}")
+
+    file_size = path.stat().st_size
+    duration = None
+
+    try:
+        cmd = [
+            "ffprobe",
+            "-v", "quiet",
+            "-print_format", "json",
+            "-show_entries", "format=duration",
+            str(path),
+        ]
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+
+        try:
+            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.wait()
+            logger.debug(f"ffprobe timed out after {timeout}s")
+            stdout = b""
+
+        if proc.returncode == 0 and stdout:
+            data = json.loads(stdout.decode())
+            raw_duration = data.get("format", {}).get("duration")
+            if raw_duration:
+                duration = float(raw_duration)
+                if duration <= 0:
+                    duration = None
+
+    except (json.JSONDecodeError, ValueError, KeyError) as e:
+        logger.debug(f"Failed to parse ffprobe output: {e}")
+    except FileNotFoundError:
+        logger.debug("ffprobe not found in PATH")
+
+    return MediaProbeResult(
+        duration=duration,
+        size_bytes=file_size,
+        size_mb=file_size / (1024 * 1024),
+    )
 
 
 def build_base_cmd(input_path: Path, allow_overwrite: bool = True) -> list[str]:
