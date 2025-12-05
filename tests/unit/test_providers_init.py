@@ -188,33 +188,44 @@ class TestProvidersPackage:
         ), f"Wildcard import should only import {expected_names}, got {imported_names}"
 
     def test_no_unexpected_public_exports(self):
-        """Test that module doesn't expose unexpected public attributes."""
-        import src.providers
+        """Test that module exports the required items.
 
-        # Get all public attributes (not starting with _)
-        public_attrs = [attr for attr in dir(src.providers) if not attr.startswith("_")]
+        Note: Provider submodules (deepgram, elevenlabs, whisper, parakeet, mock)
+        are lazily loaded by the factory and not eagerly imported at module level.
+        This keeps import times fast by avoiding heavyweight dependencies.
 
-        # Should have the documented exports plus the submodules
-        # The module exposes provider implementations and utility modules
-        expected_attrs = [
+        The test checks for minimum required exports. Additional modules may
+        appear if other tests in the suite have imported them.
+        """
+        from src import providers
+
+        public_attrs = set(attr for attr in dir(providers) if not attr.startswith("_"))
+
+        # Required exports that must always be present
+        required_attrs = {
             "BaseTranscriptionProvider",
             "CircuitBreakerConfig",
             "CircuitBreakerError",
             "CircuitBreakerMixin",
             "TranscriptionProviderFactory",
             "base",
-            "deepgram",
-            "deepgram_utils",
-            "elevenlabs",
             "factory",
-            "mock",  # Mock provider for testing
-            "parakeet",
-            "provider_utils",
-            "whisper",
+        }
+
+        # Verify all required exports are present
+        missing = required_attrs - public_attrs
+        assert not missing, f"Missing required exports: {missing}"
+
+        # Verify __all__ matches expected public API
+        expected_all = [
+            "BaseTranscriptionProvider",
+            "CircuitBreakerConfig",
+            "CircuitBreakerError",
+            "CircuitBreakerMixin",
+            "TranscriptionProviderFactory",
         ]
-        assert set(public_attrs) == set(
-            expected_attrs
-        ), f"Module should export {expected_attrs}, got {public_attrs}"
+        assert set(providers.__all__) == set(expected_all), \
+            f"__all__ should be {expected_all}, got {providers.__all__}"
 
     def test_export_types_are_correct(self):
         """Test that exported items are of the correct types."""

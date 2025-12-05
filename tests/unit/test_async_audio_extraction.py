@@ -10,6 +10,7 @@ import pytest
 from src.exceptions import AudioExtractionTimeoutError
 from src.services.audio_extraction import AudioQuality
 from src.services.audio_extraction_async import AsyncAudioExtractor
+from src.services.ffmpeg_core import MediaProbeResult
 
 # Apply markers to all tests in this module
 pytestmark = [
@@ -95,18 +96,22 @@ class TestAsyncAudioExtractor:
         input_file = tmp_path / "test_video.mp4"
         input_file.write_bytes(b"fake video data")
 
-        # Mock _run_ffmpeg_with_progress to raise TimeoutError
-        with patch.object(
-            extractor, "_run_ffmpeg_with_progress", side_effect=TimeoutError("Timeout")
+        # Create a fake probe result
+        fake_probe = MediaProbeResult(duration=100.0, size_bytes=1000, size_mb=0.001)
+
+        # Mock probe_media_async to return our fake result
+        with patch(
+            "src.services.audio_extraction_async.probe_media_async",
+            AsyncMock(return_value=fake_probe),
         ):
-            # Mock _get_video_duration to return a value
-            with patch.object(extractor, "_get_video_duration", return_value=100.0):
-                # Mock get_video_info to return None
-                with patch.object(extractor, "get_video_info", return_value=None):
-                    with pytest.raises(AudioExtractionTimeoutError):
-                        await extractor.extract_audio_async(
-                            input_path=input_file, quality=AudioQuality.SPEECH
-                        )
+            # Mock _run_ffmpeg_with_progress to raise TimeoutError
+            with patch.object(
+                extractor, "_run_ffmpeg_with_progress", side_effect=TimeoutError("Timeout")
+            ):
+                with pytest.raises(AudioExtractionTimeoutError):
+                    await extractor.extract_audio_async(
+                        input_path=input_file, quality=AudioQuality.SPEECH
+                    )
 
     @pytest.mark.asyncio
     async def test_run_ffmpeg_times_out_and_terminates(self) -> None:
@@ -150,17 +155,21 @@ class TestAsyncAudioExtractor:
         input_file = tmp_path / "test_video.mp4"
         input_file.write_bytes(b"fake video data")
 
-        # Mock _run_ffmpeg_with_progress to raise subprocess.TimeoutExpired
-        with patch.object(
-            extractor,
-            "_run_ffmpeg_with_progress",
-            side_effect=subprocess.TimeoutExpired(cmd=["ffmpeg"], timeout=30),
+        # Create a fake probe result
+        fake_probe = MediaProbeResult(duration=100.0, size_bytes=1000, size_mb=0.001)
+
+        # Mock probe_media_async to return our fake result
+        with patch(
+            "src.services.audio_extraction_async.probe_media_async",
+            AsyncMock(return_value=fake_probe),
         ):
-            # Mock _get_video_duration to return a value
-            with patch.object(extractor, "_get_video_duration", return_value=100.0):
-                # Mock get_video_info to return None
-                with patch.object(extractor, "get_video_info", return_value=None):
-                    with pytest.raises(AudioExtractionTimeoutError):
-                        await extractor.extract_audio_async(
-                            input_path=input_file, quality=AudioQuality.SPEECH
-                        )
+            # Mock _run_ffmpeg_with_progress to raise subprocess.TimeoutExpired
+            with patch.object(
+                extractor,
+                "_run_ffmpeg_with_progress",
+                side_effect=subprocess.TimeoutExpired(cmd=["ffmpeg"], timeout=30),
+            ):
+                with pytest.raises(AudioExtractionTimeoutError):
+                    await extractor.extract_audio_async(
+                        input_path=input_file, quality=AudioQuality.SPEECH
+                    )
