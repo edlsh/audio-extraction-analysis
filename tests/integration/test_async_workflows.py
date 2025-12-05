@@ -104,15 +104,16 @@ class TestAsyncExceptionHandling:
     @pytest.mark.asyncio
     async def test_exception_propagation(self, corrupted_audio: Path, tmp_path: Path):
         """Test exceptions propagate correctly in async."""
+        from src.exceptions import AudioExtractionError
+
         extractor = AsyncAudioExtractor()
         output = tmp_path / "output.mp3"
 
-        # Should not raise, but return None
-        result = await extractor.extract_audio_async(
-            corrupted_audio, output, quality=AudioQuality.STANDARD
-        )
-
-        assert result is None
+        # Should raise an AudioExtractionError for corrupted input
+        with pytest.raises(AudioExtractionError):
+            await extractor.extract_audio_async(
+                corrupted_audio, output, quality=AudioQuality.STANDARD
+            )
 
     @pytest.mark.asyncio
     async def test_partial_failure_handling(
@@ -133,11 +134,12 @@ class TestAsyncExceptionHandling:
             ),
         ]
 
-        results = await asyncio.gather(*tasks, return_exceptions=False)
+        # Use return_exceptions=True to capture failures as exceptions in results
+        results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # Two should succeed, one should fail
-        successful = [r for r in results if r is not None and isinstance(r, Path)]
-        failed = [r for r in results if r is None]
+        # Two should succeed (Path), one should fail (Exception)
+        successful = [r for r in results if isinstance(r, Path)]
+        failed = [r for r in results if isinstance(r, Exception)]
 
         assert len(successful) == 2
         assert len(failed) == 1
@@ -147,13 +149,16 @@ class TestAsyncExceptionHandling:
         """Verify exceptions are logged properly."""
         import logging
 
+        from src.exceptions import AudioExtractionError
+
         extractor = AsyncAudioExtractor()
         output = tmp_path / "output.mp3"
 
         with caplog.at_level(logging.ERROR):
-            await extractor.extract_audio_async(
-                corrupted_audio, output, quality=AudioQuality.STANDARD
-            )
+            with pytest.raises(AudioExtractionError):
+                await extractor.extract_audio_async(
+                    corrupted_audio, output, quality=AudioQuality.STANDARD
+                )
 
         # Should have error logs
         assert len(caplog.records) > 0

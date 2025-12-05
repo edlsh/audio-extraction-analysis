@@ -224,8 +224,9 @@ class TestProvidersPackage:
             "CircuitBreakerMixin",
             "TranscriptionProviderFactory",
         ]
-        assert set(providers.__all__) == set(expected_all), \
-            f"__all__ should be {expected_all}, got {providers.__all__}"
+        assert set(providers.__all__) == set(
+            expected_all
+        ), f"__all__ should be {expected_all}, got {providers.__all__}"
 
     def test_export_types_are_correct(self):
         """Test that exported items are of the correct types."""

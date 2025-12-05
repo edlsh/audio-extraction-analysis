@@ -63,9 +63,12 @@ def probe_media_sync(path: Path, timeout: float = 30.0) -> MediaProbeResult:
     try:
         cmd = [
             "ffprobe",
-            "-v", "quiet",
-            "-print_format", "json",
-            "-show_entries", "format=duration",
+            "-v",
+            "quiet",
+            "-print_format",
+            "json",
+            "-show_entries",
+            "format=duration",
             str(path),
         ]
         result = subprocess.run(
@@ -124,9 +127,12 @@ async def probe_media_async(path: Path, timeout: float = 30.0) -> MediaProbeResu
     try:
         cmd = [
             "ffprobe",
-            "-v", "quiet",
-            "-print_format", "json",
-            "-show_entries", "format=duration",
+            "-v",
+            "quiet",
+            "-print_format",
+            "json",
+            "-show_entries",
+            "format=duration",
             str(path),
         ]
         proc = await asyncio.create_subprocess_exec(
@@ -137,7 +143,7 @@ async def probe_media_async(path: Path, timeout: float = 30.0) -> MediaProbeResu
 
         try:
             stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             proc.kill()
             await proc.wait()
             logger.debug(f"ffprobe timed out after {timeout}s")
