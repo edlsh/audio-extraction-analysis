@@ -1,14 +1,15 @@
 """Factory for creating and managing transcription service providers.
 
 This module implements the Factory Pattern for transcription providers, providing:
-- Provider registration and discovery
-- Configuration validation and health checking
+- Lazy provider registration and discovery (imports deferred until first use)
+- Configuration validation and optional health checking
 
-The factory automatically registers available providers on module import and
-supports both synchronous and asynchronous operations.
+Providers are loaded lazily on first access to avoid importing heavyweight
+dependencies (torch, nemo) at module import time. This significantly improves
+CLI startup performance.
 
 Example:
-    >>> # Create a provider
+    >>> # Create a provider (imports happen here, not at module load)
     >>> provider = TranscriptionProviderFactory.create_provider("deepgram")
     >>> result = await provider.transcribe_async(audio_file_path)
 """
@@ -16,17 +17,29 @@ Example:
 from __future__ import annotations
 
 import asyncio
+import importlib
 import logging
+import os
 from typing import TYPE_CHECKING, Any
 
 from ..config import get_config
 from ..utils.retry import RetryConfig
 from .base import BaseTranscriptionProvider, CircuitBreakerConfig
+from .provider_utils import get_default_configs
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+# Lazy provider import registry: maps provider names to (module_path, class_name)
+# Providers are imported only when first accessed, not at module load time
+_PROVIDER_IMPORTS: dict[str, tuple[str, str]] = {
+    "deepgram": (".deepgram", "DeepgramTranscriber"),
+    "elevenlabs": (".elevenlabs", "ElevenLabsTranscriber"),
+    "whisper": (".whisper", "WhisperTranscriber"),
+    "parakeet": (".parakeet", "ParakeetTranscriber"),
+}
 
 
 class TranscriptionProviderFactory:
@@ -62,19 +75,79 @@ class TranscriptionProviderFactory:
 
     @classmethod
     def get_available_providers(cls) -> list[str]:
-        """Get list of registered provider names.
+        """Get list of all known provider names.
+
+        Returns all providers that can potentially be loaded, including those
+        not yet imported. This includes both already-loaded providers and
+        those in the lazy import registry.
 
         Returns:
-            List of provider names that are registered
+            List of provider names available for use
         """
-        return list(cls._providers.keys())
+        # Combine already-loaded providers with lazy registry
+        all_providers = set(cls._providers.keys()) | set(_PROVIDER_IMPORTS.keys())
+        # Add mock provider in test mode
+        if os.getenv("AUDIO_TEST_MODE") or os.getenv("CI") or os.getenv("PYTEST_CURRENT_TEST"):
+            all_providers.add("mock")
+        return sorted(all_providers)
+
+    @classmethod
+    def _get_provider_class(cls, provider_name: str) -> type[BaseTranscriptionProvider]:
+        """Lazy-load and return provider class.
+
+        Imports the provider module only on first access, caching the class
+        for subsequent calls. This avoids importing heavyweight dependencies
+        (torch, whisper, nemo) until actually needed.
+
+        Args:
+            provider_name: Name of the provider to load
+
+        Returns:
+            Provider class implementing BaseTranscriptionProvider
+
+        Raises:
+            ValueError: If provider name is unknown
+            ImportError: If provider module cannot be imported
+        """
+        # Return cached provider if already loaded
+        if provider_name in cls._providers:
+            return cls._providers[provider_name]
+
+        # Handle mock provider for testing
+        if provider_name == "mock":
+            if os.getenv("AUDIO_TEST_MODE") or os.getenv("CI") or os.getenv("PYTEST_CURRENT_TEST"):
+                from .mock import MockTranscriber
+                cls._providers["mock"] = MockTranscriber
+                logger.debug("Lazy-loaded Mock provider for testing")
+                return MockTranscriber
+            raise ValueError("Mock provider only available in test mode")
+
+        # Check if provider is in lazy registry
+        if provider_name not in _PROVIDER_IMPORTS:
+            available = ", ".join(cls.get_available_providers())
+            raise ValueError(
+                f"Unknown provider '{provider_name}'. Available providers: {available}"
+            )
+
+        # Lazy import the provider module
+        module_path, class_name = _PROVIDER_IMPORTS[provider_name]
+        try:
+            module = importlib.import_module(module_path, package="src.providers")
+            provider_class = getattr(module, class_name)
+            cls._providers[provider_name] = provider_class
+            logger.debug(f"Lazy-loaded provider: {provider_name}")
+            return provider_class
+        except ImportError as e:
+            logger.warning(f"Provider '{provider_name}' not available: {e}")
+            raise ImportError(f"Provider '{provider_name}' dependencies not installed: {e}") from e
 
     @classmethod
     def get_configured_providers(cls) -> list[str]:
         """Get list of providers that have valid API keys or dependencies configured.
 
         This method checks both API-based providers (requiring API keys) and
-        local providers (requiring Python packages):
+        local providers (requiring Python packages). Local provider checks are
+        performed lazily to avoid importing heavyweight dependencies.
 
         - Deepgram: Requires DEEPGRAM_API_KEY environment variable
         - ElevenLabs: Requires ELEVENLABS_API_KEY environment variable
@@ -98,55 +171,23 @@ class TranscriptionProviderFactory:
         if config.ELEVENLABS_API_KEY:
             configured.append("elevenlabs")
 
-        # Check local providers (require dependencies but no API keys)
+        # Check local providers lazily - only import if checking availability
         # Whisper: OpenAI's local speech recognition model
         try:
-            import torch
-            import whisper
-
+            import torch  # noqa: F401
+            import whisper  # noqa: F401
             configured.append("whisper")
         except ImportError:
             pass  # Expected when whisper not installed
 
         # Parakeet: NVIDIA NeMo's local speech recognition model
         try:
-            import nemo.collections.asr as nemo_asr
-
+            import nemo.collections.asr  # noqa: F401
             configured.append("parakeet")
         except ImportError:
             pass  # Expected when nemo not installed
 
         return configured
-
-    @classmethod
-    def _get_default_configs(
-        cls,
-        provider_name: str,
-        circuit_config: CircuitBreakerConfig | None,
-        retry_config: RetryConfig | None,
-    ) -> tuple[CircuitBreakerConfig, RetryConfig]:
-        """Return default circuit breaker and retry configs from Config singleton."""
-        if circuit_config is not None and retry_config is not None:
-            return circuit_config, retry_config
-
-        config = get_config()
-
-        if circuit_config is None:
-            circuit_config = CircuitBreakerConfig(
-                failure_threshold=config.circuit_breaker_failure_threshold,
-                recovery_timeout=config.circuit_breaker_recovery_timeout,
-            )
-
-        if retry_config is None:
-            retry_config = RetryConfig(
-                max_attempts=config.max_retries,
-                base_delay=config.retry_delay,
-                max_delay=config.max_retry_delay,
-                exponential_base=config.retry_exponential_base,
-                jitter=config.retry_jitter,
-            )
-
-        return circuit_config, retry_config
 
     @classmethod
     def _run_health_check(cls, provider: BaseTranscriptionProvider, provider_name: str) -> None:
@@ -191,7 +232,7 @@ class TranscriptionProviderFactory:
         api_key: str | None = None,
         circuit_config: CircuitBreakerConfig | None = None,
         retry_config: RetryConfig | None = None,
-        run_health_check: bool = True,
+        run_health_check: bool = False,
     ) -> BaseTranscriptionProvider:
         """Create provider with validation and optional health check.
 
@@ -200,31 +241,29 @@ class TranscriptionProviderFactory:
             api_key: Override API key (uses env config if None)
             circuit_config: Override circuit breaker config
             retry_config: Override retry config
-            run_health_check: Run health check after creation (default: True)
+            run_health_check: Run health check after creation (default: False)
 
         Raises:
             ValueError: If provider unknown or config invalid
+            ImportError: If provider dependencies not installed
         """
-        if provider_name not in cls._providers:
-            available = ", ".join(cls.get_available_providers())
-            raise ValueError(
-                f"Unknown provider '{provider_name}'. Available providers: {available}"
-            )
-
-        provider_class = cls._providers[provider_name]
+        # Lazy-load provider class (imports module on first access)
+        try:
+            provider_class = cls._get_provider_class(provider_name)
+        except ImportError as e:
+            logger.error(f"Provider module not available '{provider_name}': {e}")
+            raise ValueError(f"Provider '{provider_name}' module not available") from e
 
         try:
-            # Get default configurations if not provided
-            circuit_config, retry_config = cls._get_default_configs(
-                provider_name, circuit_config, retry_config
-            )
+            # Get default configurations if not provided (from shared utility)
+            retry_config, circuit_config = get_default_configs(retry_config, circuit_config)
 
             # Create and validate provider instance
             provider = cls._create_provider_instance(
                 provider_class, provider_name, api_key, circuit_config, retry_config
             )
 
-            # Run health check if requested
+            # Run health check if requested (opt-in)
             if run_health_check:
                 cls._run_health_check(provider, provider_name)
 
@@ -234,9 +273,6 @@ class TranscriptionProviderFactory:
         except ValueError as e:
             logger.error(f"Failed to create provider '{provider_name}': {e}")
             raise
-        except ImportError as e:
-            logger.error(f"Provider module not available '{provider_name}': {e}")
-            raise ValueError(f"Provider '{provider_name}' module not available") from e
         except Exception as e:
             logger.error(f"Unexpected error creating provider '{provider_name}': {e}")
             raise ValueError(f"Failed to create provider '{provider_name}'") from e
@@ -246,11 +282,20 @@ class TranscriptionProviderFactory:
         cls, provider_name: str, api_key: str | None = None
     ) -> dict[str, Any]:
         """Check if provider is operational. Returns health dict, not exceptions."""
-        if provider_name not in cls._providers:
-            available = ", ".join(cls.get_available_providers())
-            raise ValueError(
-                f"Unknown provider '{provider_name}'. Available providers: {available}"
-            )
+        # Validate provider exists (will raise ValueError if unknown)
+        try:
+            cls._get_provider_class(provider_name)
+        except (ValueError, ImportError) as e:
+            return {
+                "healthy": False,
+                "status": "provider_unavailable",
+                "response_time_ms": 0,
+                "details": {
+                    "provider": provider_name,
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
+            }
 
         try:
             provider = cls.create_provider(provider_name, api_key, run_health_check=False)
@@ -285,75 +330,6 @@ class TranscriptionProviderFactory:
             return asyncio.run(cls.check_provider_health(provider_name, api_key))
 
 
-# Initialize the factory with default providers
-def _initialize_factory() -> None:
-    """Initialize factory with all available transcription providers.
-
-    This function attempts to import and register each supported provider.
-    Import failures are logged as warnings but do not prevent other providers
-    from being registered. This allows the system to work with partial provider
-    availability.
-
-    Registered Providers:
-        - Deepgram: Cloud-based API with advanced features
-        - ElevenLabs: Cloud-based API with high accuracy
-        - Whisper: OpenAI's local model (requires torch, whisper packages)
-        - Parakeet: NVIDIA NeMo's local model (requires nemo package)
-
-    Note:
-        This function is automatically called on module import. Manual invocation
-        is not necessary and may cause duplicate registration warnings.
-
-    Raises:
-        Does not raise exceptions; all import errors are caught and logged.
-    """
-    # Cloud-based providers (require API keys)
-    try:
-        from .deepgram import DeepgramTranscriber
-
-        TranscriptionProviderFactory.register_provider("deepgram", DeepgramTranscriber)
-        logger.debug("Registered Deepgram provider")
-    except ImportError as e:
-        logger.warning(f"Deepgram provider not available: {e}")
-
-    try:
-        from .elevenlabs import ElevenLabsTranscriber
-
-        TranscriptionProviderFactory.register_provider("elevenlabs", ElevenLabsTranscriber)
-        logger.debug("Registered ElevenLabs provider")
-    except ImportError as e:
-        logger.warning(f"ElevenLabs provider not available: {e}")
-
-    # Mock provider for testing
-    import os
-
-    if os.getenv("AUDIO_TEST_MODE") or os.getenv("CI") or os.getenv("PYTEST_CURRENT_TEST"):
-        try:
-            from .mock import MockTranscriber
-
-            TranscriptionProviderFactory.register_provider("mock", MockTranscriber)
-            logger.debug("Registered Mock provider for testing")
-        except ImportError as e:
-            logger.warning(f"Mock provider not available: {e}")
-
-    # Local model providers (require ML frameworks)
-    try:
-        from .whisper import WhisperTranscriber
-
-        TranscriptionProviderFactory.register_provider("whisper", WhisperTranscriber)
-        logger.debug("Registered Whisper provider")
-    except ImportError as e:
-        logger.warning(f"Whisper provider not available: {e}")
-
-    try:
-        from .parakeet import ParakeetTranscriber
-
-        TranscriptionProviderFactory.register_provider("parakeet", ParakeetTranscriber)
-        logger.debug("Registered Parakeet provider")
-    except (ImportError, Exception) as e:
-        logger.warning(f"Parakeet provider not available: {e}")
-
-
-# Auto-initialize: Register all available providers when module is imported
-# This ensures the factory is ready to use without manual setup
-_initialize_factory()
+# Note: Provider registration is now lazy - providers are imported on first use
+# via _get_provider_class(), not at module import time. This improves CLI startup
+# by avoiding heavyweight imports (torch, nemo) until actually needed.

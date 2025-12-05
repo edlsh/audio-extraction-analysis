@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
-import math
-import time
+import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -14,7 +12,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from ..models.transcription import TranscriptionResult
-from ..config import Config
+from ..config import get_config
 from ..exceptions import ProviderTimeoutError, TranscriptionError
 from ..providers.factory import TranscriptionProviderFactory
 from ..utils.file_validation import safe_validate_audio_file
@@ -23,11 +21,17 @@ logger = logging.getLogger(__name__)
 
 
 class TranscriptionService:
-    """Coordinates transcription operations across providers."""
+    """Coordinates transcription operations across providers.
+
+    This service provides a simplified interface for transcription with:
+    - Single async entry point (transcribe_async) as the canonical method
+    - Sync wrapper (transcribe) for compatibility
+    - Automatic provider selection based on configuration
+    """
 
     def __init__(self) -> None:
         self.factory = TranscriptionProviderFactory
-        self._config = Config()
+        self._config = get_config()
         self._provider_timeout = float(self._config.transcription_timeout_seconds)
 
     def get_available_providers(self) -> list[str]:
@@ -38,11 +42,37 @@ class TranscriptionService:
         """List providers with valid configuration."""
         return self.factory.get_configured_providers()
 
-    def auto_select_provider(
-        self, audio_file_path: Path | None = None, preferred_features: list[str] | None = None
-    ) -> str:
-        """Select best provider for transcription."""
-        return self.factory.auto_select_provider(audio_file_path, preferred_features)
+    def _select_provider(self, provider_name: str | None) -> str:
+        """Select provider: use specified, test env override, or default configured.
+
+        Args:
+            provider_name: Explicitly specified provider, or None for auto-select
+
+        Returns:
+            Provider name to use
+
+        Raises:
+            ValueError: If no providers are configured
+        """
+        # Explicit provider specified
+        if provider_name and provider_name != "auto":
+            return provider_name
+
+        # Check for test environment override
+        test_provider = os.getenv("AUDIO_TEST_PROVIDER")
+        if test_provider:
+            logger.info(f"Using test provider: {test_provider}")
+            return test_provider
+
+        # Use first configured provider
+        configured = self.get_configured_providers()
+        if configured:
+            selected = configured[0]
+            logger.info(f"Auto-selected provider: {selected}")
+            return selected
+
+        # No providers available
+        raise ValueError("No transcription providers configured")
 
     def _prepare_transcription(
         self, audio_file_path: Path, provider_name: str | None = None
@@ -51,23 +81,16 @@ class TranscriptionService:
 
         Args:
             audio_file_path: Path to the audio file to transcribe
-            provider_name: Optional provider name. If None, auto-selects best provider
+            provider_name: Optional provider name. If None, auto-selects
 
         Returns:
             Tuple of (validated_path, provider_name)
 
         Raises:
             ValidationError: If audio file validation fails
-            ProviderSelectionError: If no suitable provider can be found
-            ProviderValidationError: If provider cannot handle the file
-            ProviderNotAvailableError: If no providers configured (test environments)
+            ValueError: If no suitable provider can be found
         """
-        from ..exceptions import (
-            ProviderNotAvailableError,
-            ProviderSelectionError,
-            ProviderValidationError,
-            ValidationError,
-        )
+        from ..exceptions import ValidationError
 
         # Validate audio file
         validated_path = safe_validate_audio_file(audio_file_path)
@@ -77,43 +100,10 @@ class TranscriptionService:
                 context={"file_path": str(audio_file_path)},
             )
 
-        # Auto-select provider if not specified
-        if not provider_name:
-            try:
-                # Check if we're in test mode first
-                import os
+        # Select provider
+        selected_provider = self._select_provider(provider_name)
 
-                test_provider = os.getenv("AUDIO_TEST_PROVIDER")
-                if test_provider:
-                    provider_name = test_provider
-                    logger.info(f"Using test provider: {provider_name}")
-                else:
-                    provider_name = self.auto_select_provider(validated_path)
-                    logger.info(f"Auto-selected provider: {provider_name}")
-            except ValueError as e:
-                # In CI/testing, provide clear error
-                if os.getenv("CI") or os.getenv("PYTEST_CURRENT_TEST"):
-                    raise ProviderNotAvailableError(
-                        "No providers configured in test environment",
-                        context={"environment": "test", "ci": True},
-                    ) from e
-                raise ProviderSelectionError(
-                    f"Failed to auto-select provider: {e}",
-                    context={"file_path": str(validated_path)},
-                ) from e
-
-        # Validate provider can handle the file
-        if not self.factory.validate_provider_for_file(provider_name, validated_path):
-            raise ProviderValidationError(
-                f"Provider '{provider_name}' cannot handle file",
-                context={
-                    "provider": provider_name,
-                    "file_path": str(validated_path),
-                    "file_size": validated_path.stat().st_size,
-                },
-            )
-
-        return validated_path, provider_name
+        return validated_path, selected_provider
 
     def _configure_provider_timeout(self, provider: Any) -> None:
         """Apply configured timeouts to provider instances when supported."""
@@ -126,11 +116,13 @@ class TranscriptionService:
     def transcribe(
         self, audio_file_path: Path, provider_name: str | None = None, language: str = "en"
     ) -> TranscriptionResult:
-        """Transcribe an audio file using the specified or auto-selected provider.
+        """Transcribe an audio file synchronously.
+
+        This is a convenience wrapper around transcribe_async for sync contexts.
 
         Args:
             audio_file_path: Path to the audio file to transcribe
-            provider_name: Optional provider name. If None, auto-selects best provider
+            provider_name: Optional provider name. If None, auto-selects
             language: Language code for transcription (default: 'en')
 
         Returns:
@@ -138,45 +130,12 @@ class TranscriptionService:
 
         Raises:
             ValidationError: If audio file validation fails
-            ProviderSelectionError: If no suitable provider found
-            ProviderNotAvailableError: If provider SDK not installed
-            ProviderAuthenticationError: If API key invalid
-            ProviderRateLimitError: If rate limit exceeded
             ProviderTimeoutError: If request times out
-            ProviderAPIError: If provider API fails
-            TranscriptionError: If transcription produces no result or fails
+            TranscriptionError: If transcription fails
         """
-        # Validate and prepare for transcription (now raises exceptions)
-        audio_file_path, provider_name = self._prepare_transcription(audio_file_path, provider_name)
-
-        # Create provider instance
-        provider = self.factory.create_provider(provider_name)
-        self._configure_provider_timeout(provider)
-
-        # Perform transcription (let provider exceptions propagate)
-        logger.info(f"Starting transcription with {provider.get_provider_name()}")
-        try:
-            result = provider.transcribe(audio_file_path, language, timeout=self._provider_timeout)
-        except TimeoutError as exc:
-            raise ProviderTimeoutError(
-                f"Transcription timed out after {self._provider_timeout}s",
-                context={"provider": provider_name, "file_path": str(audio_file_path)},
-            ) from exc
-
-        if not result:
-            raise TranscriptionError(
-                "Transcription returned no result",
-                context={
-                    "provider": provider_name,
-                    "file_path": str(audio_file_path),
-                    "language": language,
-                },
-            )
-
-        logger.info(f"Transcription completed successfully with {provider.get_provider_name()}")
-        logger.info(f"Transcript length: {len(result.transcript)} characters")
-
-        return result
+        return asyncio.run(
+            self.transcribe_async(audio_file_path, provider_name, language)
+        )
 
     async def _execute_transcription_with_fallback(
         self,
@@ -241,7 +200,7 @@ class TranscriptionService:
 
         Args:
             audio_file_path: Path to the audio file to transcribe
-            provider_name: Optional provider name. If None, auto-selects best provider
+            provider_name: Optional provider name. If None, auto-selects
             language: Language code for transcription (default: 'en')
 
         Returns:
@@ -249,13 +208,8 @@ class TranscriptionService:
 
         Raises:
             ValidationError: If audio file validation fails
-            ProviderSelectionError: If no suitable provider found
-            ProviderNotAvailableError: If provider SDK not installed
-            ProviderAuthenticationError: If API key invalid
-            ProviderRateLimitError: If rate limit exceeded
             ProviderTimeoutError: If request times out
-            ProviderAPIError: If provider API fails
-            TranscriptionError: If transcription produces no result or fails
+            TranscriptionError: If transcription fails
         """
         # Validate and prepare for transcription (now raises exceptions)
         audio_file_path, provider_name = self._prepare_transcription(audio_file_path, provider_name)
@@ -300,163 +254,57 @@ class TranscriptionService:
         progress_callback: Callable[[int, int], None] | None = None,
         **kwargs: Any,
     ) -> TranscriptionResult | None:
-        """Transcribe with progress estimation based on file characteristics."""
+        """Transcribe audio file with optional progress callback.
+
+        Note: Progress callback receives simulated progress updates since
+        providers don't report real-time progress. For production use,
+        prefer transcribe_async directly.
+
+        Args:
+            audio_file_path: Path to the audio file to transcribe
+            provider_name: Optional provider name. If None, auto-selects
+            language: Language code for transcription (default: 'en')
+            progress_callback: Optional callback(completed, total) for progress updates
+
+        Returns:
+            TranscriptionResult or None if transcription fails
+        """
         path = Path(audio_file_path)
 
-        # Calculate estimated processing time based on file characteristics
-        file_size_mb = path.stat().st_size / (1024 * 1024)
-        audio_duration = await self._get_audio_duration(str(path))
-
-        # Auto-select provider if not specified or if "auto" is specified
-        if not provider_name or provider_name == "auto":
-            try:
-                provider_name = self.auto_select_provider(path)
-                logger.info(f"Auto-selected provider: {provider_name}")
-            except ValueError as e:
-                logger.error(f"Failed to auto-select provider: {e}")
-                return None
-
-        # Estimate transcription time (empirical formula based on provider speed)
-        processing_speed = self._get_provider_speed_by_name(provider_name)  # MB per second
-
-        estimated_time = max(
-            file_size_mb / processing_speed,  # Based on file size
-            (audio_duration or 60) * 0.1,  # Based on duration (10% of audio length)
-            5.0,  # Minimum 5 seconds
-        )
-
-        # Create progress update task if callback provided
-        progress_task = None
+        # Signal progress start
         if progress_callback:
-            progress_task = asyncio.create_task(
-                self._simulate_progress(estimated_time, progress_callback)
-            )
+            progress_callback(10, 100)
 
         try:
-            # Run actual transcription
             result = await self.transcribe_async(
                 path, provider_name=provider_name, language=language
             )
 
-            # Complete progress
-            if progress_task:
-                progress_task.cancel()
-                if progress_callback:
-                    try:
-                        progress_callback(100, 100)
-                    except Exception as e:
-                        logger.debug(f"Failed to update progress: {e}")
+            # Signal completion
+            if progress_callback:
+                progress_callback(100, 100)
 
             return result
 
         except Exception:
-            if progress_task:
-                progress_task.cancel()
             raise
 
-    async def _simulate_progress(
-        self, estimated_time: float, progress_callback: Callable[[int, int], None]
-    ) -> None:
-        """Simulate progress during transcription."""
-        start_time = time.time()
-
-        try:
-            while True:
-                elapsed = time.time() - start_time
-
-                # Use sigmoid function for realistic progress curve
-                # Fast start, slower middle, fast finish
-                if elapsed >= estimated_time:
-                    progress_callback(100, 100)
-                    break
-
-                progress_pct = self._calculate_sigmoid_progress(elapsed, estimated_time)
-                progress_callback(int(progress_pct), 100)
-
-                await asyncio.sleep(0.5)  # Update every 500ms
-
-        except asyncio.CancelledError:
-            pass  # Task was cancelled, transcription completed
-
-    def _calculate_sigmoid_progress(self, elapsed: float, total: float) -> float:
-        """Calculate realistic progress using sigmoid curve."""
-        # Normalize time to 0-1 range
-        x = (elapsed / total) * 12 - 6  # Map to -6 to +6 for good sigmoid shape
-
-        # Sigmoid function: 1 / (1 + e^(-x))
-        sigmoid = 1 / (1 + math.exp(-x))
-
-        # Scale to 0-95% (leave 5% for completion)
-        return sigmoid * 95
-
-    def _get_provider_speed_by_name(self, provider_name: str) -> float:
-        """Get estimated processing speed by provider name (MB/second)."""
-        # Map both internal keys and class names to speeds
-        provider_speeds = {
-            "deepgram": 2.0,  # 2 MB/second
-            "DeepgramTranscriber": 2.0,
-            "elevenlabs": 1.0,  # 1 MB/second
-            "ElevenLabsTranscriber": 1.0,
-        }
-        return provider_speeds.get(provider_name, 1.5)  # Default 1.5 MB/s
-
-    async def _get_audio_duration(self, audio_path: str) -> float | None:
-        """Get audio duration in seconds using ffprobe.
-
-        Returns:
-            Duration in seconds, or None if unable to determine
-        """
-        try:
-            cmd = [
-                "ffprobe",
-                "-v",
-                "quiet",
-                "-print_format",
-                "json",
-                "-show_entries",
-                "format=duration",
-                audio_path,
-            ]
-
-            proc = await asyncio.create_subprocess_exec(
-                *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-            )
-
-            stdout, stderr = await proc.communicate()
-
-            if proc.returncode != 0:
-                logger.debug(f"ffprobe failed with code {proc.returncode}: {stderr.decode()}")
-                return None
-
-            data = json.loads(stdout.decode())
-            duration = float(data.get("format", {}).get("duration", 0))
-            return duration if duration > 0 else None
-
-        except (json.JSONDecodeError, ValueError, KeyError) as e:
-            logger.debug(f"Failed to parse audio duration: {e}")
-            return None
-        except FileNotFoundError:
-            logger.debug("ffprobe not found in PATH")
-            return None
-        except Exception as e:
-            logger.warning(f"Unexpected error getting audio duration: {e}")
-            return None
-
-    # Convenience alias for compatibility with progress-enabled pipeline tests
+    # Convenience alias for compatibility with pipeline
     async def transcribe_file(
         self,
         audio_file_path: Path | str,
         provider_name: str | None = None,
         language: str = "en",
-        progress_callback: Callable[[int, int], None] | None = None,  # Ignored for now
+        progress_callback: Callable[[int, int], None] | None = None,
         **_: Any,
     ) -> TranscriptionResult | None:
-        """Alias to transcribe_async that accepts a progress callback (ignored).
-
-        Accepts both Path and string paths and forwards to transcribe_async.
-        """
-        path = Path(audio_file_path)
-        return await self.transcribe_async(path, provider_name=provider_name, language=language)
+        """Alias for transcribe_with_progress for backward compatibility."""
+        return await self.transcribe_with_progress(
+            audio_file_path,
+            provider_name=provider_name,
+            language=language,
+            progress_callback=progress_callback,
+        )
 
     def get_provider_features(self, provider_name: str) -> list[str]:
         """Get supported features for a specific provider.
