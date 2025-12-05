@@ -3,8 +3,7 @@
 This module tests the progress tracking capabilities of the TranscriptionService,
 including the existence and availability of methods responsible for:
 - Progress callback integration during transcription
-- Provider speed estimation for progress calculation
-- Sigmoid-based progress curve modeling
+- Basic progress signaling (start/complete)
 """
 
 from src.services.transcription import TranscriptionService
@@ -38,22 +37,19 @@ class TestTranscriptionServiceProgress:
         service = TranscriptionService()
         assert hasattr(service, "transcribe_with_progress")
 
-    def test_get_provider_speed_method_exists(self):
-        """Verify the _get_provider_speed_by_name private method is available.
+    def test_transcribe_file_alias_exists(self):
+        """Verify the transcribe_file alias method is available.
 
-        This test ensures the internal method for estimating transcription speed
-        based on the provider name exists. Speed estimation is used to
-        calculate realistic progress percentages during transcription operations.
+        This test confirms the backward-compatible alias exists for
+        the transcribe_with_progress method.
         """
         service = TranscriptionService()
-        assert hasattr(service, "_get_provider_speed_by_name")
+        assert hasattr(service, "transcribe_file")
 
-    def test_calculate_sigmoid_progress_method_exists(self):
-        """Verify the _calculate_sigmoid_progress private method is available.
+    def test_transcribe_async_method_exists(self):
+        """Verify the transcribe_async method is available.
 
-        This test confirms the existence of the sigmoid curve calculation method,
-        which provides smooth, non-linear progress updates that prevent the
-        progress indicator from appearing stuck at extremes (0% or 100%).
+        This test confirms the canonical async transcription method exists.
         """
         service = TranscriptionService()
-        assert hasattr(service, "_calculate_sigmoid_progress")
+        assert hasattr(service, "transcribe_async")
