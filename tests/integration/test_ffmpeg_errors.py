@@ -62,7 +62,7 @@ class TestFFmpegErrorHandling:
     @pytest.mark.asyncio
     async def test_invalid_format_handling(self, tmp_path: Path, caplog):
         """Test handling of files with unsupported format."""
-        from src.exceptions import AudioExtractionError
+        from src.exceptions import ValidationError
 
         # Create file with unsupported extension
         invalid_file = tmp_path / "test.xyz"
@@ -72,8 +72,8 @@ class TestFFmpegErrorHandling:
         output = tmp_path / "output.mp3"
 
         with caplog.at_level(logging.ERROR):
-            # Should raise an AudioExtractionError for invalid format
-            with pytest.raises(AudioExtractionError):
+            # Should raise a ValidationError for invalid format
+            with pytest.raises(ValidationError):
                 await extractor.extract_audio_async(
                     invalid_file, output, quality=AudioQuality.STANDARD
                 )
