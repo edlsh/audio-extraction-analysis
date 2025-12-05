@@ -37,15 +37,12 @@ async def test_process_pipeline_full_analysis(monkeypatch, tmp_path: Path) -> No
     input_file = tmp_path / "input.mp4"
     input_file.write_bytes(b"video")
     output_dir = tmp_path / "out"
-    temp_dir = tmp_path / "temp"
-    temp_dir.mkdir()
-
-    fake_audio_path = temp_dir / "input.mp3"
 
     class FakeExtractor:
-        async def extract_audio_async(self, *_args, **_kwargs):
-            fake_audio_path.write_bytes(b"audio")
-            return fake_audio_path
+        async def extract_audio_async(self, input_path, output_path, *_args, **_kwargs):
+            # Audio now extracts directly to output_dir
+            output_path.write_bytes(b"audio")
+            return output_path
 
     class FakeTranscriptionService:
         def __init__(self) -> None:
@@ -54,7 +51,7 @@ async def test_process_pipeline_full_analysis(monkeypatch, tmp_path: Path) -> No
         async def transcribe_with_progress(self, *_args, **_kwargs):
             return SimpleNamespace(
                 provider_name="mock",
-                audio_file=str(fake_audio_path),
+                audio_file=str(output_dir / "input.mp3"),
                 duration=1.0,
                 transcript="hello",
             )
@@ -70,9 +67,6 @@ async def test_process_pipeline_full_analysis(monkeypatch, tmp_path: Path) -> No
             report.write_text("analysis")
             return {"report": report}
 
-    monkeypatch.setattr(
-        "src.pipeline.simple_pipeline.tempfile.mkdtemp", lambda prefix: str(temp_dir)
-    )
     monkeypatch.setattr("src.pipeline.simple_pipeline.ConsoleManager", _DummyConsole)
     monkeypatch.setattr("src.pipeline.simple_pipeline.AsyncAudioExtractor", FakeExtractor)
     monkeypatch.setattr(
@@ -99,21 +93,17 @@ async def test_process_pipeline_concise_analysis(monkeypatch, tmp_path: Path) ->
     input_file = tmp_path / "clip.mp4"
     input_file.write_bytes(b"video")
     output_dir = tmp_path / "concise"
-    temp_dir = tmp_path / "concise_temp"
-    temp_dir.mkdir()
-
-    fake_audio_path = temp_dir / "clip.mp3"
 
     class FakeExtractor:
-        async def extract_audio_async(self, *_args, **_kwargs):
-            fake_audio_path.write_bytes(b"audio")
-            return fake_audio_path
+        async def extract_audio_async(self, input_path, output_path, *_args, **_kwargs):
+            output_path.write_bytes(b"audio")
+            return output_path
 
     class FakeTranscriptionService:
         async def transcribe_with_progress(self, *_args, **_kwargs):
             return SimpleNamespace(
                 provider_name="mock",
-                audio_file=str(fake_audio_path),
+                audio_file=str(output_dir / "clip.mp3"),
                 duration=1.0,
                 transcript="text",
             )
@@ -127,9 +117,6 @@ async def test_process_pipeline_concise_analysis(monkeypatch, tmp_path: Path) ->
             report.write_text("concise")
             return report
 
-    monkeypatch.setattr(
-        "src.pipeline.simple_pipeline.tempfile.mkdtemp", lambda prefix: str(temp_dir)
-    )
     monkeypatch.setattr("src.pipeline.simple_pipeline.ConsoleManager", _DummyConsole)
     monkeypatch.setattr("src.pipeline.simple_pipeline.AsyncAudioExtractor", FakeExtractor)
     monkeypatch.setattr(
@@ -154,15 +141,11 @@ async def test_process_pipeline_transcription_failure(monkeypatch, tmp_path: Pat
     input_file = tmp_path / "broken.mp4"
     input_file.write_bytes(b"video")
     output_dir = tmp_path / "broken_out"
-    temp_dir = tmp_path / "broken_temp"
-    temp_dir.mkdir()
-
-    fake_audio_path = temp_dir / "broken.mp3"
 
     class FakeExtractor:
-        async def extract_audio_async(self, *_args, **_kwargs):
-            fake_audio_path.write_bytes(b"audio")
-            return fake_audio_path
+        async def extract_audio_async(self, input_path, output_path, *_args, **_kwargs):
+            output_path.write_bytes(b"audio")
+            return output_path
 
     class FailingTranscriptionService:
         async def transcribe_with_progress(self, *_args, **_kwargs):
@@ -171,9 +154,6 @@ async def test_process_pipeline_transcription_failure(monkeypatch, tmp_path: Pat
         def save_transcription_result(self, *_args, **_kwargs):
             raise AssertionError("Should not be called")
 
-    monkeypatch.setattr(
-        "src.pipeline.simple_pipeline.tempfile.mkdtemp", lambda prefix: str(temp_dir)
-    )
     monkeypatch.setattr("src.pipeline.simple_pipeline.ConsoleManager", _DummyConsole)
     monkeypatch.setattr("src.pipeline.simple_pipeline.AsyncAudioExtractor", FakeExtractor)
     monkeypatch.setattr(
