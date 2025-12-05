@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ...config import Config
+from ...config import get_config
 from ...error_handlers import handle_cli_error
 from ...models.transcription import TranscriptionResult
 from ...pipeline.simple_pipeline import process_pipeline
@@ -179,7 +179,7 @@ def _resolve_input_source(args: argparse.Namespace) -> Path | None:
 
 def _ingest_from_url(args: argparse.Namespace) -> Path | None:
     """Download media from URL. Returns audio path or None on error."""
-    config = Config()
+    config = get_config()
 
     if not config.url_ingest_enabled:
         logger.error("URL ingestion is disabled by configuration.")
