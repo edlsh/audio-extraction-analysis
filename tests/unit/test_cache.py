@@ -116,7 +116,7 @@ class TestTranscriptionCache:
 
     def test_init_creates_directories(self, mock_config: MagicMock) -> None:
         """Test that init creates required directories."""
-        cache = TranscriptionCache(config=mock_config)
+        _cache = TranscriptionCache(config=mock_config)
         assert mock_config.cache_dir.exists()
         assert (mock_config.cache_dir / TranscriptionCache.CACHE_DATA_DIR).exists()
 
@@ -229,7 +229,7 @@ class TestTranscriptionCache:
             files.append(f)
 
         # Fill cache beyond capacity
-        for i, f in enumerate(files):
+        for _i, f in enumerate(files):
             cache.put(f, "deepgram", "en", sample_result)
 
         # First entry should be evicted (LRU)
@@ -342,17 +342,13 @@ class TestTranscriptionCache:
 class TestTranscriptionCacheEdgeCases:
     """Edge case tests for TranscriptionCache."""
 
-    def test_handles_missing_audio_file_gracefully(
-        self, cache: TranscriptionCache
-    ) -> None:
+    def test_handles_missing_audio_file_gracefully(self, cache: TranscriptionCache) -> None:
         """Test cache handles missing audio files gracefully."""
         missing_file = Path("/nonexistent/file.wav")
         result = cache.get(missing_file, "deepgram", "en")
         assert result is None
 
-    def test_handles_corrupted_index_gracefully(
-        self, mock_config: MagicMock
-    ) -> None:
+    def test_handles_corrupted_index_gracefully(self, mock_config: MagicMock) -> None:
         """Test cache handles corrupted index file gracefully."""
         index_path = mock_config.cache_dir / TranscriptionCache.CACHE_INDEX_FILE
         index_path.write_text("corrupted {{{ json")

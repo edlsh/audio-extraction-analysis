@@ -132,8 +132,12 @@ class TranscriptionService:
                 logger.debug("Failed to update provider timeout: %s", exc)
 
     def transcribe(
-        self, audio_file_path: Path, provider_name: str | None = None, language: str = "en",
-        *, use_cache: bool = True
+        self,
+        audio_file_path: Path,
+        provider_name: str | None = None,
+        language: str = "en",
+        *,
+        use_cache: bool = True,
     ) -> TranscriptionResult:
         """Transcribe an audio file using the specified or auto-selected provider.
 
@@ -236,9 +240,7 @@ class TranscriptionService:
         if hasattr(provider, "transcribe_async") and callable(provider.transcribe_async):
             try:
                 return await asyncio.wait_for(
-                    provider.transcribe_async(
-                        audio_file_path, language, timeout=timeout_seconds
-                    ),
+                    provider.transcribe_async(audio_file_path, language, timeout=timeout_seconds),
                     timeout=timeout_seconds,
                 )
             except TimeoutError:
@@ -252,9 +254,7 @@ class TranscriptionService:
             return await asyncio.wait_for(
                 loop.run_in_executor(
                     None,
-                    lambda: provider.transcribe(
-                        audio_file_path, language, timeout=timeout_seconds
-                    ),
+                    lambda: provider.transcribe(audio_file_path, language, timeout=timeout_seconds),
                 ),
                 timeout=timeout_seconds,
             )
@@ -264,8 +264,12 @@ class TranscriptionService:
         )
 
     async def transcribe_async(
-        self, audio_file_path: Path, provider_name: str | None = None, language: str = "en",
-        *, use_cache: bool = True
+        self,
+        audio_file_path: Path,
+        provider_name: str | None = None,
+        language: str = "en",
+        *,
+        use_cache: bool = True,
     ) -> TranscriptionResult:
         """Transcribe an audio file asynchronously.
 

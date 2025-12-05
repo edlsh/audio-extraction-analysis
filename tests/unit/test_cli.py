@@ -324,7 +324,9 @@ class TestCLIProcessCommand:
         ]
 
         with patch("sys.argv", ["audio-extraction-analysis", *test_args]):
-            with patch("src.cli.commands.process.process_pipeline", new_callable=AsyncMock) as mock_pipeline:
+            with patch(
+                "src.cli.commands.process.process_pipeline", new_callable=AsyncMock
+            ) as mock_pipeline:
                 from datetime import datetime
 
                 from src.models.transcription import TranscriptionResult
@@ -339,7 +341,7 @@ class TestCLIProcessCommand:
                 mock_pipeline.return_value = {
                     "success": True,
                     "transcript": mock_result,
-                    "audio_path": Path("audio.mp3")
+                    "audio_path": Path("audio.mp3"),
                 }
 
                 result = main()
@@ -361,7 +363,9 @@ class TestCLIProcessCommand:
         test_args = ["process", str(temp_video_file)]
 
         with patch("sys.argv", ["audio-extraction-analysis", *test_args]):
-            with patch("src.cli.commands.process.process_pipeline", new_callable=AsyncMock) as mock_pipeline:
+            with patch(
+                "src.cli.commands.process.process_pipeline", new_callable=AsyncMock
+            ) as mock_pipeline:
                 mock_pipeline.return_value = {"success": False, "errors": ["Pipeline failed"]}
 
                 result = main()
@@ -602,7 +606,9 @@ class TestCLIProviderSelection:
 
         with patch("sys.argv", ["audio-extraction-analysis", *test_args]):
             # Patch process_pipeline in process command
-            with patch("src.cli.commands.process.process_pipeline", new_callable=AsyncMock) as mock_pipeline:
+            with patch(
+                "src.cli.commands.process.process_pipeline", new_callable=AsyncMock
+            ) as mock_pipeline:
                 from datetime import datetime
 
                 from src.models.transcription import TranscriptionResult
@@ -618,7 +624,7 @@ class TestCLIProviderSelection:
                 mock_pipeline.return_value = {
                     "success": True,
                     "transcript": mock_result,
-                    "audio_path": Path("audio.mp3")
+                    "audio_path": Path("audio.mp3"),
                 }
 
                 result = main()

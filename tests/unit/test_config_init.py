@@ -441,8 +441,6 @@ class TestConfigInitialization:
             assert config.GEMINI_API_KEY == "gem_key_789"
 
 
-
-
 class TestConfigProperties:
     """Test Config backward compatibility properties."""
 

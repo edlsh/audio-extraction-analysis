@@ -105,7 +105,8 @@ class TranscriptionCache:
             with open(self._index_path, encoding="utf-8") as f:
                 data = json.load(f)
                 self._index = {
-                    key: CacheEntry.from_dict(entry) for key, entry in data.get("entries", {}).items()
+                    key: CacheEntry.from_dict(entry)
+                    for key, entry in data.get("entries", {}).items()
                 }
                 self._access_order = data.get("access_order", list(self._index.keys()))
                 logger.debug(f"Loaded cache index with {len(self._index)} entries")
@@ -189,7 +190,7 @@ class TranscriptionCache:
         while len(self._index) >= self._max_size and self._access_order:
             lru_key = self._access_order.pop(0)
             if lru_key in self._index:
-                entry = self._index.pop(lru_key)
+                self._index.pop(lru_key)
                 cache_file = self._get_cache_file_path(lru_key)
                 try:
                     if cache_file.exists():
@@ -206,7 +207,7 @@ class TranscriptionCache:
         """
         expired_keys = [key for key, entry in self._index.items() if entry.is_expired()]
         for key in expired_keys:
-            entry = self._index.pop(key)
+            self._index.pop(key)
             if key in self._access_order:
                 self._access_order.remove(key)
             cache_file = self._get_cache_file_path(key)
@@ -365,12 +366,12 @@ class TranscriptionCache:
         self._update_access_order(cache_key)
         self._save_index()
 
-        logger.info(f"Cached transcription: {cache_key[:8]}... (provider={provider}, ttl={self._ttl}s)")
+        logger.info(
+            f"Cached transcription: {cache_key[:8]}... (provider={provider}, ttl={self._ttl}s)"
+        )
         return cache_key
 
-    def invalidate(
-        self, audio_file: Path, provider: str, language: str = "en"
-    ) -> bool:
+    def invalidate(self, audio_file: Path, provider: str, language: str = "en") -> bool:
         """Invalidate a specific cache entry.
 
         Args:
@@ -413,7 +414,7 @@ class TranscriptionCache:
             Number of entries cleared
         """
         count = len(self._index)
-        
+
         # Delete all cache files
         for cache_key in list(self._index.keys()):
             cache_file = self._get_cache_file_path(cache_key)
@@ -437,7 +438,7 @@ class TranscriptionCache:
             Dictionary with cache statistics
         """
         self._cleanup_expired()  # Clean first for accurate stats
-        
+
         total_size = 0
         for cache_key in self._index:
             cache_file = self._get_cache_file_path(cache_key)
