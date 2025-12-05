@@ -36,6 +36,8 @@ class TestNetworkFailureSimulation:
         """Test handling of subprocess timeouts."""
         import logging
 
+        from src.exceptions import AudioExtractionError
+
         extractor = AsyncAudioExtractor()
         output = tmp_path / "timeout.mp3"
 
@@ -51,20 +53,17 @@ class TestNetworkFailureSimulation:
             mock_exec.return_value = mock_process
 
             with caplog.at_level(logging.ERROR):
-                result = await extractor.extract_audio_async(
-                    sample_audio_mp3, output, quality=AudioQuality.STANDARD
-                )
-
-            # Should handle timeout gracefully
-            assert result is None
-            assert any(
-                "timeout" in record.message.lower() or "failed" in record.message.lower()
-                for record in caplog.records
-            )
+                # Should raise an AudioExtractionError on timeout
+                with pytest.raises(AudioExtractionError):
+                    await extractor.extract_audio_async(
+                        sample_audio_mp3, output, quality=AudioQuality.STANDARD
+                    )
 
     @pytest.mark.asyncio
     async def test_process_error_handling(self, sample_audio_mp3: Path, tmp_path: Path):
         """Test handling of process errors."""
+        from src.exceptions import AudioExtractionError
+
         extractor = AsyncAudioExtractor()
         output = tmp_path / "error.mp3"
 
@@ -81,12 +80,11 @@ class TestNetworkFailureSimulation:
             mock_process.returncode = 1
             mock_exec.return_value = mock_process
 
-            result = await extractor.extract_audio_async(
-                sample_audio_mp3, output, quality=AudioQuality.STANDARD
-            )
-
-            # Should handle error gracefully and return None
-            assert result is None
+            # Should raise an AudioExtractionError on process error
+            with pytest.raises(AudioExtractionError):
+                await extractor.extract_audio_async(
+                    sample_audio_mp3, output, quality=AudioQuality.STANDARD
+                )
 
 
 class TestBatchOperationFailures:

@@ -117,6 +117,7 @@ class TranscriptionProviderFactory:
         if provider_name == "mock":
             if os.getenv("AUDIO_TEST_MODE") or os.getenv("CI") or os.getenv("PYTEST_CURRENT_TEST"):
                 from .mock import MockTranscriber
+
                 cls._providers["mock"] = MockTranscriber
                 logger.debug("Lazy-loaded Mock provider for testing")
                 return MockTranscriber
@@ -174,15 +175,19 @@ class TranscriptionProviderFactory:
         # Check local providers lazily - only import if checking availability
         # Whisper: OpenAI's local speech recognition model
         try:
-            import torch  # noqa: F401
-            import whisper  # noqa: F401
+            import torch
+            import whisper
+
+            del torch, whisper  # Only checking availability
             configured.append("whisper")
         except ImportError:
             pass  # Expected when whisper not installed
 
         # Parakeet: NVIDIA NeMo's local speech recognition model
         try:
-            import nemo.collections.asr  # noqa: F401
+            import nemo.collections.asr as nemo_asr
+
+            del nemo_asr  # Only checking availability
             configured.append("parakeet")
         except ImportError:
             pass  # Expected when nemo not installed
