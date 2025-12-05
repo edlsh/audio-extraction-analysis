@@ -135,7 +135,6 @@ class TestElevenLabsTranscriberTranscription:
         transcriber = ElevenLabsTranscriber(api_key="test_key")
 
         # Mock the transcribe_async method directly
-        from datetime import datetime
 
         mock_result = TranscriptionResult(
             transcript="This is a test transcription from ElevenLabs.",
