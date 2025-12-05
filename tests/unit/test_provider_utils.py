@@ -2,8 +2,8 @@
 
 import pytest
 
-from src.providers.provider_utils import get_default_configs
 from src.providers.base import CircuitBreakerConfig
+from src.providers.provider_utils import get_default_configs
 from src.utils.retry import RetryConfig
 
 

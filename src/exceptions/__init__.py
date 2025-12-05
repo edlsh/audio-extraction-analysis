@@ -74,10 +74,6 @@ class AudioExtractionTimeoutError(AudioExtractionError):
     """
 
 
-# Alias for backward compatibility
-AudioExtractionTimeout = AudioExtractionTimeoutError
-
-
 class UnsupportedAudioFormatError(AudioExtractionError):
     """Audio format not supported.
 
@@ -379,7 +375,6 @@ __all__ = [
     # Audio Extraction
     "AudioAnalysisError",
     "AudioExtractionError",
-    "AudioExtractionTimeout",  # Backward compatibility alias
     "AudioExtractionTimeoutError",
     "AudioFileCorruptedError",
     # Cache
