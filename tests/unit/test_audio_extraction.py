@@ -250,7 +250,6 @@ class TestAudioExtractor:
 
             assert result == output_path
 
-
     @patch("subprocess.run")
     def test_path_validation_with_square_brackets(self, mock_run, temp_video_file_with_brackets):
         """Test that files with square brackets in names are accepted.

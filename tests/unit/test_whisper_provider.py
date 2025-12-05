@@ -561,6 +561,3 @@ class TestHealthCheckEdgeCases:
                 assert health["healthy"] is False
                 assert health["status"] == "health_check_failed"
                 assert "error" in health["details"]
-
-
-
