@@ -19,7 +19,9 @@ class TestElevenLabsFileNotFoundMapping:
     @pytest.fixture
     def mock_elevenlabs_sdk(self):
         """Mock ElevenLabs SDK availability."""
-        with patch.dict("sys.modules", {"elevenlabs": MagicMock(), "elevenlabs.client": MagicMock()}):
+        with patch.dict(
+            "sys.modules", {"elevenlabs": MagicMock(), "elevenlabs.client": MagicMock()}
+        ):
             yield
 
     @pytest.fixture
@@ -60,9 +62,10 @@ class TestElevenLabsFileNotFoundMapping:
                         await transcriber._transcribe_impl(non_existent_path, language="en")
 
                     # Verify the error contains the file path context
-                    assert "file_path" in exc_info.value.context or "not found" in str(
-                        exc_info.value
-                    ).lower()
+                    assert (
+                        "file_path" in exc_info.value.context
+                        or "not found" in str(exc_info.value).lower()
+                    )
 
     @pytest.mark.asyncio
     async def test_file_not_found_during_file_read_maps_correctly(self, mock_config):
