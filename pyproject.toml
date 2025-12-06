@@ -408,14 +408,15 @@ disallow_any_generics = false
 warn_return_any = false
 disable_error_code = ["assignment", "arg-type", "union-attr", "misc"]
 
-# Pipeline: Complex orchestration with dynamic configuration
+# Pipeline: Now with proper type annotations - enable strict mode
 [[tool.mypy.overrides]]
 module = "src.pipeline.simple_pipeline"
-disallow_untyped_defs = false
+disallow_untyped_defs = true
 disallow_any_generics = false
-warn_return_any = false
+warn_return_any = true
 disallow_untyped_calls = false
-disable_error_code = ["assignment", "arg-type", "union-attr", "var-annotated", "misc", "attr-defined", "no-any-return", "index"]
+# Only disable error codes that require external library stubs
+disable_error_code = ["attr-defined", "union-attr"]
 
 [[tool.importlinter.contracts]]
 name = "No circular imports in utils"
