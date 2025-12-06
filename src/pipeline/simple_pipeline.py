@@ -65,6 +65,7 @@ async def _extract_audio(
     input_path: Path,
     output_dir: Path,
     cm: ConsoleManager,
+    quality: AudioQuality,
 ) -> tuple[Path, float]:
     """Extract audio from input file directly to output directory.
 
@@ -93,7 +94,7 @@ async def _extract_audio(
 
         progress.update(10)
         extracted_path: Path | None = await extractor.extract_audio_async(
-            input_path, audio_path, AudioQuality.SPEECH, progress_callback=progress_callback
+            input_path, audio_path, quality, progress_callback=progress_callback
         )
         progress.update(100)
 
@@ -291,7 +292,7 @@ async def process_pipeline(
 
         # Stage 1: Audio Extraction (directly to output_dir, no temp copy needed)
         try:
-            audio_path, extraction_duration = await _extract_audio(input_path, output_dir, cm)
+            audio_path, extraction_duration = await _extract_audio(input_path, output_dir, cm, quality)
             results["audio_path"] = str(audio_path)
             results["files_created"].append(str(audio_path))
             results["stages_completed"].append("audio_extraction")
