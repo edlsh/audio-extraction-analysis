@@ -208,7 +208,9 @@ class TestElevenLabsTranscriberTranscription:
         with patch(
             "src.providers.elevenlabs.safe_validate_audio_file", return_value=temp_audio_file
         ):
-            with pytest.raises(ProviderNotAvailableError, match="(?i)elevenlabs SDK not available"):
+            with pytest.raises(
+                ProviderNotAvailableError, match=r"(?i)elevenlabs SDK not available"
+            ):
                 transcriber.transcribe(temp_audio_file, "en")
 
     @patch("src.providers.elevenlabs.ElevenLabsClient")
@@ -232,7 +234,9 @@ class TestElevenLabsTranscriberTranscription:
                     "src.providers.elevenlabs.asyncio.wait_for", new_callable=AsyncMock
                 ) as mock_wait:
                     mock_wait.side_effect = Exception("API Error")
-                    with pytest.raises(ProviderAPIError, match="(?i)Unexpected elevenlabs error"):
+                    with pytest.raises(
+                        ProviderAPIError, match=r"(?i)Unexpected elevenlabs error"
+                    ):
                         transcriber.transcribe(temp_audio_file, "en")
 
     @patch("src.providers.elevenlabs.ElevenLabsClient")
@@ -661,7 +665,9 @@ class TestElevenLabsTranscriberEdgeCases:
                     "src.providers.elevenlabs.asyncio.wait_for", new_callable=AsyncMock
                 ) as mock_wait:
                     mock_wait.side_effect = ValueError("Invalid audio format")
-                    with pytest.raises(ProviderAPIError, match="(?i)Unexpected elevenlabs error"):
+                    with pytest.raises(
+                        ProviderAPIError, match=r"(?i)Unexpected elevenlabs error"
+                    ):
                         transcriber.transcribe(temp_audio_file, "en")
 
     @pytest.mark.asyncio
