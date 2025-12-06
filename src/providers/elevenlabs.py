@@ -222,11 +222,12 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
         self, e: Exception, audio_file_path: Path, file_size_mb: float
     ) -> None:
         """Handle and re-raise transcription errors with proper context.
-        
+
         DEPRECATED: Use @provider_error_handler decorator instead.
         Kept for backward compatibility during transition.
         """
         from .provider_utils import map_provider_error
+
         raise map_provider_error(
             e, "elevenlabs", audio_file_path, install_command="uv add elevenlabs"
         ) from e

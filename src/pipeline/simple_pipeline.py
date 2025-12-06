@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 class StageResult(TypedDict, total=False):
     """Result details for a single pipeline stage."""
-    
+
     status: str
     duration: float
     output: str
@@ -44,7 +44,7 @@ class StageResult(TypedDict, total=False):
 
 class PipelineResult(TypedDict, total=False):
     """Complete pipeline execution result."""
-    
+
     success: bool
     audio_path: str
     transcript: TranscriptionResult

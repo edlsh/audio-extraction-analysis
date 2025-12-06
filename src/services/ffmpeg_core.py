@@ -186,7 +186,7 @@ def validate_path_security(file_path: Path) -> None:
     """Validate file path for security concerns.
 
     Checks for dangerous shell characters that could enable command injection.
-    Note: Square brackets [], parentheses (), and spaces are common in media 
+    Note: Square brackets [], parentheses (), and spaces are common in media
     filenames and are safe when properly quoted with shlex.quote().
 
     Args:
@@ -197,7 +197,7 @@ def validate_path_security(file_path: Path) -> None:
     """
     resolved_path = file_path.resolve()
     path_str = str(resolved_path)
-    
+
     # Check for dangerous shell metacharacters
     if re.search(r"[;&|`$<>]", path_str):
         raise ValueError(f"Invalid characters in file path: {file_path}")
