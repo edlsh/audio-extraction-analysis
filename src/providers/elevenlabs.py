@@ -400,4 +400,3 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
         except OSError as e:
             logger.warning(f"Failed to get file size for duration estimation: {e}")
             return 1.0  # Default fallback
-
