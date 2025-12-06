@@ -358,7 +358,7 @@ class WhisperTranscriber(BaseTranscriptionProvider):
 
         Note:
             The interval is configurable via UIConstants.CHAPTER_INTERVAL_SECONDS.
-            For more sophisticated chaptering based on topic changes or speaker 
+            For more sophisticated chaptering based on topic changes or speaker
             transitions, consider implementing content-aware segmentation.
         """
         if not utterances:

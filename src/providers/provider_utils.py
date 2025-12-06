@@ -123,7 +123,9 @@ def map_provider_error(
         )
 
     # Re-raise already-mapped exceptions
-    if isinstance(exc, (ValidationError, ProviderAPIError, ProviderNotAvailableError, FileAccessError)):
+    if isinstance(
+        exc, (ValidationError, ProviderAPIError, ProviderNotAvailableError, FileAccessError)
+    ):
         return exc
 
     # Catch-all for unexpected errors
@@ -153,6 +155,7 @@ def provider_error_handler(
     Returns:
         Decorated async function with standardized error handling
     """
+
     def decorator(func: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[T]]:
         @wraps(func)
         async def wrapper(*args: object, **kwargs: object) -> T:
@@ -169,9 +172,8 @@ def provider_error_handler(
                 # Already properly typed exceptions - re-raise as-is
                 raise
             except Exception as exc:
-                raise map_provider_error(
-                    exc, provider_name, file_path, install_command
-                ) from exc
+                raise map_provider_error(exc, provider_name, file_path, install_command) from exc
 
         return wrapper
+
     return decorator
