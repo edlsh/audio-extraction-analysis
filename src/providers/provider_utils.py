@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
 from ..config import get_config
 from ..exceptions import (
+    AudioFileNotFoundError,
     FileAccessError,
     ProviderAPIError,
     ProviderNotAvailableError,
@@ -91,7 +92,7 @@ def map_provider_error(
 
     if isinstance(exc, FileNotFoundError):
         logger.error(f"Audio file not found: {exc}")
-        return ValidationError(
+        return AudioFileNotFoundError(
             f"Audio file not found: {file_path}",
             context={"file_path": str(file_path) if file_path else "unknown"},
         )
@@ -124,7 +125,14 @@ def map_provider_error(
 
     # Re-raise already-mapped exceptions
     if isinstance(
-        exc, (ValidationError, ProviderAPIError, ProviderNotAvailableError, FileAccessError)
+        exc,
+        (
+            ValidationError,
+            ProviderAPIError,
+            ProviderNotAvailableError,
+            FileAccessError,
+            AudioFileNotFoundError,
+        ),
     ):
         return exc
 
@@ -168,7 +176,13 @@ def provider_error_handler(
 
             try:
                 return await func(*args, **kwargs)
-            except (ValidationError, ProviderAPIError, ProviderNotAvailableError, FileAccessError):
+            except (
+                ValidationError,
+                ProviderAPIError,
+                ProviderNotAvailableError,
+                FileAccessError,
+                AudioFileNotFoundError,
+            ):
                 # Already properly typed exceptions - re-raise as-is
                 raise
             except Exception as exc:

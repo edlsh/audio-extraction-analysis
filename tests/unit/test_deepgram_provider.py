@@ -243,3 +243,136 @@ class TestDeepgramTranscriber:
 
             # Verify __exit__ was called (file handle closed)
             mock_file_handle.__exit__.assert_called()
+
+
+@pytest.mark.unit
+@pytest.mark.fast
+@pytest.mark.deepgram
+@pytest.mark.mock
+class TestDeepgramTranscriberErrorPaths:
+    """Test Deepgram transcription provider error handling paths."""
+
+    @pytest.fixture
+    def deepgram_transcriber(self):
+        """Create a DeepgramTranscriber instance for testing."""
+        with patch.dict("os.environ", {"DEEPGRAM_API_KEY": TEST_API_KEY}):
+            return DeepgramTranscriber(api_key=TEST_API_KEY)
+
+    @pytest.mark.asyncio
+    async def test_import_error_raises_provider_not_available(self, deepgram_transcriber):
+        """ImportError during transcription should raise ProviderNotAvailableError."""
+        from src.exceptions import ProviderNotAvailableError
+
+        test_file = Path("/tmp/test.mp3")
+
+        with (
+            patch(
+                "src.providers.deepgram.safe_validate_audio_file",
+                return_value=test_file,
+            ),
+            patch.object(
+                deepgram_transcriber,
+                "_create_client",
+                side_effect=ImportError("No module named 'deepgram'"),
+            ),
+        ):
+            with pytest.raises(ProviderNotAvailableError) as exc_info:
+                await deepgram_transcriber._transcribe_impl(test_file)
+
+            assert "deepgram" in exc_info.value.message.lower()
+            assert exc_info.value.context.get("install_command") == "uv add deepgram-sdk"
+
+    @pytest.mark.asyncio
+    async def test_permission_error_raises_file_access_error(self, deepgram_transcriber):
+        """PermissionError should raise FileAccessError."""
+        from src.exceptions import FileAccessError
+
+        test_file = Path("/protected/audio.mp3")
+
+        with (
+            patch(
+                "src.providers.deepgram.safe_validate_audio_file",
+                return_value=test_file,
+            ),
+            patch.object(deepgram_transcriber, "_create_client", return_value=Mock()),
+            patch.object(deepgram_transcriber, "_build_options", return_value=Mock()),
+            patch.object(deepgram_transcriber, "_detect_mimetype", return_value="audio/mp3"),
+            patch.object(
+                deepgram_transcriber,
+                "_open_audio_file",
+                side_effect=PermissionError("Permission denied"),
+            ),
+        ):
+            with pytest.raises(FileAccessError) as exc_info:
+                await deepgram_transcriber._transcribe_impl(test_file)
+
+            assert "permission" in exc_info.value.message.lower()
+
+    @pytest.mark.asyncio
+    async def test_os_error_raises_provider_api_error(self, deepgram_transcriber):
+        """OSError should raise ProviderAPIError."""
+        from src.exceptions import ProviderAPIError
+
+        test_file = Path("/tmp/test.mp3")
+
+        with (
+            patch(
+                "src.providers.deepgram.safe_validate_audio_file",
+                return_value=test_file,
+            ),
+            patch.object(deepgram_transcriber, "_create_client", return_value=Mock()),
+            patch.object(deepgram_transcriber, "_build_options", return_value=Mock()),
+            patch.object(deepgram_transcriber, "_detect_mimetype", return_value="audio/mp3"),
+            patch.object(
+                deepgram_transcriber,
+                "_open_audio_file",
+                side_effect=OSError("Disk full"),
+            ),
+        ):
+            with pytest.raises(ProviderAPIError) as exc_info:
+                await deepgram_transcriber._transcribe_impl(test_file)
+
+            assert "system error" in exc_info.value.message.lower()
+
+    @pytest.mark.asyncio
+    async def test_connection_error_passes_through(self, deepgram_transcriber):
+        """ConnectionError should pass through for retry logic."""
+        test_file = Path("/tmp/test.mp3")
+        mock_file_handle = MagicMock()
+        mock_file_handle.__enter__ = Mock(return_value=mock_file_handle)
+        mock_file_handle.__exit__ = Mock(return_value=False)
+
+        mock_client = Mock()
+        mock_client.listen.prerecorded.v.return_value.transcribe_file.side_effect = ConnectionError(
+            "Connection refused"
+        )
+
+        with (
+            patch(
+                "src.providers.deepgram.safe_validate_audio_file",
+                return_value=test_file,
+            ),
+            patch.object(deepgram_transcriber, "_create_client", return_value=mock_client),
+            patch.object(deepgram_transcriber, "_build_options", return_value=Mock()),
+            patch.object(deepgram_transcriber, "_detect_mimetype", return_value="audio/mp3"),
+            patch.object(deepgram_transcriber, "_open_audio_file", return_value=mock_file_handle),
+        ):
+            with pytest.raises(ConnectionError):
+                await deepgram_transcriber._transcribe_impl(test_file)
+
+    @pytest.mark.asyncio
+    async def test_validation_error_on_invalid_file(self, deepgram_transcriber):
+        """ValidationError should be raised for invalid audio file."""
+        from src.exceptions import ValidationError
+
+        test_file = Path("/tmp/invalid.mp3")
+
+        with patch(
+            "src.providers.deepgram.safe_validate_audio_file",
+            return_value=None,
+        ):
+            with pytest.raises(ValidationError) as exc_info:
+                await deepgram_transcriber._transcribe_impl(test_file)
+
+            assert "validation failed" in exc_info.value.message.lower()
+

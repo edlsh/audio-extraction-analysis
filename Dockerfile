@@ -42,23 +42,23 @@ RUN find /app/.venv -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null ||
     && rm -rf /app/.venv/lib/python*/site-packages/wheel 2>/dev/null || true
 
 # ============================================================
-# Stage 2: Runtime - Alpine-based minimal image with UPX-compressed static FFmpeg
-# python:3.12-alpine is ~53MB vs ~130MB for slim-bookworm
+# Stage 2: Runtime - Debian-based image with UPX-compressed static FFmpeg
+# Using slim-bookworm to match builder's glibc for native wheel compatibility
 # ============================================================
-FROM python:3.12-alpine AS runtime
+FROM python:3.12-slim-bookworm AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/app/.venv/bin:$PATH"
 
 # Copy UPX-compressed static FFmpeg binaries (~26% smaller than uncompressed)
-# Static binaries work on Alpine (no glibc dependency issues)
+# Static binaries work on both Alpine and Debian (no dependency issues)
 COPY --from=ghcr.io/jim60105/static-ffmpeg-upx:7.1 /ffmpeg /usr/local/bin/ffmpeg
 COPY --from=ghcr.io/jim60105/static-ffmpeg-upx:7.1 /ffprobe /usr/local/bin/ffprobe
 
-# Create non-root user (Alpine uses addgroup/adduser)
-RUN addgroup -g 1000 appgroup \
-    && adduser -u 1000 -G appgroup -s /bin/sh -D appuser
+# Create non-root user (Debian uses groupadd/useradd)
+RUN groupadd -g 1000 appgroup \
+    && useradd -u 1000 -g appgroup -s /bin/bash -m appuser
 
 WORKDIR /app
 
