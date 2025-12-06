@@ -13,7 +13,7 @@ import asyncio
 import logging
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING, Literal, NotRequired, Required, TypedDict
 
 from ..analysis.concise_analyzer import ConciseAnalyzer
 from ..analysis.full_analyzer import FullAnalyzer
@@ -36,16 +36,17 @@ logger = logging.getLogger(__name__)
 class StageResult(TypedDict, total=False):
     """Result details for a single pipeline stage."""
 
-    status: str
+    status: Required[Literal["complete", "error", "skipped"]]
     duration: float
     output: str
     files: list[str]
+    error: NotRequired[str]
 
 
 class PipelineResult(TypedDict, total=False):
     """Complete pipeline execution result."""
 
-    success: bool
+    success: Required[bool]
     audio_path: str
     transcript: TranscriptionResult
     analysis_files: list[str]
@@ -301,7 +302,7 @@ async def process_pipeline(
             }
         except Exception as e:
             results["errors"].append(f"Audio extraction failed: {e!s}")
-            logger.error(f"Audio extraction failed: {e}")
+            logger.exception("Audio extraction failed")
             raise
 
         # Stage 2: Transcription (reuse service instance)
@@ -324,8 +325,9 @@ async def process_pipeline(
             results["files_created"].append(str(transcript_path))
         except Exception as e:
             results["errors"].append(f"Transcription failed: {e!s}")
-            logger.error(f"Transcription failed: {e}")
+            logger.exception("Transcription failed")
             results["success"] = False
+            _cleanup_on_failure(results.get("files_created", []))
             return results
 
         # Stage 3: Analysis
@@ -344,8 +346,9 @@ async def process_pipeline(
             results["success"] = True
         except Exception as e:
             results["errors"].append(f"Analysis failed: {e!s}")
-            logger.error(f"Analysis failed: {e}")
-            results["success"] = len(results["stages_completed"]) >= 2
+            logger.exception("Analysis failed")
+            results["success"] = False
+            _cleanup_on_failure(results.get("files_created", []))
 
         # Finalize
         total_duration = time.time() - total_start

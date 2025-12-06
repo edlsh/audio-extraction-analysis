@@ -98,9 +98,9 @@ def probe_media_sync(path: Path, timeout: float = 30.0) -> MediaProbeResult:
     except (json.JSONDecodeError, ValueError, KeyError) as e:
         logger.debug(f"Failed to parse ffprobe output: {e}")
     except FileNotFoundError:
-        logger.debug("ffprobe not found in PATH")
+        logger.warning("ffprobe not found in PATH - duration extraction will be unavailable")
     except subprocess.TimeoutExpired:
-        logger.debug(f"ffprobe timed out after {timeout}s")
+        logger.warning(f"ffprobe timed out after {timeout}s - duration may be unavailable")
 
     return MediaProbeResult(
         duration=duration,
@@ -154,7 +154,7 @@ async def probe_media_async(path: Path, timeout: float = 30.0) -> MediaProbeResu
         except TimeoutError:
             proc.kill()
             await proc.wait()
-            logger.debug(f"ffprobe timed out after {timeout}s")
+            logger.warning(f"ffprobe timed out after {timeout}s - duration may be unavailable")
             stdout = b""
 
         if proc.returncode == 0 and stdout:
@@ -168,7 +168,7 @@ async def probe_media_async(path: Path, timeout: float = 30.0) -> MediaProbeResu
     except (json.JSONDecodeError, ValueError, KeyError) as e:
         logger.debug(f"Failed to parse ffprobe output: {e}")
     except FileNotFoundError:
-        logger.debug("ffprobe not found in PATH")
+        logger.warning("ffprobe not found in PATH - duration extraction will be unavailable")
 
     return MediaProbeResult(
         duration=duration,

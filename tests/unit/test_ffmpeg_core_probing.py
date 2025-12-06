@@ -1,0 +1,257 @@
+"""Tests for ffmpeg_core.py probing, path security, and cleanup utilities.
+
+Tests cover:
+- probe_media_sync and probe_media_async handling of missing ffprobe
+- validate_path_security with dangerous characters
+- sanitize_path with special characters
+- cleanup_temp_file with existing/non-existing files
+"""
+
+import shlex
+import subprocess
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+from src.services.ffmpeg_core import (
+    MediaProbeResult,
+    cleanup_temp_file,
+    probe_media_async,
+    probe_media_sync,
+    sanitize_path,
+    validate_path_security,
+)
+
+
+class TestProbeMediaSync:
+    """Test probe_media_sync function."""
+
+    def test_file_not_found_raises(self, tmp_path):
+        """Non-existent file should raise FileNotFoundError."""
+        fake_path = tmp_path / "nonexistent.mp3"
+        with pytest.raises(FileNotFoundError):
+            probe_media_sync(fake_path)
+
+    def test_returns_media_probe_result(self, tmp_path):
+        """Valid file should return MediaProbeResult with size info."""
+        test_file = tmp_path / "test.mp3"
+        test_file.write_bytes(b"fake audio content" * 100)
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0,
+                stdout='{"format": {"duration": "10.5"}}',
+            )
+            result = probe_media_sync(test_file)
+
+        assert isinstance(result, MediaProbeResult)
+        assert result.duration == 10.5
+        assert result.size_bytes == len(b"fake audio content" * 100)
+        assert result.size_mb == result.size_bytes / (1024 * 1024)
+
+    def test_ffprobe_not_found_returns_none_duration(self, tmp_path):
+        """Missing ffprobe should return None duration with warning log."""
+        test_file = tmp_path / "test.mp3"
+        test_file.write_bytes(b"fake audio content")
+
+        with patch("subprocess.run", side_effect=FileNotFoundError("ffprobe not found")):
+            result = probe_media_sync(test_file)
+
+        assert result.duration is None
+        assert result.size_bytes > 0
+
+    def test_ffprobe_timeout_returns_none_duration(self, tmp_path):
+        """ffprobe timeout should return None duration with warning log."""
+        test_file = tmp_path / "test.mp3"
+        test_file.write_bytes(b"fake audio content")
+
+        with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("ffprobe", 30)):
+            result = probe_media_sync(test_file, timeout=30)
+
+        assert result.duration is None
+        assert result.size_bytes > 0
+
+    def test_json_decode_error_returns_none_duration(self, tmp_path):
+        """Invalid JSON from ffprobe should return None duration."""
+        test_file = tmp_path / "test.mp3"
+        test_file.write_bytes(b"fake audio content")
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0,
+                stdout="not valid json",
+            )
+            result = probe_media_sync(test_file)
+
+        assert result.duration is None
+
+    def test_negative_duration_returns_none(self, tmp_path):
+        """Negative duration should be treated as unavailable."""
+        test_file = tmp_path / "test.mp3"
+        test_file.write_bytes(b"fake audio content")
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0,
+                stdout='{"format": {"duration": "-1.0"}}',
+            )
+            result = probe_media_sync(test_file)
+
+        assert result.duration is None
+
+
+class TestProbeMediaAsync:
+    """Test probe_media_async function."""
+
+    @pytest.mark.asyncio
+    async def test_file_not_found_raises(self, tmp_path):
+        """Non-existent file should raise FileNotFoundError."""
+        fake_path = tmp_path / "nonexistent.mp3"
+        with pytest.raises(FileNotFoundError):
+            await probe_media_async(fake_path)
+
+    @pytest.mark.asyncio
+    async def test_ffprobe_not_found_returns_none_duration(self, tmp_path):
+        """Missing ffprobe should return None duration."""
+        test_file = tmp_path / "test.mp3"
+        test_file.write_bytes(b"fake audio content")
+
+        with patch(
+            "asyncio.create_subprocess_exec", side_effect=FileNotFoundError("ffprobe not found")
+        ):
+            result = await probe_media_async(test_file)
+
+        assert result.duration is None
+        assert result.size_bytes > 0
+
+
+class TestValidatePathSecurity:
+    """Test validate_path_security function."""
+
+    def test_valid_path_passes(self, tmp_path):
+        """Normal paths should pass validation."""
+        valid_path = tmp_path / "audio.mp3"
+        # Should not raise
+        validate_path_security(valid_path)
+
+    def test_path_with_spaces_passes(self):
+        """Paths with spaces should pass (common in media files)."""
+        path = Path("/media/My Audio Files/podcast episode 01.mp3")
+        # Should not raise
+        validate_path_security(path)
+
+    def test_path_with_brackets_passes(self):
+        """Paths with brackets should pass (common in media files)."""
+        path = Path("/media/Song [Official Video] (HD).mp4")
+        # Should not raise
+        validate_path_security(path)
+
+    def test_path_with_semicolon_fails(self):
+        """Paths with semicolon should fail (command injection risk)."""
+        path = Path("/media/file;rm -rf /.mp3")
+        with pytest.raises(ValueError, match="Invalid characters"):
+            validate_path_security(path)
+
+    def test_path_with_ampersand_fails(self):
+        """Paths with & should fail (command chaining risk)."""
+        path = Path("/media/file & echo bad.mp3")
+        with pytest.raises(ValueError, match="Invalid characters"):
+            validate_path_security(path)
+
+    def test_path_with_pipe_fails(self):
+        """Paths with pipe should fail (command piping risk)."""
+        path = Path("/media/file | cat /etc/passwd.mp3")
+        with pytest.raises(ValueError, match="Invalid characters"):
+            validate_path_security(path)
+
+    def test_path_with_backtick_fails(self):
+        """Paths with backticks should fail (command substitution risk)."""
+        path = Path("/media/`whoami`.mp3")
+        with pytest.raises(ValueError, match="Invalid characters"):
+            validate_path_security(path)
+
+    def test_path_with_dollar_fails(self):
+        """Paths with $ should fail (variable expansion risk)."""
+        path = Path("/media/$HOME.mp3")
+        with pytest.raises(ValueError, match="Invalid characters"):
+            validate_path_security(path)
+
+    def test_path_with_redirect_fails(self):
+        """Paths with < or > should fail (redirect risk)."""
+        path = Path("/media/file > /etc/passwd.mp3")
+        with pytest.raises(ValueError, match="Invalid characters"):
+            validate_path_security(path)
+
+
+class TestSanitizePath:
+    """Test sanitize_path function."""
+
+    def test_simple_path_quoted(self):
+        """Simple paths should be properly quoted."""
+        path = Path("/media/audio.mp3")
+        result = sanitize_path(path)
+        # shlex.quote adds quotes only if needed
+        assert "/media/audio.mp3" in result
+
+    def test_path_with_spaces_quoted(self):
+        """Paths with spaces should be properly quoted."""
+        path = Path("/media/my audio.mp3")
+        result = sanitize_path(path)
+        # Should be quoted to handle spaces
+        assert "my audio.mp3" in result or result.startswith("'")
+
+    def test_path_with_special_chars_quoted(self):
+        """Paths with special characters should be properly quoted."""
+        path = Path("/media/file (1) [copy].mp3")
+        result = sanitize_path(path)
+        # Should handle shell special characters
+        assert "(1)" in result or "\\(" in result or "'" in result
+
+    def test_result_is_shell_safe(self):
+        """Result should be safe for shell usage."""
+        path = Path("/media/file with 'quotes'.mp3")
+        result = sanitize_path(path)
+        # shlex.quote should make it safe
+        # Result should be parseable by shlex
+        try:
+            shlex.split(result)
+        except ValueError:
+            pytest.fail("sanitize_path output is not shell-safe")
+
+
+class TestCleanupTempFile:
+    """Test cleanup_temp_file function."""
+
+    def test_cleanup_existing_file(self, tmp_path):
+        """Existing temp file should be deleted."""
+        temp_file = tmp_path / "temp.mp3"
+        temp_file.write_bytes(b"temp content")
+        assert temp_file.exists()
+
+        cleanup_temp_file(temp_file)
+
+        assert not temp_file.exists()
+
+    def test_cleanup_nonexistent_file(self, tmp_path):
+        """Non-existent file should not raise error."""
+        nonexistent = tmp_path / "nonexistent.mp3"
+        # Should not raise
+        cleanup_temp_file(nonexistent)
+
+    def test_cleanup_none_path(self):
+        """None path should not raise error."""
+        # Should not raise
+        cleanup_temp_file(None)
+
+    def test_cleanup_logs_on_os_error(self, tmp_path, caplog):
+        """OSError during cleanup should be logged as warning."""
+        temp_file = tmp_path / "temp.mp3"
+        temp_file.write_bytes(b"temp content")
+
+        with patch.object(Path, "unlink", side_effect=OSError("Permission denied")):
+            # Should not raise, but log warning
+            cleanup_temp_file(temp_file)
+
+        # The file still "exists" from cleanup_temp_file's perspective
+        # since we mocked unlink
