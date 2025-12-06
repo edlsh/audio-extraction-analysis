@@ -57,9 +57,9 @@ class TestDeepgramFileNotFoundMapping:
                 await transcriber._transcribe_impl(non_existent_path, language="en")
 
             # Verify the error contains the file path context
-            assert "file_path" in exc_info.value.context or "not found" in str(
-                exc_info.value
-            ).lower()
+            assert (
+                "file_path" in exc_info.value.context or "not found" in str(exc_info.value).lower()
+            )
 
     @pytest.mark.asyncio
     async def test_file_not_found_during_file_open_maps_correctly(

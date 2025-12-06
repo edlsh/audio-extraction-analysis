@@ -176,6 +176,7 @@ class TestProviderErrorHandler:
     @pytest.mark.asyncio
     async def test_decorator_extracts_file_path_from_args(self):
         """Decorator should extract file_path from positional args."""
+
         @provider_error_handler("test")
         async def failing_func(self, audio_file_path: Path, language: str = "en"):
             raise RuntimeError("Test error")

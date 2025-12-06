@@ -292,7 +292,9 @@ async def process_pipeline(
 
         # Stage 1: Audio Extraction (directly to output_dir, no temp copy needed)
         try:
-            audio_path, extraction_duration = await _extract_audio(input_path, output_dir, cm, quality)
+            audio_path, extraction_duration = await _extract_audio(
+                input_path, output_dir, cm, quality
+            )
             results["audio_path"] = str(audio_path)
             results["files_created"].append(str(audio_path))
             results["stages_completed"].append("audio_extraction")

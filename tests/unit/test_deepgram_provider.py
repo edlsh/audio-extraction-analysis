@@ -375,4 +375,3 @@ class TestDeepgramTranscriberErrorPaths:
                 await deepgram_transcriber._transcribe_impl(test_file)
 
             assert "validation failed" in exc_info.value.message.lower()
-

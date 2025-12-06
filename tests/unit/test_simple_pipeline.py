@@ -250,4 +250,3 @@ async def test_process_pipeline_extraction_returns_none_raises_error(
     assert results["success"] is False
     assert any("Audio extraction failed" in err for err in results["errors"])
     assert "audio_extraction" not in results["stages_completed"]
-

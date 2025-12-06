@@ -493,7 +493,10 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
             return asyncio.run(self.transcribe_async(audio_file_path, language, timeout=timeout))
         except RuntimeError as re:
             # Check if this is the "running event loop" edge case
-            if "running event loop" not in str(re).lower() and "cannot be called" not in str(re).lower():
+            if (
+                "running event loop" not in str(re).lower()
+                and "cannot be called" not in str(re).lower()
+            ):
                 # Not an event loop conflict - map and re-raise the error
                 raise map_provider_error(
                     re, "deepgram", audio_file_path, install_command="uv add deepgram-sdk"
@@ -517,7 +520,7 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
                     except RuntimeError:
                         pass  # Loop already closed or running
         except Exception as exc:
-            # Catch any provider exceptions (ProviderAPIError, ValidationError, 
+            # Catch any provider exceptions (ProviderAPIError, ValidationError,
             # AudioFileNotFoundError, etc.) from the initial asyncio.run() and map them
             raise map_provider_error(
                 exc, "deepgram", audio_file_path, install_command="uv add deepgram-sdk"
