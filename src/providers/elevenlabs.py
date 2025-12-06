@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
-import subprocess
 import time
 from datetime import datetime
 from pathlib import Path
@@ -13,13 +11,14 @@ from typing import TYPE_CHECKING, Any
 
 from ..config import get_config
 from ..models.transcription import TranscriptionResult, TranscriptionUtterance
+from ..services.ffmpeg_core import probe_media_sync
 from ..utils.constants import Limits
 from ..utils.file_validation import safe_validate_audio_file
 
 if TYPE_CHECKING:
     from ..utils.retry import RetryConfig
 from .base import BaseTranscriptionProvider, CircuitBreakerConfig
-from .provider_utils import get_default_configs
+from .provider_utils import get_default_configs, provider_error_handler
 
 logger = logging.getLogger(__name__)
 
@@ -222,67 +221,28 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
     def _handle_transcription_error(
         self, e: Exception, audio_file_path: Path, file_size_mb: float
     ) -> None:
-        """Handle and re-raise transcription errors with proper context."""
-        from ..exceptions import (
-            FileAccessError,
-            ProviderAPIError,
-            ProviderNotAvailableError,
-            ValidationError,
-        )
-
-        if isinstance(e, ImportError):
-            logger.error(f"ElevenLabs SDK not installed: {e}")
-            raise ProviderNotAvailableError(
-                "ElevenLabs SDK not available",
-                context={"provider": "elevenlabs", "install_command": "uv add elevenlabs"},
-            ) from e
-
-        if isinstance(e, FileNotFoundError):
-            logger.error(f"Audio file not found: {e}")
-            raise ValidationError(
-                f"Audio file not found: {audio_file_path}",
-                context={"file_path": str(audio_file_path)},
-            ) from e
-
-        if isinstance(e, PermissionError):
-            logger.error(f"Permission denied accessing file: {e}")
-            raise FileAccessError(
-                f"Permission denied: {audio_file_path}",
-                context={"file_path": str(audio_file_path)},
-            ) from e
-
-        if isinstance(e, MemoryError):
-            logger.error(f"Insufficient memory to process file: {e}")
-            raise ProviderAPIError(
-                "Insufficient memory to process file",
-                context={"file_path": str(audio_file_path), "file_size_mb": file_size_mb},
-            ) from e
-
-        if isinstance(e, (OSError, ConnectionError, TimeoutError)):
-            logger.error("ElevenLabs API error")
-            raise
-
-        logger.error(f"ElevenLabs transcription failed: {e}")
-        raise ProviderAPIError(
-            f"Unexpected ElevenLabs error: {e}",
-            context={"error_type": type(e).__name__, "file_path": str(audio_file_path)},
+        """Handle and re-raise transcription errors with proper context.
+        
+        DEPRECATED: Use @provider_error_handler decorator instead.
+        Kept for backward compatibility during transition.
+        """
+        from .provider_utils import map_provider_error
+        raise map_provider_error(
+            e, "elevenlabs", audio_file_path, install_command="uv add elevenlabs"
         ) from e
 
+    @provider_error_handler("elevenlabs", "uv add elevenlabs")
     async def _transcribe_impl(
         self, audio_file_path: Path, language: str = "en"
     ) -> TranscriptionResult | None:
         """Internal transcription implementation."""
         audio_file_path, file_size_mb = self._validate_audio_input(audio_file_path)
 
-        try:
-            if not PROVIDER_AVAILABLE:
-                raise ImportError("ElevenLabs SDK not available")
+        if not PROVIDER_AVAILABLE:
+            raise ImportError("ElevenLabs SDK not available")
 
-            response = await self._call_elevenlabs_api(audio_file_path, file_size_mb, language)
-            return self._process_response(response, audio_file_path)
-
-        except Exception as e:
-            self._handle_transcription_error(e, audio_file_path, file_size_mb)
+        response = await self._call_elevenlabs_api(audio_file_path, file_size_mb, language)
+        return self._process_response(response, audio_file_path)
 
     def _validate_audio_input(self, audio_file_path: Path) -> tuple[Path, float]:
         """Validate audio file and return validated path with size."""
@@ -381,49 +341,26 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
             raise OSError(f"Cannot read file: {file_path}") from e
 
     def _estimate_audio_duration(self, audio_file_path: Path) -> float:
-        """Estimate audio duration from file.
+        """Estimate audio duration from file using ffprobe.
+
+        Uses the shared probe_media_sync function to get accurate duration.
+        Falls back to file-size-based estimation if ffprobe fails.
 
         Args:
             audio_file_path: Path to audio file
 
         Returns:
-            Estimated duration in seconds
+            Duration in seconds (minimum 1.0)
         """
         try:
-            # Try to use ffprobe for accurate duration
-            result = subprocess.run(
-                [
-                    "ffprobe",
-                    "-v",
-                    "quiet",
-                    "-show_entries",
-                    "format=duration",
-                    "-of",
-                    "json",
-                    str(audio_file_path),
-                ],
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
-
-            if result.returncode == 0:
-                data = json.loads(result.stdout)
-                return float(data["format"]["duration"])
-        except (
-            subprocess.CalledProcessError,
-            subprocess.TimeoutExpired,
-            FileNotFoundError,
-            json.JSONDecodeError,
-            KeyError,
-            ValueError,
-        ) as e:
-            logger.debug(f"ffprobe failed, using fallback estimation: {e}")
+            probe = probe_media_sync(audio_file_path, timeout=10.0)
+            if probe.duration is not None and probe.duration > 0:
+                return probe.duration
         except Exception as e:
-            logger.warning(f"Unexpected error in duration estimation: {e}")
+            logger.debug(f"ffprobe failed, using fallback estimation: {e}")
 
+        # Fallback: rough estimation based on file size and typical bitrates
         try:
-            # Fallback: rough estimation based on file size and typical bitrates
             file_size_bytes = audio_file_path.stat().st_size
             # Assume average bitrate of 128 kbps for estimation
             estimated_duration = (file_size_bytes * 8) / (128 * 1000)
