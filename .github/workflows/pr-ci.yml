@@ -87,7 +87,7 @@ jobs:
           # Note: Integration and E2E tests are excluded from PR runs for speed.
           # They run separately on merge to main/develop via test.yml workflow.
           uv run pytest \
-            -m "not integration and not e2e and not slow and not network" \
+            -m "not integration and not e2e and not slow and not network and not ffmpeg" \
             --cov=src \
             --cov-branch \
             --cov-report=xml:coverage.xml \
