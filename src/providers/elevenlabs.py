@@ -9,9 +9,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+import json
+import subprocess
+
 from ..config import get_config
 from ..models.transcription import TranscriptionResult, TranscriptionUtterance
-from ..services.ffmpeg_core import probe_media_sync
 from ..utils.constants import Limits
 from ..utils.file_validation import safe_validate_audio_file
 
@@ -344,7 +346,8 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
     def _estimate_audio_duration(self, audio_file_path: Path) -> float:
         """Estimate audio duration from file using ffprobe.
 
-        Uses the shared probe_media_sync function to get accurate duration.
+        Uses inline ffprobe call to get accurate duration without depending
+        on the services layer (to maintain architecture boundaries).
         Falls back to file-size-based estimation if ffprobe fails.
 
         Args:
@@ -354,9 +357,38 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
             Duration in seconds (minimum 1.0)
         """
         try:
-            probe = probe_media_sync(audio_file_path, timeout=10.0)
-            if probe.duration is not None and probe.duration > 0:
-                return probe.duration
+            # Inline ffprobe call to avoid services layer dependency
+            cmd = [
+                "ffprobe",
+                "-v",
+                "quiet",
+                "-print_format",
+                "json",
+                "-show_entries",
+                "format=duration",
+                str(audio_file_path),
+            ]
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=10.0,
+                check=False,
+            )
+
+            if result.returncode == 0 and result.stdout.strip():
+                data = json.loads(result.stdout)
+                raw_duration = data.get("format", {}).get("duration")
+                if raw_duration:
+                    duration = float(raw_duration)
+                    if duration > 0:
+                        return duration
+        except (json.JSONDecodeError, ValueError, KeyError) as e:
+            logger.debug(f"Failed to parse ffprobe output: {e}")
+        except FileNotFoundError:
+            logger.debug("ffprobe not found in PATH - using fallback duration estimation")
+        except subprocess.TimeoutExpired:
+            logger.debug("ffprobe timed out - using fallback duration estimation")
         except Exception as e:
             logger.debug(f"ffprobe failed, using fallback estimation: {e}")
 
@@ -369,3 +401,4 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
         except OSError as e:
             logger.warning(f"Failed to get file size for duration estimation: {e}")
             return 1.0  # Default fallback
+
