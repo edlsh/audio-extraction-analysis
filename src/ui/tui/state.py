@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, TypedDict
 
 from ...models.events import Event
+from ...utils.constants import UIConstants
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -216,7 +217,7 @@ def apply_event(state: AppState, event: Event) -> AppState:
         )
         return dataclasses.replace(
             state,
-            logs=_append_to_ring(state.logs, log_entry, max_size=2000),
+            logs=_append_to_ring(state.logs, log_entry, max_size=UIConstants.MAX_LOG_ENTRIES),
         )
 
     elif event_type == "warning":
@@ -230,7 +231,7 @@ def apply_event(state: AppState, event: Event) -> AppState:
         )
         return dataclasses.replace(
             state,
-            logs=_append_to_ring(state.logs, log_entry, max_size=2000),
+            logs=_append_to_ring(state.logs, log_entry, max_size=UIConstants.MAX_LOG_ENTRIES),
         )
 
     elif event_type == "error":
@@ -246,7 +247,7 @@ def apply_event(state: AppState, event: Event) -> AppState:
         return dataclasses.replace(
             state,
             errors=[*state.errors, error_msg],
-            logs=_append_to_ring(state.logs, log_entry, max_size=2000),
+            logs=_append_to_ring(state.logs, log_entry, max_size=UIConstants.MAX_LOG_ENTRIES),
         )
 
     elif event_type == "summary":

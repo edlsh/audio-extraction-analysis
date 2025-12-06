@@ -9,14 +9,22 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
+import shlex
 import subprocess
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pathlib import Path
+    pass
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# Media Probing
+# =============================================================================
 
 
 @dataclass
@@ -90,9 +98,9 @@ def probe_media_sync(path: Path, timeout: float = 30.0) -> MediaProbeResult:
     except (json.JSONDecodeError, ValueError, KeyError) as e:
         logger.debug(f"Failed to parse ffprobe output: {e}")
     except FileNotFoundError:
-        logger.debug("ffprobe not found in PATH")
+        logger.warning("ffprobe not found in PATH - duration extraction will be unavailable")
     except subprocess.TimeoutExpired:
-        logger.debug(f"ffprobe timed out after {timeout}s")
+        logger.warning(f"ffprobe timed out after {timeout}s - duration may be unavailable")
 
     return MediaProbeResult(
         duration=duration,
@@ -146,7 +154,7 @@ async def probe_media_async(path: Path, timeout: float = 30.0) -> MediaProbeResu
         except TimeoutError:
             proc.kill()
             await proc.wait()
-            logger.debug(f"ffprobe timed out after {timeout}s")
+            logger.warning(f"ffprobe timed out after {timeout}s - duration may be unavailable")
             stdout = b""
 
         if proc.returncode == 0 and stdout:
@@ -160,13 +168,75 @@ async def probe_media_async(path: Path, timeout: float = 30.0) -> MediaProbeResu
     except (json.JSONDecodeError, ValueError, KeyError) as e:
         logger.debug(f"Failed to parse ffprobe output: {e}")
     except FileNotFoundError:
-        logger.debug("ffprobe not found in PATH")
+        logger.warning("ffprobe not found in PATH - duration extraction will be unavailable")
 
     return MediaProbeResult(
         duration=duration,
         size_bytes=file_size,
         size_mb=file_size / (1024 * 1024),
     )
+
+
+# =============================================================================
+# Path Validation & Sanitization
+# =============================================================================
+
+
+def validate_path_security(file_path: Path) -> None:
+    """Validate file path for security concerns.
+
+    Checks for dangerous shell characters that could enable command injection.
+    Note: Square brackets [], parentheses (), and spaces are common in media
+    filenames and are safe when properly quoted with shlex.quote().
+
+    Args:
+        file_path: Path to validate
+
+    Raises:
+        ValueError: If path contains dangerous shell characters
+    """
+    resolved_path = file_path.resolve()
+    path_str = str(resolved_path)
+
+    # Check for dangerous shell metacharacters
+    if re.search(r"[;&|`$<>]", path_str):
+        raise ValueError(f"Invalid characters in file path: {file_path}")
+
+
+def sanitize_path(file_path: Path) -> str:
+    """Sanitize file path for safe subprocess usage.
+
+    Args:
+        file_path: Path to sanitize
+
+    Returns:
+        Safely quoted path string for shell usage
+    """
+    return shlex.quote(str(file_path.resolve()))
+
+
+# =============================================================================
+# Temp File Cleanup
+# =============================================================================
+
+
+def cleanup_temp_file(temp_path: Path | None) -> None:
+    """Clean up temporary file if it exists.
+
+    Args:
+        temp_path: Path to temporary file, or None
+    """
+    if temp_path and temp_path.exists():
+        try:
+            temp_path.unlink()
+            logger.debug(f"Cleaned up temp file: {temp_path}")
+        except OSError as e:
+            logger.warning(f"Failed to clean up temp file {temp_path}: {e}")
+
+
+# =============================================================================
+# FFmpeg Command Building
+# =============================================================================
 
 
 def build_base_cmd(input_path: Path, allow_overwrite: bool = True) -> list[str]:

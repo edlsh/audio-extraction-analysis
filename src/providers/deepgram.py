@@ -40,7 +40,7 @@ from ..utils.file_validation import safe_validate_audio_file
 from .base import BaseTranscriptionProvider, CircuitBreakerConfig
 from .deepgram_utils import build_prerecorded_options
 from .deepgram_utils import detect_mimetype as _dg_detect_mimetype
-from .provider_utils import get_default_configs
+from .provider_utils import get_default_configs, provider_error_handler
 
 logger = logging.getLogger(__name__)
 
@@ -407,6 +407,7 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
                 error_type=type(e).__name__,
             )
 
+    @provider_error_handler("deepgram", "uv add deepgram-sdk")
     async def _transcribe_impl(
         self, audio_file_path: Path, language: str = "en"
     ) -> TranscriptionResult | None:
@@ -426,12 +427,7 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
             ProviderAPIError: If Deepgram API returns an error
             ProviderTimeoutError: If request times out
         """
-        from ..exceptions import (
-            FileAccessError,
-            ProviderAPIError,
-            ProviderNotAvailableError,
-            ValidationError,
-        )
+        from ..exceptions import ValidationError
 
         # Validate audio file
         validated_path = safe_validate_audio_file(audio_file_path, provider_name="deepgram")
@@ -442,58 +438,23 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
             )
         audio_file_path = validated_path
 
-        try:
-            logger.info(f"Starting Deepgram Nova 3 transcription: {audio_file_path}")
-            self._log_file_info(audio_file_path)
+        logger.info(f"Starting Deepgram Nova 3 transcription: {audio_file_path}")
+        self._log_file_info(audio_file_path)
 
-            # Build request
-            client = self._create_client()
-            options = self._build_options(language)
-            mimetype = self._detect_mimetype(audio_file_path)
+        # Build request
+        client = self._create_client()
+        options = self._build_options(language)
+        mimetype = self._detect_mimetype(audio_file_path)
 
-            # Submit transcription job using file handle for efficient streaming upload
-            # This prevents loading entire file into memory for large audio files
-            logger.info("Sending to Deepgram Nova 3 with streaming upload...")
-            with self._open_audio_file(audio_file_path) as audio_source:
-                response = self._submit_transcription_job(client, audio_source, mimetype, options)
-            logger.info("Transcription completed successfully")
+        # Submit transcription job using file handle for efficient streaming upload
+        # This prevents loading entire file into memory for large audio files
+        logger.info("Sending to Deepgram Nova 3 with streaming upload...")
+        with self._open_audio_file(audio_file_path) as audio_source:
+            response = self._submit_transcription_job(client, audio_source, mimetype, options)
+        logger.info("Transcription completed successfully")
 
-            # Parse and return
-            return self._parse_response(response, audio_file_path, language)
-
-        except ImportError as e:
-            logger.error(f"Deepgram SDK not installed: {e}")
-            raise ProviderNotAvailableError(
-                "Deepgram SDK not available",
-                context={"provider": "deepgram", "install_command": "uv add deepgram-sdk"},
-            ) from e
-        except FileNotFoundError as e:
-            logger.error(f"Audio file not found: {e}")
-            raise ValidationError(
-                f"Audio file not found: {audio_file_path}",
-                context={"file_path": str(audio_file_path)},
-            ) from e
-        except PermissionError as e:
-            logger.error(f"Permission denied accessing file: {e}")
-            raise FileAccessError(
-                f"Permission denied: {audio_file_path}", context={"file_path": str(audio_file_path)}
-            ) from e
-        except (ConnectionError, TimeoutError):
-            # Let provider-specific errors propagate directly
-            logger.error("Deepgram API error")
-            raise
-        except OSError as e:
-            logger.error(f"System error during transcription: {e}")
-            raise ProviderAPIError(
-                "Deepgram API system error",
-                context={"error": str(e), "file_path": str(audio_file_path)},
-            ) from e
-        except Exception as e:
-            logger.error(f"Unexpected transcription error: {e}")
-            raise ProviderAPIError(
-                f"Unexpected Deepgram error: {e}",
-                context={"error_type": type(e).__name__, "file_path": str(audio_file_path)},
-            ) from e
+        # Parse and return
+        return self._parse_response(response, audio_file_path, language)
 
     def transcribe(
         self,
@@ -514,17 +475,32 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
             timeout: Optional timeout (seconds) applied to the async implementation
 
         Returns:
-            Optional[TranscriptionResult]: Complete transcription result with all features,
-                or None if transcription fails
+            TranscriptionResult: Complete transcription result with all features
+
+        Raises:
+            ProviderAPIError: If transcription fails
+            AudioFileNotFoundError: If audio file not found
+            ProviderNotAvailableError: If Deepgram SDK not installed
 
         Note:
             This method creates its own event loop. If called from an existing async context,
             it will attempt to create a new loop to avoid conflicts.
         """
+        from .provider_utils import map_provider_error
+
         loop: asyncio.AbstractEventLoop | None = None
         try:
             return asyncio.run(self.transcribe_async(audio_file_path, language, timeout=timeout))
-        except (RuntimeError, ValueError, ImportError, OSError) as e:
+        except RuntimeError as re:
+            # Check if this is the "running event loop" edge case
+            if (
+                "running event loop" not in str(re).lower()
+                and "cannot be called" not in str(re).lower()
+            ):
+                # Not an event loop conflict - map and re-raise the error
+                raise map_provider_error(
+                    re, "deepgram", audio_file_path, install_command="uv add deepgram-sdk"
+                ) from re
             # Handle edge case: if called from async context with running event loop,
             # create a new isolated loop to avoid conflicts
             try:
@@ -534,14 +510,18 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
                     self.transcribe_async(audio_file_path, language, timeout=timeout)
                 )
             except Exception as inner:
-                logger.error(f"Synchronous transcription failed: {e or inner}")
-                return None
+                raise map_provider_error(
+                    inner, "deepgram", audio_file_path, install_command="uv add deepgram-sdk"
+                ) from inner
             finally:
                 if loop is not None:
                     try:
                         loop.close()
                     except RuntimeError:
                         pass  # Loop already closed or running
-        except Exception as e:
-            logger.error(f"Unexpected error in synchronous transcription: {e}")
-            return None
+        except Exception as exc:
+            # Catch any provider exceptions (ProviderAPIError, ValidationError,
+            # AudioFileNotFoundError, etc.) from the initial asyncio.run() and map them
+            raise map_provider_error(
+                exc, "deepgram", audio_file_path, install_command="uv add deepgram-sdk"
+            ) from exc

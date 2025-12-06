@@ -72,20 +72,22 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
+          version: ${{ env.UV_VERSION }}
+          cache-dependency-glob: "uv.lock"
 
-      - name: Install dependencies (minimal)
+      - name: Install dependencies
         run: |
-          uv sync --locked --dev
+          uv sync --locked --all-extras --dev
 
       - name: Run fast unit tests (respects pyproject.toml markers)
         run: |
           # Note: Integration and E2E tests are excluded from PR runs for speed.
           # They run separately on merge to main/develop via test.yml workflow.
           uv run pytest \
-            -m "not integration and not e2e and not slow and not network" \
+            -m "not integration and not e2e and not slow and not network and not ffmpeg" \
             --cov=src \
             --cov-branch \
             --cov-report=xml:coverage.xml \
@@ -114,9 +116,11 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
+          version: ${{ env.UV_VERSION }}
+          cache-dependency-glob: "uv.lock"
 
       - name: Install dependencies
         run: |

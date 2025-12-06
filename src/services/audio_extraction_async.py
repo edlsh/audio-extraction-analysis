@@ -20,7 +20,12 @@ from ..exceptions import (
 )
 from ..utils.file_validation import safe_validate_media_file
 from .audio_extraction import AudioExtractor, AudioQuality
-from .ffmpeg_core import MediaProbeResult, build_extract_commands, probe_media_async
+from .ffmpeg_core import (
+    MediaProbeResult,
+    build_extract_commands,
+    cleanup_temp_file,
+    probe_media_async,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -184,11 +189,7 @@ class AsyncAudioExtractor(AudioExtractor):
 
     def _cleanup_temp_file(self, temp_path: Path | None) -> None:
         """Clean up temporary file if it exists."""
-        if temp_path and temp_path.exists():
-            try:
-                temp_path.unlink()
-            except OSError as exc:
-                logger.warning("Failed to clean up temp file %s: %s", temp_path, exc)
+        cleanup_temp_file(temp_path)
 
     async def _run_ffmpeg_with_progress(
         self,
@@ -285,6 +286,7 @@ class AsyncAudioExtractor(AudioExtractor):
             return ""
         try:
             data = await stream.read()
-        except Exception:
-            return ""
+        except Exception as e:
+            logger.warning(f"Failed to read FFmpeg stderr stream: {e}")
+            return f"[stderr read failed: {type(e).__name__}]"
         return data.decode("utf-8", errors="replace")
