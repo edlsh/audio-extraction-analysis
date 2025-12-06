@@ -233,11 +233,16 @@ class ValidationError(AudioAnalysisError):
     """Base exception for validation errors."""
 
 
-class FileNotFoundError(ValidationError):
-    """File not found at specified path.
+class AudioFileNotFoundError(ValidationError):
+    """Audio/media file not found at specified path.
 
-    Note: This shadows the builtin FileNotFoundError for consistency.
+    Use this instead of the builtin FileNotFoundError for audio-specific
+    file-not-found errors to provide additional context.
     """
+
+
+# Backward compatibility alias - deprecated
+FileNotFoundError = AudioFileNotFoundError
 
 
 class FileAccessError(ValidationError):
@@ -377,6 +382,7 @@ __all__ = [
     "AudioExtractionError",
     "AudioExtractionTimeoutError",
     "AudioFileCorruptedError",
+    "AudioFileNotFoundError",
     # Cache
     "CacheCorruptionError",
     "CacheError",
@@ -387,7 +393,7 @@ __all__ = [
     "FFmpegExecutionError",
     "FFmpegNotFoundError",
     "FileAccessError",
-    "FileNotFoundError",
+    "FileNotFoundError",  # Backward compatibility alias
     "FileSizeError",
     "InvalidConfigError",
     "MissingConfigError",
