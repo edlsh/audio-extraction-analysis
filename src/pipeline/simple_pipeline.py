@@ -13,7 +13,7 @@ import asyncio
 import logging
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, TypedDict
 
 from ..analysis.concise_analyzer import ConciseAnalyzer
 from ..analysis.full_analyzer import FullAnalyzer
@@ -28,6 +28,38 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+# =============================================================================
+# Type Definitions
+# =============================================================================
+
+
+class StageResult(TypedDict, total=False):
+    """Result details for a single pipeline stage."""
+    
+    status: str
+    duration: float
+    output: str
+    files: list[str]
+
+
+class PipelineResult(TypedDict, total=False):
+    """Complete pipeline execution result."""
+    
+    success: bool
+    audio_path: str
+    transcript: TranscriptionResult
+    analysis_files: list[str]
+    stages_completed: list[str]
+    files_created: list[str]
+    errors: list[str]
+    stage_results: dict[str, StageResult]
+
+
+# =============================================================================
+# Internal Stage Functions
+# =============================================================================
+
+
 async def _extract_audio(
     input_path: Path,
     output_dir: Path,
@@ -35,17 +67,22 @@ async def _extract_audio(
 ) -> tuple[Path, float]:
     """Extract audio from input file directly to output directory.
 
+    Args:
+        input_path: Path to input audio/video file
+        output_dir: Directory to save extracted audio
+        cm: Console manager for progress display
+
     Returns:
         Tuple of (audio_path, extraction_duration)
 
     Raises:
-        RuntimeError: If extraction fails
+        RuntimeError: If extraction fails or returns no path
     """
     cm.print_stage("Audio Extraction", "starting")
-    start = time.time()
+    start: float = time.time()
 
     # Extract directly to output directory (no temp copy needed)
-    audio_path = output_dir / f"{input_path.stem}.mp3"
+    audio_path: Path = output_dir / f"{input_path.stem}.mp3"
 
     with cm.progress_context("Extracting audio...", total=100) as progress:
         extractor = AsyncAudioExtractor()
@@ -54,15 +91,15 @@ async def _extract_audio(
             progress.update(completed, total, "Extracting audio...")
 
         progress.update(10)
-        extracted_path = await extractor.extract_audio_async(
+        extracted_path: Path | None = await extractor.extract_audio_async(
             input_path, audio_path, AudioQuality.SPEECH, progress_callback=progress_callback
         )
         progress.update(100)
 
-    if not extracted_path:
+    if extracted_path is None:
         raise RuntimeError("Audio extraction failed")
 
-    duration = time.time() - start
+    duration: float = time.time() - start
     cm.print_stage("Audio Extraction", "complete")
     logger.info(f"Audio extracted to: {extracted_path} ({duration:.2f}s)")
 
@@ -78,14 +115,24 @@ async def _transcribe_audio(
 ) -> tuple[TranscriptionResult, float]:
     """Transcribe audio file using provided service instance.
 
+    Args:
+        audio_path: Path to audio file
+        provider: Provider name or "auto"
+        language: Language code for transcription
+        cm: Console manager for progress display
+        service: Transcription service instance
+
     Returns:
         Tuple of (transcript, transcription_duration)
 
     Raises:
-        RuntimeError: If transcription fails
+        RuntimeError: If transcription fails or returns None
     """
+    # Import at runtime to avoid circular import in TYPE_CHECKING block
+    from ..models.transcription import TranscriptionResult as TranscriptionResultType
+
     cm.print_stage("Transcription", "starting")
-    start = time.time()
+    start: float = time.time()
 
     with cm.progress_context("Transcribing audio...", total=100) as progress:
 
@@ -94,8 +141,8 @@ async def _transcribe_audio(
 
         progress.update(10)
 
-        provider_name = None if provider == "auto" else provider
-        transcript = await service.transcribe_with_progress(
+        provider_name: str | None = None if provider == "auto" else provider
+        transcript: TranscriptionResultType | None = await service.transcribe_with_progress(
             audio_path,
             provider_name=provider_name,
             language=language,
@@ -103,10 +150,10 @@ async def _transcribe_audio(
         )
         progress.update(100)
 
-    if not transcript:
+    if transcript is None:
         raise RuntimeError("Transcription failed")
 
-    duration = time.time() - start
+    duration: float = time.time() - start
     cm.print_stage("Transcription", "complete")
     logger.info(f"Transcription completed ({duration:.2f}s)")
 
@@ -122,33 +169,41 @@ async def _analyze_transcript(
 ) -> tuple[list[str], float]:
     """Analyze transcript and save results.
 
+    Args:
+        transcript: Transcription result to analyze
+        output_dir: Directory to save analysis files
+        input_stem: Input file stem for naming output files
+        analysis_style: Either "concise" or "full"
+        cm: Console manager for progress display
+
     Returns:
         Tuple of (analysis_files, analysis_duration)
     """
     cm.print_stage("Analysis", "starting")
-    start = time.time()
+    start: float = time.time()
+    analysis_files: list[str] = []
 
     with cm.progress_context("Analyzing content...", total=100) as progress:
         progress.update(20)
 
         if analysis_style == "concise":
-            analyzer = ConciseAnalyzer()
+            concise_analyzer = ConciseAnalyzer()
             progress.update(60)
-            result_path = await asyncio.to_thread(
-                analyzer.analyze_and_save, transcript, output_dir, input_stem
+            result_path: Path = await asyncio.to_thread(
+                concise_analyzer.analyze_and_save, transcript, output_dir, input_stem
             )
             progress.update(100)
             analysis_files = [str(result_path)]
         else:
-            analyzer = FullAnalyzer()
+            full_analyzer = FullAnalyzer()
             progress.update(60)
-            paths = await asyncio.to_thread(
-                analyzer.analyze_and_save, transcript, output_dir, input_stem
+            paths: dict[str, Path] = await asyncio.to_thread(
+                full_analyzer.analyze_and_save, transcript, output_dir, input_stem
             )
             progress.update(100)
             analysis_files = [str(p) for p in paths.values()]
 
-    duration = time.time() - start
+    duration: float = time.time() - start
     cm.print_stage("Analysis", "complete")
     logger.info(f"Analysis completed ({duration:.2f}s)")
 
@@ -156,15 +211,24 @@ async def _analyze_transcript(
 
 
 def _cleanup_on_failure(files: list[str]) -> None:
-    """Clean up partial files on pipeline failure."""
+    """Clean up partial files on pipeline failure.
+
+    Args:
+        files: List of file paths to clean up
+    """
     for file_path in files:
         try:
             p = Path(file_path)
             if p.exists():
                 p.unlink()
                 logger.debug(f"Cleaned up partial file: {file_path}")
-        except Exception as e:
+        except OSError as e:
             logger.warning(f"Failed to cleanup {file_path}: {e}")
+
+
+# =============================================================================
+# Main Pipeline Function
+# =============================================================================
 
 
 async def process_pipeline(
@@ -175,7 +239,7 @@ async def process_pipeline(
     provider: str = "auto",
     analysis_style: str = "full",
     console_manager: ConsoleManager | None = None,
-) -> dict[str, Any]:
+) -> PipelineResult:
     """Process audio/video file through extraction → transcription → analysis pipeline.
 
     This is a simplified linear pipeline that replaces the complex workflow orchestration
@@ -213,7 +277,7 @@ async def process_pipeline(
     service = TranscriptionService()
 
     # Initialize result tracking
-    results = {
+    results: PipelineResult = {
         "success": False,
         "stages_completed": [],
         "files_created": [],
