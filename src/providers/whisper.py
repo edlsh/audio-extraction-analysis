@@ -40,6 +40,7 @@ from typing import TYPE_CHECKING, Any
 
 from ..config import get_config
 from ..models.transcription import TranscriptionResult, TranscriptionUtterance
+from ..utils.constants import UIConstants
 
 if TYPE_CHECKING:
     from ..utils.retry import RetryConfig
@@ -343,7 +344,7 @@ class WhisperTranscriber(BaseTranscriptionProvider):
     ) -> list[dict[str, object]]:
         """Generate simple chapters based on time intervals.
 
-        Creates chapter markers at fixed 5-minute (300-second) intervals to help
+        Creates chapter markers at fixed intervals (default 5 minutes) to help
         with navigation in long audio content. This is a basic implementation that
         does not consider content or topic boundaries.
 
@@ -356,21 +357,20 @@ class WhisperTranscriber(BaseTranscriptionProvider):
             in seconds. Returns empty list if no utterances provided.
 
         Note:
-            The 5-minute interval is chosen as a reasonable default for podcast
-            and lecture content. For more sophisticated chaptering based on topic
-            changes or speaker transitions, consider implementing content-aware
-            segmentation.
+            The interval is configurable via UIConstants.CHAPTER_INTERVAL_SECONDS.
+            For more sophisticated chaptering based on topic changes or speaker 
+            transitions, consider implementing content-aware segmentation.
         """
         if not utterances:
             return []
 
-        # Generate chapters at 5-minute (300-second) intervals
+        interval = UIConstants.CHAPTER_INTERVAL_SECONDS
         chapters = []
         total_duration = max(utt.end for utt in utterances)
 
-        for i in range(0, int(total_duration) + 300, 300):  # Every 5 minutes (300 seconds)
+        for i in range(0, int(total_duration) + interval, interval):
             if i <= total_duration:
-                chapters.append({"start_time": i, "end_time": min(i + 300, total_duration)})
+                chapters.append({"start_time": i, "end_time": min(i + interval, total_duration)})
 
         return chapters
 

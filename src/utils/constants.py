@@ -127,6 +127,16 @@ class Limits:
     MAX_TOPICS: int = 100
 
 
+class UIConstants:
+    """UI-related constants."""
+
+    # Log ring buffer
+    MAX_LOG_ENTRIES: int = 2000  # Maximum log entries to keep in TUI state
+
+    # Chapter generation
+    CHAPTER_INTERVAL_SECONDS: int = 300  # 5 minutes between chapter markers
+
+
 class RetryDefaults:
     """Default retry configuration values."""
 
@@ -170,4 +180,5 @@ __all__ = [
     "MediaLimits",
     "RetryDefaults",
     "Timeouts",
+    "UIConstants",
 ]
