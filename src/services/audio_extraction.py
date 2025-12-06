@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import logging
-import re
-import shlex
 import subprocess
 from enum import Enum
 from pathlib import Path
@@ -19,7 +17,12 @@ from ..exceptions import (
 )
 from ..utils.constants import MediaLimits, Timeouts
 from ..utils.file_validation import FileValidator, safe_validate_media_file
-from .ffmpeg_core import build_extract_commands
+from .ffmpeg_core import (
+    build_extract_commands,
+    cleanup_temp_file,
+    probe_media_sync,
+    validate_path_security,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -60,26 +63,8 @@ class AudioExtractor:
             max_size=self.MAX_FILE_SIZE,
         )
 
-        # Security: Check for path traversal attempts
-        resolved_path = file_path.resolve()
-        if ".." in str(resolved_path) or str(resolved_path).startswith("/"):
-            # Allow absolute paths but validate they don't contain dangerous shell characters
-            # Note: Square brackets [], parentheses (), and spaces are common in media filenames
-            # and are safe when properly quoted with shlex.quote()
-            path_str = str(resolved_path)
-            if re.search(r"[;&|`$<>]", path_str):
-                raise ValueError(f"Invalid characters in file path: {file_path}")
-
-    def _sanitize_path(self, file_path: Path) -> str:
-        """Sanitize file path for safe subprocess usage.
-
-        Args:
-            file_path: Path to sanitize
-
-        Returns:
-            Safely quoted path string
-        """
-        return shlex.quote(str(file_path.resolve()))
+        # Security: Check for dangerous shell characters
+        validate_path_security(file_path)
 
     def _check_ffmpeg(self) -> None:
         """Check if FFmpeg is available.
@@ -128,39 +113,12 @@ class AudioExtractor:
             # Security: Validate input path
             self._validate_path(input_path)
 
-            # Use ffprobe to extract media information
-            cmd = [
-                "ffprobe",
-                "-v",
-                "error",
-                "-show_entries",
-                "format=duration",
-                "-of",
-                "default=noprint_wrappers=1:nokey=1",
-                str(input_path),
-            ]
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=Timeouts.FFMPEG_PROBE,
-                check=True,
-            )
-
-            # Parse duration from ffprobe output
-            duration = None
-            if result.stdout.strip():
-                try:
-                    duration = float(result.stdout.strip())
-                except ValueError:
-                    logger.warning(f"Could not parse duration: {result.stdout}")
-
-            file_size = input_path.stat().st_size
-
+            # Use shared probe function
+            probe = probe_media_sync(input_path, timeout=Timeouts.FFMPEG_PROBE)
             return {
-                "duration": duration,
-                "size_bytes": file_size,
-                "size_mb": file_size / (1024 * 1024),
+                "duration": probe.duration,
+                "size_bytes": probe.size_bytes,
+                "size_mb": probe.size_mb,
             }
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
             logger.warning(f"FFmpeg failed to get video info: {e}")
@@ -322,9 +280,4 @@ class AudioExtractor:
 
     def _cleanup_temp_file(self, temp_path: Path | None) -> None:
         """Clean up temporary file if it exists."""
-        if temp_path and temp_path.exists():
-            try:
-                temp_path.unlink()
-                logger.debug(f"Cleaned up temp file: {temp_path}")
-            except OSError as e:
-                logger.warning(f"Failed to clean up temp file {temp_path}: {e}")
+        cleanup_temp_file(temp_path)
