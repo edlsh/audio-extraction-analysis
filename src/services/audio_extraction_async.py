@@ -286,6 +286,7 @@ class AsyncAudioExtractor(AudioExtractor):
             return ""
         try:
             data = await stream.read()
-        except Exception:
-            return ""
+        except Exception as e:
+            logger.warning(f"Failed to read FFmpeg stderr stream: {e}")
+            return f"[stderr read failed: {type(e).__name__}]"
         return data.decode("utf-8", errors="replace")

@@ -475,17 +475,29 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
             timeout: Optional timeout (seconds) applied to the async implementation
 
         Returns:
-            Optional[TranscriptionResult]: Complete transcription result with all features,
-                or None if transcription fails
+            TranscriptionResult: Complete transcription result with all features
+
+        Raises:
+            ProviderAPIError: If transcription fails
+            AudioFileNotFoundError: If audio file not found
+            ProviderNotAvailableError: If Deepgram SDK not installed
 
         Note:
             This method creates its own event loop. If called from an existing async context,
             it will attempt to create a new loop to avoid conflicts.
         """
+        from .provider_utils import map_provider_error
+
         loop: asyncio.AbstractEventLoop | None = None
         try:
             return asyncio.run(self.transcribe_async(audio_file_path, language, timeout=timeout))
-        except (RuntimeError, ValueError, ImportError, OSError) as e:
+        except RuntimeError as re:
+            # Check if this is the "running event loop" edge case
+            if "running event loop" not in str(re).lower() and "cannot be called" not in str(re).lower():
+                # Not an event loop conflict - map and re-raise the error
+                raise map_provider_error(
+                    re, "deepgram", audio_file_path, install_command="uv add deepgram-sdk"
+                ) from re
             # Handle edge case: if called from async context with running event loop,
             # create a new isolated loop to avoid conflicts
             try:
@@ -495,14 +507,18 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
                     self.transcribe_async(audio_file_path, language, timeout=timeout)
                 )
             except Exception as inner:
-                logger.error(f"Synchronous transcription failed: {e or inner}")
-                return None
+                raise map_provider_error(
+                    inner, "deepgram", audio_file_path, install_command="uv add deepgram-sdk"
+                ) from inner
             finally:
                 if loop is not None:
                     try:
                         loop.close()
                     except RuntimeError:
                         pass  # Loop already closed or running
-        except Exception as e:
-            logger.error(f"Unexpected error in synchronous transcription: {e}")
-            return None
+        except Exception as exc:
+            # Catch any provider exceptions (ProviderAPIError, ValidationError, 
+            # AudioFileNotFoundError, etc.) from the initial asyncio.run() and map them
+            raise map_provider_error(
+                exc, "deepgram", audio_file_path, install_command="uv add deepgram-sdk"
+            ) from exc
