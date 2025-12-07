@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
@@ -17,6 +18,8 @@ from textual.widgets import Button, Footer, Header, Static
 if TYPE_CHECKING:
     from textual.app import ComposeResult
 
+from src.exceptions import AudioAnalysisError
+
 from ..events import EventConsumer, EventConsumerConfig
 from ..services import open_path, run_pipeline
 from ..widgets import LogPanel, ProgressBoard
@@ -30,29 +33,34 @@ class RunScreen(Screen):
     """Screen for running the pipeline with live progress.
 
     Features:
-    - Progress board showing extraction, transcription, analysis
+    - Pipeline timeline showing all 5 stages at a glance
+    - Focus card for the currently active stage
+    - Completed stages summary row
     - Scrollable log panel with filtering
     - Cancel button to stop pipeline
     - Auto-opens output on completion
 
     Layout:
-        ┌─────────────────────────────────┐
-        │ Header                          │
-        ├─────────────────────────────────┤
-        │ Progress Board (30%)            │
-        │  ┌───────┐ ┌───────┐ ┌───────┐ │
-        │  │Extract│ │Trans- │ │Analyze│ │
-        │  │       │ │cribe  │ │       │ │
-        │  └───────┘ └───────┘ └───────┘ │
-        ├─────────────────────────────────┤
-        │ Logs (60%)                      │
-        │  [filterable scrolling logs]    │
-        ├─────────────────────────────────┤
-        │ Controls (10%)                  │
-        │  [Cancel] [Open Output]         │
-        ├─────────────────────────────────┤
-        │ Footer                          │
-        └─────────────────────────────────┘
+        ┌─────────────────────────────────────────┐
+        │ Header                                   │
+        ├─────────────────────────────────────────┤
+        │ Pipeline Timeline (horizontal)           │
+        │ ●───●───●───○───○                        │
+        │ DL  Prep Ext  Trans Analyze              │
+        ├─────────────────────────────────────────┤
+        │ Focus Card (active stage)                │
+        │  ⚡ Extracting Audio            72%     │
+        │  ████████████████░░░░░  ETA: 00:45      │
+        ├─────────────────────────────────────────┤
+        │ Completed: ✓ Download • ✓ Prepare        │
+        ├─────────────────────────────────────────┤
+        │ Logs (scrollable)                        │
+        │  [filterable scrolling logs]             │
+        ├─────────────────────────────────────────┤
+        │ [Cancel] [Open Output]                   │
+        ├─────────────────────────────────────────┤
+        │ Footer                                   │
+        └─────────────────────────────────────────┘
 
     Args:
         input_file: Path to input audio/video file
@@ -74,19 +82,34 @@ class RunScreen(Screen):
     }
 
     #progress-container {
-        height: 30%;
+        height: auto;
+        min-height: 18;
+        max-height: 50%;
         border: solid $accent;
         padding: 1;
+        overflow: hidden;
     }
 
     #log-container {
-        height: 60%;
+        height: 1fr;
+        min-height: 8;
         border: solid $panel;
-        padding: 1;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    #log-container LogPanel {
+        height: 100%;
+        width: 100%;
+    }
+
+    #status-container {
+        height: 3;
+        padding: 0 1;
     }
 
     #controls-container {
-        height: 10%;
+        height: 5;
         align: center middle;
         padding: 1;
     }
@@ -144,6 +167,8 @@ class RunScreen(Screen):
 
         yield Container(LogPanel(id="log-panel"), id="log-container")
 
+        yield Container(Static("", id="status-panel"), id="status-container")
+
         controls = Horizontal(
             Button("Cancel", variant="error", id="cancel-btn"),
             Button("Open Output", variant="success", id="output-btn", disabled=True),
@@ -179,8 +204,8 @@ class RunScreen(Screen):
             """Process batch of events and update app state."""
             for event in events:
                 self.app.state = apply_event(self.app.state, event)
-            # Update UI after processing batch
-            self.app.call_from_thread(self._update_display)
+            # Update UI after processing batch - use call_later since we're in same event loop
+            self.app.call_later(self._update_display)
 
         # Initialize event consumer with queue and handler
         self._event_consumer = EventConsumer(
@@ -300,6 +325,60 @@ class RunScreen(Screen):
         log_panel = self.query_one("#log-panel", LogPanel)
         log_panel.update_logs(self.app.state)
 
+        # Update status line
+        status_panel = self.query_one("#status-panel", Static)
+        status_panel.update(self._render_status_line())
+
+    def _render_status_line(self) -> str:
+        """Render a compact status line with current stage and ETA."""
+
+        state: AppState = self.app.state  # type: ignore[assignment]
+        if state.current_stage:
+            eta = self._compute_eta(state)
+            msg = state.current_message or state.stage_messages.get(state.current_stage, "")
+            message_part = f" - {msg}" if msg else ""
+            eta_part = f" (ETA {eta})" if eta != "--:--" else ""
+            return f"[bold]{state.current_stage.title()}[/bold]{message_part}{eta_part}"
+
+        if state.summary:
+            return "[green]Completed[/green]"
+
+        if state.errors:
+            return f"[red]{state.errors[-1]}[/red]"
+
+        return "[dim]Idle[/dim]"
+
+    def _compute_eta(self, state: AppState) -> str:
+        """Compute ETA for the currently running stage."""
+
+        stage = state.current_stage
+        if not stage:
+            return "--:--"
+
+        completed = state.stage_completed.get(stage, 0)
+        total = state.stage_totals.get(stage, 0)
+        if completed <= 0 or total <= 0:
+            return "--:--"
+
+        started_at = state.stage_started_at.get(stage)
+        if not started_at:
+            return "--:--"
+
+        elapsed = max(time.time() - started_at, 0.001)
+        rate = completed / elapsed
+        if rate <= 0:
+            return "--:--"
+
+        remaining = max(total - completed, 0)
+        remaining_seconds = remaining / rate
+        minutes = int(remaining_seconds // 60)
+        seconds = int(remaining_seconds % 60)
+
+        if minutes > 99:
+            return "99:59"
+
+        return f"{minutes:02d}:{seconds:02d}"
+
     def _get_button(self, selector: str) -> Button | None:
         """Return a button if present in the DOM."""
 
@@ -367,14 +446,17 @@ class RunScreen(Screen):
 
     def _ensure_runtime_context(self) -> None:
         """Ensure the run screen has input and config before starting."""
-        if self.input_file is None:
-            if self.app.state.input_path is None:
-                raise RuntimeError("No input file available for RunScreen")
-            self.input_file = Path(self.app.state.input_path)
-
         if self.config is None:
             config = getattr(self.app.state, "pending_run_config", None)
             if config is None:
                 raise RuntimeError("No pipeline configuration available for RunScreen")
             self.config = dict(config)
             self.app.state.pending_run_config = None
+
+        url_value = self.config.get("url") if self.config else None
+
+        if self.input_file is None:
+            if self.app.state.input_path is None and not url_value:
+                raise RuntimeError("No input file or URL available for RunScreen")
+            if self.app.state.input_path is not None:
+                self.input_file = Path(self.app.state.input_path)

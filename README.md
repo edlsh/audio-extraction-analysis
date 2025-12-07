@@ -1,4 +1,4 @@
-# Audio Extraction Analysis v2.1.0
+# Audio Extraction Analysis v2.2.0
 
 🎥➡️🎵➡️📝 **Professional Audio-to-Transcript Pipeline with Multiple Providers**
 
@@ -72,7 +72,6 @@ FFmpeg    Quality Presets   4 Providers    Smart Analysis  Actionable Docs
 - **URL Ingestion**: Direct processing from YouTube, Vimeo, and other platforms
 - **Multiple Providers**: Deepgram, ElevenLabs, Whisper, Parakeet support
 - **Interactive TUI**: Terminal UI with live progress and health monitoring
-- **Event Streaming**: JSONL output for integration and monitoring
 - **Enhanced CI/CD**: Full test coverage with black, ruff, and bandit checks
 - **Security Hardening**: Path sanitization, input validation, secure temp files
 
@@ -93,10 +92,6 @@ audio-extraction-analysis tui --output-dir ./results     # Pre-set output direct
 # Individual steps
 audio-extraction-analysis extract video.mp4              # Audio extraction only  
 audio-extraction-analysis transcribe audio.mp3           # Transcription only
-
-# Event streaming (for monitoring/integration) - NEW!
-audio-extraction-analysis process video.mp4 --jsonl      # Stream events as JSONL
-audio-extraction-analysis process video.mp4 --jsonl | jq '.type'  # Monitor event types
 
 # Help and info
 audio-extraction-analysis --help                         # Show all commands
@@ -121,7 +116,6 @@ audio-extraction-analysis process video.mp4 --export-markdown --md-no-speakers -
 | `--output-dir` | Directory path | Where to save results |
 | `--analysis-style` | `concise`, `full` | Output style: single analysis vs. 5 files |
 | `--verbose` | Flag | Detailed logging |
-| `--jsonl` | Flag | Stream events as JSONL for monitoring |
 | `--provider` | `auto`, `deepgram`, `elevenlabs`, `whisper`, `parakeet` | Transcription provider selection |
 
 ## 🖥️ Interactive TUI (Terminal User Interface)
@@ -242,41 +236,6 @@ audio-extraction-analysis tui --output-dir ./results
 ```
 Welcome → File Selection → Configuration → Live Processing → Auto-open Results
 ```
-
-## 🔄 Event Streaming for Monitoring
-
-Stream structured events in JSONL format for monitoring, logging, or integration with other tools.
-
-### Enable Event Streaming
-```bash
-# Stream events to stdout
-audio-extraction-analysis process video.mp4 --jsonl
-
-# Monitor specific event types
-audio-extraction-analysis process video.mp4 --jsonl | jq 'select(.type=="stage_progress")'
-
-# Save events to file
-audio-extraction-analysis process video.mp4 --jsonl > events.jsonl
-
-# Real-time monitoring with jq
-audio-extraction-analysis process video.mp4 --jsonl | jq -r '
-  if .type == "stage_start" then 
-    "▶ Starting: " + .stage
-  elif .type == "stage_progress" then 
-    "⏳ Progress: " + .stage + " " + (.data.completed/.data.total*100|tostring) + "%"
-  elif .type == "stage_end" then 
-    "✓ Completed: " + .stage
-  else . end'
-```
-
-### Event Types
-- `stage_start`: Stage beginning (extract, transcribe, analyze)
-- `stage_progress`: Progress updates with completed/total counts
-- `stage_end`: Stage completion with duration
-- `artifact`: File created with path and metadata
-- `log`, `warning`, `error`: Log messages at various levels
-- `summary`: Final metrics and statistics
-- `cancelled`: Pipeline cancellation
 
 ## 📁 Output Structure
 
@@ -429,7 +388,6 @@ To customize, add a new entry to `TEMPLATES` with keys:
 - **Quality Presets**: Optimized audio extraction for different needs
 - **Provider Health Checking**: Automatic validation and fallback to working providers
 - **Circuit Breaker Pattern**: Fault tolerance with automatic retry and failover
-- **Event Streaming**: Real-time monitoring via JSONL events
 - **Path Sanitization**: Security-hardened file operations
 - **Error Handling**: Robust processing with detailed logging
 - **Fast Processing**: 2-hour meetings processed in ~5-7 minutes
@@ -461,7 +419,7 @@ To customize, add a new entry to `TEMPLATES` with keys:
    uv sync --extra parakeet
    
    # With all features (recommended for development)
-   uv sync --dev --extra tui --extra parakeet --extra yaml --extra redis
+   uv sync --dev --extra tui --extra parakeet --extra yaml
    ```
 4. **Configure API keys** (for cloud providers):
    - Deepgram: `export DEEPGRAM_API_KEY='your-key'` (get from console.deepgram.com)

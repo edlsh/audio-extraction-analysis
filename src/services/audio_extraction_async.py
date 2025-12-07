@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-import logging
+from src.utils.logger import get_logger
 import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -27,7 +27,7 @@ from .ffmpeg_core import (
     probe_media_async,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class AsyncAudioExtractor(AudioExtractor):

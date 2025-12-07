@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import logging
+from src.utils.logger import get_logger
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import ParseResult, urlparse
@@ -17,7 +17,7 @@ from ..utils.paths import ensure_subpath
 from ..utils.sanitization import PathSanitizer
 from .audio_extraction import AudioExtractor, AudioQuality
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass

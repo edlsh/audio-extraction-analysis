@@ -152,6 +152,10 @@ Thumbs.db
 # Data directory (exclude input files but keep structure)
 data/input/*
 !data/input/.gitkeep
+data/data/
+
+# Test artifacts
+test-results.xml
 
 # Build artifacts
 coverage.json

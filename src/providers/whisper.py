@@ -32,7 +32,7 @@ Example:
 from __future__ import annotations
 
 import asyncio
-import logging
+from src.utils.logger import get_logger
 import time
 from datetime import datetime
 from pathlib import Path
@@ -46,7 +46,7 @@ if TYPE_CHECKING:
     from ..utils.retry import RetryConfig
 from .base import BaseTranscriptionProvider, CircuitBreakerConfig
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Lazy dependency resolution to avoid import-time failures in environments
 # where Whisper/torch are not installed or incompatible. These globals are

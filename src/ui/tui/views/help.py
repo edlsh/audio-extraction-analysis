@@ -79,6 +79,7 @@ class HelpScreen(Screen):
                 "[bold cyan]📖 Audio Extraction & Transcription Analysis - TUI Guide[/bold cyan]"
             )
         )
+        sections.append(self._section_about())
         sections.append(self._section_overview())
         sections.extend(self._section_global_shortcuts())
         sections.extend(self._section_screen_shortcuts())
@@ -86,6 +87,23 @@ class HelpScreen(Screen):
         sections.append(self._section_features())
         sections.append(self._section_tips())
         return sections
+
+    def _section_about(self) -> Text:
+        """Build about section with app description."""
+        return Text.from_markup(
+            """[bold yellow]About[/bold yellow]
+
+🎵 [bold]Audio Extraction & Transcription Analysis[/bold]
+
+Transform audio/video files into analyzed transcripts with ease.
+
+[dim]Features:[/dim]
+  • Live progress monitoring with ETAs
+  • Real-time log streaming and filtering
+  • Multiple transcription providers (Deepgram, ElevenLabs, Whisper, Parakeet)
+  • Provider health monitoring
+  • Auto-save configuration and recent files
+  • URL-based media processing (YouTube and more)\n""")
 
     def _section_overview(self) -> Text:
         """Build overview section."""
@@ -153,11 +171,11 @@ It features live progress monitoring, real-time log streaming, and provider heal
         return Text.from_markup(
             """[bold yellow]Navigation Flow[/bold yellow]
 
-[cyan]Welcome Screen[/cyan] → [dim](Start button)[/dim]
+[cyan]Home Screen[/cyan] → [dim](Select file or paste URL)[/dim]
     ↓
-[cyan]Home Screen[/cyan] → [dim](Select file)[/dim]
+[cyan]Quick Run Modal[/cyan] → [dim](Start immediately or customize)[/dim]
     ↓
-[cyan]Configuration Screen[/cyan] → [dim](Configure settings, Start run)[/dim]
+[cyan]Configuration Screen[/cyan] → [dim](Customize settings if needed)[/dim]
     ↓
 [cyan]Run Screen[/cyan] → [dim](Monitor progress, view logs)[/dim]
     ↓

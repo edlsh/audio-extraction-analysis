@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import logging
+from src.utils.logger import get_logger
 import sys
 from typing import NoReturn
 
@@ -22,7 +22,7 @@ from src.exceptions import (
     ValidationError,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def handle_validation_error(error: ValidationError) -> None:

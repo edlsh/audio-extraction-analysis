@@ -10,7 +10,7 @@ circuit breaker patterns for production reliability.
 from __future__ import annotations
 
 import asyncio
-import logging
+from src.utils.logger import get_logger
 import os
 import time
 from datetime import datetime
@@ -22,10 +22,9 @@ if TYPE_CHECKING:
     from ..utils.retry import RetryConfig
 
 try:
-    from deepgram import DeepgramClient, PrerecordedOptions
+    from deepgram import DeepgramClient
 
-    # For response type, we might need to be generic if we don't know the exact class structure
-    # or use a Protocol. For now, we'll try to use specific types if available or Any if not sure.
+    # SDK v5 uses dicts for options instead of PrerecordedOptions class
 except ImportError:
     pass
 
@@ -42,18 +41,17 @@ from .deepgram_utils import build_prerecorded_options
 from .deepgram_utils import detect_mimetype as _dg_detect_mimetype
 from .provider_utils import get_default_configs, provider_error_handler
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Check for Deepgram SDK availability
 try:
-    from deepgram import DeepgramClient, PrerecordedOptions
+    from deepgram import DeepgramClient
 
     PROVIDER_AVAILABLE = True
 except ImportError as e:
     logger.warning(f"Deepgram provider dependencies not installed: {e}")
     PROVIDER_AVAILABLE = False
     DeepgramClient = None
-    PrerecordedOptions = None
 
 
 class DeepgramTranscriber(BaseTranscriptionProvider):
@@ -80,20 +78,17 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
         The client is configured with:
         - 600 second (10 minute) timeout to handle large audio files
         - API key from instance configuration
-        - Environment-based configuration options
 
         Returns:
             DeepgramClient: Configured Deepgram SDK client instance ready for API calls
         """
-        # Import Deepgram SDK lazily to avoid import-time failures when optional
-        from deepgram import ClientOptionsFromEnv, DeepgramClient
+        from deepgram import DeepgramClient
 
-        # 10 minute timeout (large files can take time)
-        config = ClientOptionsFromEnv(options={"timeout": 600})
-        return DeepgramClient(self.api_key, config=config)
+        # SDK v5 uses simpler client initialization
+        return DeepgramClient(api_key=self.api_key)
 
-    def _build_options(self, language: str) -> PrerecordedOptions:
-        """Build PrerecordedOptions for Nova-3 with all AI features enabled.
+    def _build_options(self, language: str) -> dict:
+        """Build options dict for Nova-3 with all AI features enabled.
 
         Configures the Deepgram API request to enable speaker diarization, topic detection,
         intent analysis, sentiment analysis, summarization, and smart formatting.
@@ -102,7 +97,7 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
             language: ISO 639-1 language code (e.g., 'en', 'es', 'fr') for transcription
 
         Returns:
-            PrerecordedOptions: Fully configured options object for the Deepgram API
+            dict: Fully configured options dict for the Deepgram API
         """
         return build_prerecorded_options(language)
 
@@ -144,90 +139,142 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
     def _submit_transcription_job(
         self,
         client: DeepgramClient,
-        audio_source: Any,  # BinaryIO
-        mimetype: str,
-        options: PrerecordedOptions,
-    ) -> Any:  # PrerecordedResponseProtocol or Any since response structure is complex
-        """Submit the prerecorded transcription request to Deepgram API with streaming.
-
-        Uses the Deepgram SDK's file streaming capabilities to upload audio data efficiently.
-        The SDK handles chunked uploads internally when a file handle is provided, reducing
-        memory overhead compared to loading the entire file.
+        audio_bytes: bytes,
+        language: str,
+    ) -> Any:
+        """Submit the prerecorded transcription request to Deepgram API.
 
         Args:
             client: Configured DeepgramClient instance
-            audio_source: File handle (BinaryIO) opened in binary read mode
-            mimetype: MIME type string for the audio file (e.g., 'audio/wav')
-            options: PrerecordedOptions with enabled features and language settings
+            audio_bytes: Audio file contents as bytes
+            language: Language code for transcription
 
         Returns:
-            PrerecordedResponse: Deepgram API response containing transcription results,
-                metadata, and enabled feature outputs (speakers, topics, intents, etc.)
+            Response: Deepgram API response containing transcription results
 
         Raises:
             ConnectionError: If the API request fails due to network issues
             TimeoutError: If the request exceeds the configured timeout
             ValueError: If the API rejects the request due to invalid parameters
         """
-        # DG SDK: deepgram.listen.prerecorded.v("1").transcribe_file(...)
-        # Pass file handle directly - SDK should handle streaming internally
-        return client.listen.prerecorded.v("1").transcribe_file(
-            source={"buffer": audio_source, "mimetype": mimetype}, options=options
+        # DG SDK v5: use listen.v1.media.transcribe_file() with keyword args
+        return client.listen.v1.media.transcribe_file(
+            request=audio_bytes,
+            model="nova-3",
+            smart_format=True,
+            utterances=True,
+            punctuate=True,
+            paragraphs=True,
+            diarize=True,
+            summarize="v2",
+            topics=True,
+            intents=True,
+            sentiment=True,
+            language=language,
+            detect_language=True,
+            request_options={"timeout_in_seconds": 600},
         )
 
     def _extract_topics(self, response: Any, result: TranscriptionResult, duration: float) -> None:
         """Extract topics and chapters from response."""
-        if not hasattr(response.results, "topics") or not response.results.topics:
+        results = getattr(response, 'results', None)
+        if results is None:
             return
-        for topic_segment in response.results.topics.segments:
+        topics_obj = getattr(results, 'topics', None)
+        if topics_obj is None:
+            return
+        # SDK v5: topics.results.topics.segments
+        topics_results = getattr(topics_obj, 'results', topics_obj)
+        if topics_results is None:
+            return
+        topics_data = getattr(topics_results, 'topics', topics_results)
+        if topics_data is None:
+            return
+        segments = getattr(topics_data, 'segments', None)
+        if not segments:
+            return
+        for topic_segment in segments:
+            seg_topics = getattr(topic_segment, 'topics', [])
             chapter = TranscriptionChapter(
-                start_time=getattr(topic_segment, "start_time", 0),
-                end_time=getattr(topic_segment, "end_time", duration),
-                topics=[t.topic for t in topic_segment.topics],
+                start_time=getattr(topic_segment, 'start_time', 0),
+                end_time=getattr(topic_segment, 'end_time', duration),
+                topics=[getattr(t, 'topic', '') for t in seg_topics],
                 confidence_scores=[
-                    getattr(t, "confidence_score", 0.0) for t in topic_segment.topics
+                    getattr(t, 'confidence_score', 0.0) for t in seg_topics
                 ],
             )
             result.chapters.append(chapter)
-            for topic in topic_segment.topics:
-                tname = topic.topic
-                result.topics[tname] = result.topics.get(tname, 0) + 1
+            for topic in seg_topics:
+                tname = getattr(topic, 'topic', '')
+                if tname:
+                    result.topics[tname] = result.topics.get(tname, 0) + 1
 
     def _extract_intents(self, response: Any, result: TranscriptionResult) -> None:
         """Extract intents from response."""
-        if not hasattr(response.results, "intents") or not response.results.intents:
+        results = getattr(response, 'results', None)
+        if results is None:
             return
-        for segment in response.results.intents.segments:
-            for intent in segment.intents:
-                result.intents.append(intent.intent)
+        intents_obj = getattr(results, 'intents', None)
+        if intents_obj is None:
+            return
+        # SDK v5: intents.results.intents.segments
+        intents_results = getattr(intents_obj, 'results', intents_obj)
+        if intents_results is None:
+            return
+        intents_data = getattr(intents_results, 'intents', intents_results)
+        if intents_data is None:
+            return
+        segments = getattr(intents_data, 'segments', None)
+        if not segments:
+            return
+        for segment in segments:
+            seg_intents = getattr(segment, 'intents', [])
+            for intent in seg_intents:
+                intent_name = getattr(intent, 'intent', '')
+                if intent_name:
+                    result.intents.append(intent_name)
 
     def _extract_sentiments(self, response: Any, result: TranscriptionResult) -> None:
         """Extract sentiment distribution from response."""
-        if not hasattr(response.results, "sentiments") or not response.results.sentiments:
+        results = getattr(response, 'results', None)
+        if results is None:
             return
-        for segment in response.results.sentiments.segments:
-            if hasattr(segment, "sentiment"):
-                s = segment.sentiment
-                result.sentiment_distribution[s] = result.sentiment_distribution.get(s, 0) + 1
+        sentiments_obj = getattr(results, 'sentiments', None)
+        if sentiments_obj is None:
+            return
+        segments = getattr(sentiments_obj, 'segments', None)
+        if not segments:
+            return
+        for segment in segments:
+            sentiment = getattr(segment, 'sentiment', None)
+            if sentiment:
+                result.sentiment_distribution[sentiment] = result.sentiment_distribution.get(sentiment, 0) + 1
 
     def _extract_utterances(
         self, response: Any, result: TranscriptionResult, duration: float
     ) -> None:
         """Extract speaker utterances and calculate speaker statistics."""
-        if not hasattr(response.results, "utterances") or not response.results.utterances:
+        results = getattr(response, 'results', None)
+        if results is None:
+            return
+        utterances = getattr(results, 'utterances', None)
+        if not utterances:
             return
 
         speaker_times: dict[int, float] = {}
-        for utterance in response.results.utterances:
-            speaker_id = utterance.speaker
-            duration_segment = utterance.end - utterance.start
+        for utterance in utterances:
+            speaker_id = getattr(utterance, 'speaker', 0)
+            start = getattr(utterance, 'start', 0.0)
+            end = getattr(utterance, 'end', 0.0)
+            transcript_text = getattr(utterance, 'transcript', '')
+            duration_segment = end - start
             speaker_times[speaker_id] = speaker_times.get(speaker_id, 0.0) + duration_segment
             result.utterances.append(
                 TranscriptionUtterance(
                     speaker=speaker_id,
-                    start=utterance.start,
-                    end=utterance.end,
-                    text=utterance.transcript,
+                    start=start,
+                    end=end,
+                    text=transcript_text,
                 )
             )
 
@@ -245,8 +292,20 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
         language: str,
     ) -> TranscriptionResult:
         """Parse Deepgram API response into structured TranscriptionResult."""
-        transcript = response.results.channels[0].alternatives[0].transcript
-        duration = response.metadata.duration
+        # SDK v5: access via attributes with safe fallbacks
+        results = getattr(response, 'results', None)
+        metadata = getattr(response, 'metadata', None)
+        
+        # Get transcript from channels
+        channels = getattr(results, 'channels', []) if results else []
+        transcript = ''
+        if channels:
+            alternatives = getattr(channels[0], 'alternatives', [])
+            if alternatives:
+                transcript = getattr(alternatives[0], 'transcript', '')
+        
+        # Get duration from metadata
+        duration = getattr(metadata, 'duration', 0.0) if metadata else 0.0
 
         result = TranscriptionResult(
             transcript=transcript,
@@ -257,8 +316,11 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
             provider_features=self.get_supported_features(),
         )
 
-        if hasattr(response.results, "summary") and response.results.summary:
-            result.summary = response.results.summary.short
+        # Extract summary if available
+        if results:
+            summary_obj = getattr(results, 'summary', None)
+            if summary_obj:
+                result.summary = getattr(summary_obj, 'short', '')
 
         self._extract_topics(response, result, duration)
         self._extract_intents(response, result)
@@ -443,14 +505,11 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
 
         # Build request
         client = self._create_client()
-        options = self._build_options(language)
-        mimetype = self._detect_mimetype(audio_file_path)
 
-        # Submit transcription job using file handle for efficient streaming upload
-        # This prevents loading entire file into memory for large audio files
-        logger.info("Sending to Deepgram Nova 3 with streaming upload...")
-        with self._open_audio_file(audio_file_path) as audio_source:
-            response = self._submit_transcription_job(client, audio_source, mimetype, options)
+        # Read audio file as bytes for SDK v5
+        logger.info("Sending to Deepgram Nova 3...")
+        audio_bytes = audio_file_path.read_bytes()
+        response = self._submit_transcription_job(client, audio_bytes, language)
         logger.info("Transcription completed successfully")
 
         # Parse and return

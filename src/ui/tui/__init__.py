@@ -17,6 +17,11 @@ __all__ = [
 # Conditionally import app if textual is available
 try:
     from .app import AudioExtractionApp, main
+    from .persistence import inject_api_keys_to_env
+
+    # Inject stored API keys into environment on module load
+    # This ensures keys are available when config module reads them
+    inject_api_keys_to_env()
 
     __all__.extend(["AudioExtractionApp", "main"])
 except ImportError:

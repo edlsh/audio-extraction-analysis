@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
+from src.utils.logger import get_logger
 import threading
 import uuid
 from dataclasses import asdict, dataclass, field
@@ -96,7 +96,7 @@ class QueueEventSink:
                 self._loop = asyncio.get_running_loop()
             except RuntimeError:
                 # No event loop; create one in a thread if needed
-                logging.warning("QueueEventSink: No event loop found, skipping event")
+                get_logger(__name__).warning("QueueEventSink: No event loop found, skipping event")
                 return
 
         # Thread-safe enqueue

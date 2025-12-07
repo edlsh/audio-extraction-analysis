@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-import logging
+from src.utils.logger import get_logger
 import os
 import time
 from dataclasses import dataclass
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 from ..config import Config
 from ..exceptions import CacheCorruptionError, CacheReadError, CacheWriteError
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass

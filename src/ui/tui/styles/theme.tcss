@@ -5,9 +5,9 @@ Screen {
     background: $surface;
 }
 
-/* Header and Footer */
+/* Header and Footer - use $panel for subtle theme-aware header */
 Header {
-    background: $primary;
+    background: $panel;
     color: $text;
     text-style: bold;
 }
@@ -44,7 +44,7 @@ Panel {
 
 /* Log entries */
 .log-entry {
-    color: $text-muted;
+    color: $text-disabled;
 }
 
 .log-info {
@@ -127,7 +127,7 @@ Label {
 
 .subtitle {
     text-style: italic;
-    color: $text-muted;
+    color: $text-disabled;
 }
 
 /* Status indicators */
@@ -162,5 +162,154 @@ Label {
 }
 
 .health-unknown {
-    color: $text-muted;
+    color: $text-disabled;
 }
+
+/* ========================================
+   Pipeline Timeline Styles
+   ======================================== */
+
+PipelineTimeline {
+    transition: background 200ms;
+}
+
+/* Timeline node states */
+TimelineNode {
+    transition: color 200ms, background 200ms;
+}
+
+TimelineNode.running .node-indicator {
+    text-style: bold;
+}
+
+TimelineNode.complete .node-indicator {
+    text-style: bold;
+}
+
+/* Flash animation for fast completions */
+TimelineNode.flash-complete {
+    background: $success-darken-2;
+}
+
+/* Timeline connector animations */
+TimelineConnector {
+    transition: background 300ms;
+}
+
+/* ========================================
+   Focus Card Styles
+   ======================================== */
+
+FocusCard {
+    transition: border 300ms, opacity 300ms, background 200ms;
+}
+
+FocusCard.idle {
+    opacity: 0.7;
+}
+
+FocusCard .stage-icon {
+    color: $accent;
+}
+
+FocusCard.complete .stage-icon {
+    color: $success;
+}
+
+FocusCard.error .stage-icon {
+    color: $error;
+}
+
+FocusCard ProgressBar {
+    width: 100%;
+}
+
+FocusCard ProgressBar > .bar--bar {
+    color: $accent;
+}
+
+FocusCard ProgressBar > .bar--complete {
+    color: $success;
+}
+
+FocusCard Sparkline {
+    width: 100%;
+}
+
+FocusCard Sparkline > .sparkline--max-color {
+    color: $accent;
+}
+
+FocusCard Sparkline > .sparkline--min-color {
+    color: $primary;
+}
+
+/* ========================================
+   Completed Summary Styles
+   ======================================== */
+
+CompletedSummary {
+    transition: background 200ms;
+}
+
+CompletedSummary.flash-complete {
+    background: $success-darken-3;
+}
+
+/* ========================================
+   Legacy Progress Card Styles (deprecated)
+   ======================================== */
+
+ProgressCard {
+    transition: border 300ms;
+}
+
+ProgressCard Digits {
+    color: $accent;
+    text-align: center;
+}
+
+ProgressCard.complete Digits {
+    color: $success;
+}
+
+ProgressCard.error Digits {
+    color: $error;
+}
+
+ProgressCard LoadingIndicator {
+    color: $accent;
+}
+
+ProgressCard Sparkline {
+    width: 100%;
+}
+
+ProgressCard Sparkline > .sparkline--max-color {
+    color: $accent;
+}
+
+ProgressCard Sparkline > .sparkline--min-color {
+    color: $primary;
+}
+
+/* ========================================
+   Button Animations
+   ======================================== */
+
+Button {
+    transition: background 200ms, opacity 200ms;
+}
+
+Button:disabled {
+    opacity: 0.5;
+}
+
+Button.-success {
+    background: $success;
+}
+
+Button.-error {
+    background: $error;
+}
+

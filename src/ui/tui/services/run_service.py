@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -14,6 +15,7 @@ from ....models import events as event_models
 from ....pipeline import simple_pipeline
 from ....services.audio_extraction import AudioQuality
 from ....services.url_ingestion import UrlIngestionError, UrlIngestionService
+from ....utils.loguru_config import set_tui_mode
 
 
 async def run_pipeline(
@@ -36,6 +38,9 @@ async def run_pipeline(
     """
     # Attach sink to thread-local registry
     event_models.set_event_sink(event_sink)
+
+    # Enable TUI mode: routes logs to TUI LogPanel instead of stderr
+    set_tui_mode(enabled=True, event_sink=event_sink)
 
     try:
         # Convert quality string to enum with validation
@@ -74,6 +79,7 @@ async def run_pipeline(
                 run_id=run_id,
             )
 
+            download_start = time.time()
             ingestion_service = UrlIngestionService(
                 download_dir=cfg.url_ingest_download_dir,
                 prefer_audio_only=cfg.url_ingest_prefer_audio_only,
@@ -95,11 +101,12 @@ async def run_pipeline(
                 raise
 
             effective_input_path = ingest_result.audio_path
+            download_duration = time.time() - download_start
 
             event_models.emit_event(
                 "stage_end",
                 stage="url_download",
-                data={"duration": 0.0, "status": "complete"},
+                data={"duration": download_duration, "status": "complete"},
                 run_id=run_id,
             )
             event_models.emit_event(
@@ -111,7 +118,7 @@ async def run_pipeline(
             event_models.emit_event(
                 "stage_end",
                 stage="url_prepare",
-                data={"duration": 0.0, "status": "complete"},
+                data={"duration": 0.1, "status": "complete"},
                 run_id=run_id,
             )
 
@@ -127,6 +134,7 @@ async def run_pipeline(
             provider=provider,
             analysis_style=analysis_style,
             console_manager=None,  # Disable console output in TUI mode
+            run_id=run_id,
         )
         return result
 
@@ -151,5 +159,8 @@ async def run_pipeline(
         ) from exc
 
     finally:
+        # Disable TUI mode: restores console logging
+        set_tui_mode(enabled=False)
+
         # Detach sink
         event_models.set_event_sink(None)

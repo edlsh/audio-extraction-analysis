@@ -1,7 +1,7 @@
 """Extract command handler."""
 
 import argparse
-import logging
+from src.utils.logger import get_logger
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -14,7 +14,7 @@ from ..utils import parse_quality_preset
 if TYPE_CHECKING:
     from argparse import _SubParsersAction
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def create_extract_subparser(subparsers: "_SubParsersAction[argparse.ArgumentParser]") -> None:

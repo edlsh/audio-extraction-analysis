@@ -1,7 +1,7 @@
 """Transcribe command handler."""
 
 import argparse
-import logging
+from src.utils.logger import get_logger
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -16,7 +16,7 @@ from ..utils import add_markdown_export_options, add_transcription_options
 if TYPE_CHECKING:
     from argparse import _SubParsersAction
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def create_transcribe_subparser(subparsers: "_SubParsersAction[argparse.ArgumentParser]") -> None:

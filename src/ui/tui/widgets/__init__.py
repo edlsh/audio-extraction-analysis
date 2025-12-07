@@ -9,7 +9,16 @@ from __future__ import annotations
 
 from typing import Any
 
-__all__ = ["FilteredDirectoryTree", "HealthPanel", "LogPanel", "ProgressBoard"]
+__all__ = [
+    "CompletedSummary",
+    "FilteredDirectoryTree",
+    "FocusCard",
+    "HealthPanel",
+    "LogPanel",
+    "PipelineTimeline",
+    "ProgressBoard",
+    "ProgressCard",
+]
 
 
 def _placeholder(name: str) -> type:
@@ -28,12 +37,24 @@ def _placeholder(name: str) -> type:
     return _Widget
 
 
+try:  # pragma: no cover
+    from .completed_summary import CompletedSummary
+except ImportError:
+    # type: ignore[misc] - Placeholder for optional dependency
+    CompletedSummary = _placeholder("CompletedSummary")  # type: ignore[misc]
+
 try:  # pragma: no cover - covered via higher-level tests
     from .filtered_tree import FilteredDirectoryTree
 except ImportError:  # Textual or related deps not installed
     # type: ignore[misc] - Placeholder doesn't match full widget interface, but that's intentional
     # for graceful degradation when Textual is not available
     FilteredDirectoryTree = _placeholder("FilteredDirectoryTree")  # type: ignore[misc]
+
+try:  # pragma: no cover
+    from .focus_card import FocusCard
+except ImportError:
+    # type: ignore[misc] - Placeholder for optional dependency
+    FocusCard = _placeholder("FocusCard")  # type: ignore[misc]
 
 try:  # pragma: no cover
     from .health_panel import HealthPanel
@@ -48,7 +69,19 @@ except ImportError:
     LogPanel = _placeholder("LogPanel")  # type: ignore[misc]
 
 try:  # pragma: no cover
+    from .pipeline_timeline import PipelineTimeline
+except ImportError:
+    # type: ignore[misc] - Placeholder for optional dependency
+    PipelineTimeline = _placeholder("PipelineTimeline")  # type: ignore[misc]
+
+try:  # pragma: no cover
     from .progress_board import ProgressBoard
 except ImportError:
     # type: ignore[misc] - Same pattern as above: placeholder for optional dependency
     ProgressBoard = _placeholder("ProgressBoard")  # type: ignore[misc]
+
+try:  # pragma: no cover
+    from .progress_card import ProgressCard
+except ImportError:
+    # type: ignore[misc] - Same pattern as above: placeholder for optional dependency
+    ProgressCard = _placeholder("ProgressCard")  # type: ignore[misc]

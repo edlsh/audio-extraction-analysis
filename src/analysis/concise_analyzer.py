@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import logging
+from src.utils.logger import get_logger
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -13,7 +13,7 @@ from .base_analyzer import BaseAnalyzer
 if TYPE_CHECKING:
     from ..models.transcription import TranscriptionResult
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class ConciseAnalyzer(BaseAnalyzer):

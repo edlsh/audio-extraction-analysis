@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import json
-import logging
+import os
+from src.utils.logger import get_logger
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 try:
     from platformdirs import user_config_dir
@@ -68,6 +69,11 @@ def default_settings() -> dict[str, Any]:
             "theme": "dark",
             "verbose_logs": False,
             "log_panel_height": 10,
+        },
+        "api_keys": {
+            "deepgram": "",
+            "elevenlabs": "",
+            "gemini": "",
         },
     }
 
@@ -280,3 +286,82 @@ def clear_recent_files() -> bool:
         return False
 
     return save_recent_files([], max_entries=0)
+
+
+# ============== API Key Management ==============
+
+
+def load_api_keys() -> dict[str, str]:
+    """Load API keys from settings.
+
+    Returns:
+        Dictionary mapping provider names to API keys (empty string if not set)
+
+    Example:
+        >>> keys = load_api_keys()
+        >>> if keys["deepgram"]:
+        ...     print("Deepgram key configured")
+    """
+    settings = load_settings()
+    return settings.get("api_keys", default_settings()["api_keys"])
+
+
+def save_api_key(provider: str, key: str) -> bool:
+    """Save a single API key to settings.
+
+    Args:
+        provider: Provider name (deepgram, elevenlabs, gemini)
+        key: API key value (empty string to clear)
+
+    Returns:
+        True if successful, False otherwise
+
+    Example:
+        >>> save_api_key("deepgram", "dg-xxxx")
+        True
+    """
+    valid_providers = {"deepgram", "elevenlabs", "gemini"}
+    if provider not in valid_providers:
+        logger.warning(f"Unknown provider: {provider}. Valid: {valid_providers}")
+        return False
+
+    settings = load_settings()
+    if "api_keys" not in settings:
+        settings["api_keys"] = default_settings()["api_keys"]
+
+    settings["api_keys"][provider] = key
+    return save_settings(settings)
+
+
+def inject_api_keys_to_env() -> int:
+    """Inject stored API keys into environment variables.
+
+    This should be called on TUI startup before the config module reads
+    environment variables. Only sets keys that are not already set in the
+    environment (environment takes precedence).
+
+    Returns:
+        Number of keys injected
+
+    Example:
+        >>> count = inject_api_keys_to_env()
+        >>> print(f"Injected {count} API keys")
+    """
+    env_var_map = {
+        "deepgram": "DEEPGRAM_API_KEY",
+        "elevenlabs": "ELEVENLABS_API_KEY",
+        "gemini": "GEMINI_API_KEY",
+    }
+
+    keys = load_api_keys()
+    injected = 0
+
+    for provider, env_var in env_var_map.items():
+        key_value = keys.get(provider, "")
+        # Only inject if key is set AND env var is not already set
+        if key_value and not os.environ.get(env_var):
+            os.environ[env_var] = key_value
+            logger.debug(f"Injected {env_var} from stored settings")
+            injected += 1
+
+    return injected

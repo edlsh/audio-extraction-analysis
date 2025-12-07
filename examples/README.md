@@ -4,7 +4,7 @@ This directory contains sample outputs from the audio extraction and analysis pi
 
 ## Sample Output Files
 
-When you run the tool, it generates outputs similar to these examples:
+When you run the tool, it generates outputs similar to these examples. Use `--analysis-style concise` (default) for a single markdown analysis, or `--analysis-style full` for the 5-file breakdown. Add `--export-markdown` on `transcribe`/`process` to also emit a formatted transcript.
 
 ### 📝 Text Output (`--format text`)
 Simple, clean transcript without additional formatting or analysis.

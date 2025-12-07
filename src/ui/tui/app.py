@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-import logging
+from src.utils.logger import get_logger
 from pathlib import Path
 from typing import Any
 
@@ -19,11 +19,12 @@ from .themes import CUSTOM_THEMES, DEFAULT_CUSTOM_THEME
 from .views.config import ConfigScreen
 from .views.help import HelpScreen
 from .views.home import HomeScreen
+from .views.quick_run_modal import QuickRunModal
 from .views.run import RunScreen
+from .views.settings import SettingsScreen
 from .views.theme_selector import ThemeSelectorScreen
-from .views.url_downloads import UrlDownloadsScreen
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class WelcomeScreen(TextualScreen):
@@ -109,14 +110,22 @@ class AudioExtractionApp(App):
         "home": HomeScreen,
         "config": ConfigScreen,
         "help": HelpScreen,
+        "quick_run": QuickRunModal,
         "run": RunScreen,
+        "settings": SettingsScreen,
         "theme_selector": ThemeSelectorScreen,
-        "url_downloads": UrlDownloadsScreen,
     }
 
     CSS = """
     Screen {
         background: $surface;
+    }
+
+    /* Override Header to use panel color instead of $primary */
+    /* This fixes the orange header issue in Catppuccin theme */
+    Header {
+        background: $panel;
+        color: $text;
     }
 
     #title {
@@ -154,6 +163,7 @@ class AudioExtractionApp(App):
         ("d", "show_theme_selector", "Switch Theme"),  # Keep 'd' for backwards compatibility
         ("h", "help", "Help"),
         ("?", "help", "Help"),
+        ("ctrl+s", "show_settings", "Settings"),
     ]
 
     def __init__(
@@ -200,8 +210,8 @@ class AudioExtractionApp(App):
         self.pipeline_task: asyncio.Task | None = None
 
     def on_mount(self) -> None:
-        """Push the welcome screen when the app starts."""
-        self.push_screen("welcome")
+        """Push the home screen when the app starts."""
+        self.push_screen("home")
 
     def action_show_theme_selector(self) -> None:
         """Show theme selection screen."""
@@ -225,6 +235,17 @@ class AudioExtractionApp(App):
             self.switch_screen("help")
             return
         self.push_screen("help")
+
+    def action_show_settings(self) -> None:
+        """Show settings screen."""
+        # Check if settings is already in the stack
+        for screen in self.screen_stack:
+            if isinstance(screen, SettingsScreen):
+                # Already showing settings, don't push another
+                return
+
+        # Push settings screen
+        self.push_screen("settings")
 
     async def _run_pipeline(self) -> None:
         """Run the pipeline with event streaming.

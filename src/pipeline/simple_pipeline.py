@@ -10,13 +10,14 @@ totaling ~2,700 LOC for what is fundamentally a 3-step sequential process.
 from __future__ import annotations
 
 import asyncio
-import logging
+from src.utils.logger import get_logger
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, NotRequired, Required, TypedDict
 
 from ..analysis.concise_analyzer import ConciseAnalyzer
 from ..analysis.full_analyzer import FullAnalyzer
+from ..models import events as event_models
 from ..services.audio_extraction import AudioQuality
 from ..services.audio_extraction_async import AsyncAudioExtractor
 from ..services.transcription import TranscriptionService
@@ -25,7 +26,7 @@ from ..ui.console import ConsoleManager
 if TYPE_CHECKING:
     from ..models.transcription import TranscriptionResult
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # =============================================================================
@@ -57,6 +58,56 @@ class PipelineResult(TypedDict, total=False):
 
 
 # =============================================================================
+# Event helpers
+# =============================================================================
+
+
+def _emit_stage_start(stage: str, description: str, total: int, run_id: str | None) -> None:
+    event_models.emit_event(
+        "stage_start",
+        stage=stage,
+        data={"description": description, "total": total},
+        run_id=run_id,
+    )
+
+
+def _emit_stage_progress(
+    stage: str,
+    completed: int,
+    total: int,
+    message: str,
+    run_id: str | None,
+) -> None:
+    event_models.emit_event(
+        "stage_progress",
+        stage=stage,
+        data={"completed": completed, "total": total, "message": message},
+        run_id=run_id,
+    )
+
+
+def _emit_stage_end(stage: str, duration: float, status: str, run_id: str | None) -> None:
+    event_models.emit_event(
+        "stage_end",
+        stage=stage,
+        data={"duration": duration, "status": status},
+        run_id=run_id,
+    )
+
+
+def _emit_log(message: str, level: str, logger_name: str, run_id: str | None) -> None:
+    event_models.emit_event(
+        "log",
+        data={"message": message, "level": level, "logger": logger_name},
+        run_id=run_id,
+    )
+
+
+def _emit_error(stage: str | None, message: str, run_id: str | None) -> None:
+    event_models.emit_event("error", stage=stage, data={"message": message}, run_id=run_id)
+
+
+# =============================================================================
 # Internal Stage Functions
 # =============================================================================
 
@@ -66,6 +117,7 @@ async def _extract_audio(
     output_dir: Path,
     cm: ConsoleManager,
     quality: AudioQuality,
+    run_id: str | None,
 ) -> tuple[Path, float]:
     """Extract audio from input file directly to output directory.
 
@@ -81,6 +133,7 @@ async def _extract_audio(
         RuntimeError: If extraction fails or returns no path
     """
     cm.print_stage("Audio Extraction", "starting")
+    _emit_stage_start("extract", "Extracting audio", 100, run_id)
     start: float = time.time()
 
     # Extract directly to output directory (no temp copy needed)
@@ -91,19 +144,20 @@ async def _extract_audio(
 
         def progress_callback(completed: int, total: int) -> None:
             progress.update(completed, total, "Extracting audio...")
+            _emit_stage_progress("extract", completed, total or 100, "Extracting audio...", run_id)
 
-        progress.update(10)
         extracted_path: Path | None = await extractor.extract_audio_async(
             input_path, audio_path, quality, progress_callback=progress_callback
         )
-        progress.update(100)
 
     if extracted_path is None:
         raise RuntimeError("Audio extraction failed")
 
     duration: float = time.time() - start
     cm.print_stage("Audio Extraction", "complete")
+    _emit_stage_end("extract", duration, "complete", run_id)
     logger.info(f"Audio extracted to: {extracted_path} ({duration:.2f}s)")
+    _emit_log(f"Audio extracted to: {extracted_path}", "INFO", __name__, run_id)
 
     return Path(extracted_path), duration
 
@@ -114,6 +168,7 @@ async def _transcribe_audio(
     language: str,
     cm: ConsoleManager,
     service: TranscriptionService,
+    run_id: str | None,
 ) -> tuple[TranscriptionResult, float]:
     """Transcribe audio file using provided service instance.
 
@@ -134,14 +189,14 @@ async def _transcribe_audio(
     from ..models.transcription import TranscriptionResult as TranscriptionResultType
 
     cm.print_stage("Transcription", "starting")
+    _emit_stage_start("transcribe", "Transcribing audio", 100, run_id)
     start: float = time.time()
 
     with cm.progress_context("Transcribing audio...", total=100) as progress:
 
         def progress_callback(completed: int, total: int) -> None:
             progress.update(completed, total, "Transcribing audio...")
-
-        progress.update(10)
+            _emit_stage_progress("transcribe", completed, total or 100, "Transcribing audio...", run_id)
 
         provider_name: str | None = None if provider == "auto" else provider
         transcript: TranscriptionResultType | None = await service.transcribe_with_progress(
@@ -150,14 +205,15 @@ async def _transcribe_audio(
             language=language,
             progress_callback=progress_callback,
         )
-        progress.update(100)
 
     if transcript is None:
         raise RuntimeError("Transcription failed")
 
     duration: float = time.time() - start
     cm.print_stage("Transcription", "complete")
+    _emit_stage_end("transcribe", duration, "complete", run_id)
     logger.info(f"Transcription completed ({duration:.2f}s)")
+    _emit_log("Transcription completed", "INFO", __name__, run_id)
 
     return transcript, duration
 
@@ -168,6 +224,7 @@ async def _analyze_transcript(
     input_stem: str,
     analysis_style: str,
     cm: ConsoleManager,
+    run_id: str | None,
 ) -> tuple[list[str], float]:
     """Analyze transcript and save results.
 
@@ -182,32 +239,40 @@ async def _analyze_transcript(
         Tuple of (analysis_files, analysis_duration)
     """
     cm.print_stage("Analysis", "starting")
+    _emit_stage_start("analyze", "Analyzing transcript", 100, run_id)
     start: float = time.time()
     analysis_files: list[str] = []
 
     with cm.progress_context("Analyzing content...", total=100) as progress:
         progress.update(20)
+        _emit_stage_progress("analyze", 20, 100, "Preparing analysis...", run_id)
 
         if analysis_style == "concise":
             concise_analyzer = ConciseAnalyzer()
             progress.update(60)
+            _emit_stage_progress("analyze", 60, 100, "Running concise analysis...", run_id)
             result_path: Path = await asyncio.to_thread(
                 concise_analyzer.analyze_and_save, transcript, output_dir, input_stem
             )
             progress.update(100)
+            _emit_stage_progress("analyze", 100, 100, "Finalizing analysis...", run_id)
             analysis_files = [str(result_path)]
         else:
             full_analyzer = FullAnalyzer()
             progress.update(60)
+            _emit_stage_progress("analyze", 60, 100, "Running full analysis...", run_id)
             paths: dict[str, Path] = await asyncio.to_thread(
                 full_analyzer.analyze_and_save, transcript, output_dir, input_stem
             )
             progress.update(100)
+            _emit_stage_progress("analyze", 100, 100, "Finalizing analysis...", run_id)
             analysis_files = [str(p) for p in paths.values()]
 
     duration: float = time.time() - start
     cm.print_stage("Analysis", "complete")
+    _emit_stage_end("analyze", duration, "complete", run_id)
     logger.info(f"Analysis completed ({duration:.2f}s)")
+    _emit_log("Analysis completed", "INFO", __name__, run_id)
 
     return analysis_files, duration
 
@@ -241,6 +306,7 @@ async def process_pipeline(
     provider: str = "auto",
     analysis_style: str = "full",
     console_manager: ConsoleManager | None = None,
+    run_id: str | None = None,
 ) -> PipelineResult:
     """Process audio/video file through extraction → transcription → analysis pipeline.
 
@@ -255,6 +321,7 @@ async def process_pipeline(
         provider: Transcription provider ('deepgram', 'elevenlabs', 'auto')
         analysis_style: Analysis style ('concise' or 'full')
         console_manager: Optional console manager for progress display
+        run_id: Optional run identifier for TUI event emission
 
     Returns:
         Dictionary containing:
@@ -293,7 +360,7 @@ async def process_pipeline(
         # Stage 1: Audio Extraction (directly to output_dir, no temp copy needed)
         try:
             audio_path, extraction_duration = await _extract_audio(
-                input_path, output_dir, cm, quality
+                input_path, output_dir, cm, quality, run_id
             )
             results["audio_path"] = str(audio_path)
             results["files_created"].append(str(audio_path))
@@ -306,12 +373,13 @@ async def process_pipeline(
         except Exception as e:
             results["errors"].append(f"Audio extraction failed: {e!s}")
             logger.exception("Audio extraction failed")
+            _emit_error("extract", str(e), run_id)
             raise
 
         # Stage 2: Transcription (reuse service instance)
         try:
             transcript, transcription_duration = await _transcribe_audio(
-                audio_path, provider, language, cm, service
+                audio_path, provider, language, cm, service, run_id
             )
             results["transcript"] = transcript
             results["stages_completed"].append("transcription")
@@ -329,6 +397,7 @@ async def process_pipeline(
         except Exception as e:
             results["errors"].append(f"Transcription failed: {e!s}")
             logger.exception("Transcription failed")
+            _emit_error("transcribe", str(e), run_id)
             results["success"] = False
             _cleanup_on_failure(results.get("files_created", []))
             return results
@@ -336,7 +405,7 @@ async def process_pipeline(
         # Stage 3: Analysis
         try:
             analysis_files, analysis_duration = await _analyze_transcript(
-                transcript, output_dir, input_path.stem, analysis_style, cm
+                transcript, output_dir, input_path.stem, analysis_style, cm, run_id
             )
             results["analysis_files"] = analysis_files
             results["files_created"].extend(analysis_files)
@@ -350,6 +419,7 @@ async def process_pipeline(
         except Exception as e:
             results["errors"].append(f"Analysis failed: {e!s}")
             logger.exception("Analysis failed")
+            _emit_error("analyze", str(e), run_id)
             results["success"] = False
             _cleanup_on_failure(results.get("files_created", []))
 
@@ -367,5 +437,6 @@ async def process_pipeline(
             results["errors"].append(f"Pipeline failed: {e!s}")
         logger.exception("Pipeline processing failed")
         cm.print_stage("Pipeline", "error")
+        _emit_error(None, str(e), run_id)
         _cleanup_on_failure(results.get("files_created", []))
         return results

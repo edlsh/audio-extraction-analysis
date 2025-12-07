@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import logging
+from src.utils.logger import get_logger
 from functools import wraps
 from pathlib import Path
 from typing import TYPE_CHECKING, TypeVar
@@ -21,7 +21,7 @@ from ..exceptions import (
 from ..utils.retry import RetryConfig
 from .base import CircuitBreakerConfig
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 T = TypeVar("T")
 

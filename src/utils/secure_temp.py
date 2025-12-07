@@ -9,7 +9,7 @@ This module provides secure patterns for temporary file creation with:
 
 from __future__ import annotations
 
-import logging
+from src.utils.logger import get_logger
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @contextmanager

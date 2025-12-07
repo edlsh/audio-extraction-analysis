@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.1.0] - 2025-12-02
 
+## [2.2.0] - 2025-12-07
+
+### Removed
+- JSONL event streaming flags (`--jsonl`, `--json-output`) and external streaming surface; events remain internal to the TUI only.
+
+### Changed
+- Documentation realigned with current CLI options and provider capabilities.
+
 ### Changed
 - **Provider Health Checks**: Standardized health check responses across all providers using new `_build_health_response()` helper method in `BaseTranscriptionProvider`
 - **TranscriptionService**: Simplified async transcription with extracted `_execute_transcription_with_fallback()` method for clearer control flow
@@ -51,7 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Dark/light theme toggle
   - Provider health status display
   - Automatic output folder opening
-- Event streaming system with JSONL output
+- Event streaming system with JSONL output (removed in 2.2.0)
   - Comprehensive event model (stage_start, stage_progress, stage_end, etc.)
   - Multiple event sink implementations (JsonLines, Queue, Composite)
   - Integration with monitoring tools
@@ -66,8 +74,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Provider tests with mocking
 
 ### Changed
-- Updated CLI to support `--jsonl` flag for event streaming
-- Deprecated `--json-output` flag in favor of `--jsonl`
+- Updated CLI to support `--jsonl` flag for event streaming (removed in 2.2.0)
+- Deprecated `--json-output` flag in favor of `--jsonl` (both removed in 2.2.0)
 - Enhanced pipeline with event instrumentation
 - Improved error handling with detailed event reporting
 - Refactored provider factory with health checking
@@ -159,10 +167,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    uv sync --extra tui
    ```
 
-2. **Use Event Streaming**: Add `--jsonl` flag for monitoring
-   ```bash
-   audio-extraction-analysis process video.mp4 --jsonl
-   ```
+2. **Event Streaming**: JSONL streaming via `--jsonl` was available in 1.0.0 but is removed as of 2.2.0; no CLI streaming surface is currently supported.
 
 3. **Launch Interactive Interface**: Use the new TUI command
    ```bash
@@ -171,7 +176,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Breaking Changes
 
-- `--json-output` flag deprecated (still works but shows warning)
+- `--json-output` flag deprecated (still works but shows warning) — removed in 2.2.0
 - Provider health checking may reject previously working configurations
 
 #### Configuration Changes

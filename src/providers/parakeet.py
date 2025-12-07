@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import gc
-import logging
+from src.utils.logger import get_logger
 import os
 import tempfile
 import time
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from ..utils.retry import RetryConfig
 from .base import BaseTranscriptionProvider, CircuitBreakerConfig
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # =====================================================================
 # Lazy dependency resolution

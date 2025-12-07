@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import logging
+from src.utils.logger import get_logger
 import platform
 import subprocess
 from typing import TYPE_CHECKING
@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from pathlib import Path
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def open_path(path: Path) -> bool:

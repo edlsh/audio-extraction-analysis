@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import logging
+from src.utils.logger import get_logger
 from typing import TYPE_CHECKING
 
 from ..utils.constants import AnalysisConstants
@@ -11,7 +11,7 @@ from ..utils.formatting import format_duration
 if TYPE_CHECKING:
     from ..models.transcription import TranscriptionResult, TranscriptionUtterance
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class BaseAnalyzer:

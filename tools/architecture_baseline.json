@@ -1,8 +1,0 @@
-{
-  "total_modules": 2,
-  "total_dependencies": 1,
-  "circular_dependencies": 0,
-  "cycles": [],
-  "is_dag": true,
-  "max_depth": 1
-}

@@ -6,7 +6,7 @@ replacing the legacy custom implementation with a battle-tested library.
 
 from __future__ import annotations
 
-import logging
+from src.utils.logger import get_logger
 import random
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -21,7 +21,7 @@ from tenacity import (
     wait_exponential_jitter,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 P = ParamSpec("P")
 R = TypeVar("R")

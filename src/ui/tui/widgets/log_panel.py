@@ -8,7 +8,7 @@ from rich.table import Table
 from rich.text import Text
 from textual.binding import Binding
 from textual.containers import VerticalScroll
-from textual.widgets import Static
+from textual.widgets import Input, Static
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
@@ -38,12 +38,34 @@ class LogPanel(VerticalScroll):
         >>> panel.update_logs(app_state)
     """
 
+    DEFAULT_CSS = """
+    LogPanel {
+        height: 100%;
+        width: 100%;
+        background: $surface;
+        scrollbar-gutter: stable;
+    }
+
+    LogPanel > Input {
+        dock: top;
+        height: 3;
+        margin: 0 0 1 0;
+    }
+
+    LogPanel > Static {
+        width: 100%;
+        height: auto;
+    }
+    """
+
     BINDINGS = [
         Binding("a", "filter_all", "All", show=True),
         Binding("d", "filter_debug", "Debug+", show=True),
         Binding("i", "filter_info", "Info+", show=True),
         Binding("w", "filter_warning", "Warn+", show=True),
         Binding("e", "filter_error", "Error", show=True),
+        Binding("/", "focus_search", "Search", show=True),
+        Binding("g", "toggle_autoscroll", "AutoScroll", show=True),
     ]
 
     # Log level colors
@@ -63,9 +85,12 @@ class LogPanel(VerticalScroll):
         self._filter_level = "DEBUG"  # Show all by default
         self._log_display = Static()
         self._auto_scroll = True
+        self._search_query = ""
+        self._search_input = Input(placeholder="Search logs (/)", id="log-search")
 
     def compose(self) -> ComposeResult:
         """Compose log display."""
+        yield self._search_input
         yield self._log_display
 
     def on_mount(self) -> None:
@@ -156,7 +181,29 @@ class LogPanel(VerticalScroll):
                     # Unknown level, include it
                     filtered.append(entry)
 
-        return filtered
+        # Apply search query
+        if not self._search_query:
+            return filtered
+
+        needle = self._search_query.lower()
+        searched: list[LogEntry | dict] = []
+        for entry in filtered:
+            if isinstance(entry, dict) and entry.get("truncated"):
+                searched.append(entry)
+                continue
+            searchable_parts: list[str] = []
+            message = getattr(entry, "message", None)
+            if message is not None:
+                searchable_parts.append(str(message))
+            logger_name = getattr(entry, "logger", None)
+            if logger_name:
+                searchable_parts.append(str(logger_name))
+
+            haystack = " ".join(searchable_parts) or repr(entry)
+            if haystack and needle in haystack.lower():
+                searched.append(entry)
+
+        return searched
 
     def _format_timestamp(self, timestamp: float) -> str:
         """Format timestamp for display.
@@ -225,3 +272,22 @@ class LogPanel(VerticalScroll):
         """Show error logs only."""
         self._filter_level = "ERROR"
         self.notify("Showing error logs only")
+
+    def action_focus_search(self) -> None:
+        """Focus the search input."""
+        self._search_input.focus()
+        self.notify("Search logs")
+
+    def action_toggle_autoscroll(self) -> None:
+        """Toggle auto-scroll behavior."""
+        self._auto_scroll = not self._auto_scroll
+        state = "on" if self._auto_scroll else "off"
+        self.notify(f"Auto-scroll {state}")
+
+    def on_input_changed(self, event: Input.Changed) -> None:  # type: ignore[override]
+        """Update search query as user types."""
+        if event.input.id != "log-search":
+            return
+        self._search_query = (event.value or "").strip()
+        if hasattr(self.app, "state"):
+            self.update_logs(self.app.state)

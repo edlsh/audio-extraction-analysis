@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
+from src.utils.logger import get_logger
 import math
 import time
 from pathlib import Path
@@ -20,7 +20,7 @@ from ..exceptions import ProviderTimeoutError, TranscriptionError
 from ..providers.factory import TranscriptionProviderFactory
 from ..utils.file_validation import safe_validate_audio_file
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class TranscriptionService:

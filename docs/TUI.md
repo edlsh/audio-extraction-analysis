@@ -7,7 +7,7 @@ The Audio Extraction Analysis TUI provides a modern, interactive terminal interf
 ## Installation
 
 ### Requirements
-- Python 3.8+
+- Python 3.11+
 - Terminal with 256-color support
 - Minimum terminal size: 80x24 characters
 

@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import logging
+from src.utils.logger import get_logger
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from textual._context import active_app
-from textual.containers import Container, Vertical
+from textual.containers import Container, Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import Button, DataTable, Footer, Header, Input, Label
 
@@ -20,7 +20,7 @@ from ..widgets.filtered_tree import FilteredDirectoryTree
 if TYPE_CHECKING:
     from ..app import AudioExtractionApp
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class HomeScreen(Screen):
@@ -46,7 +46,7 @@ class HomeScreen(Screen):
         ("/", "filter", "Filter"),
         ("f", "filter", "Filter"),
         ("r", "refresh_recent", "Refresh Recent"),
-        ("u", "open_url_downloads", "URL from Web"),
+        ("u", "focus_url_input", "URL Input"),
     ]
 
     CSS = """
@@ -58,7 +58,8 @@ class HomeScreen(Screen):
         text-align: center;
         text-style: bold;
         padding: 1;
-        background: $accent;
+        background: $panel;
+        color: $accent;
     }
 
     #home-container {
@@ -86,6 +87,27 @@ class HomeScreen(Screen):
     #filter-input {
         dock: bottom;
         margin: 1;
+    }
+
+    #url-row {
+        height: auto;
+        padding: 1 2;
+        background: $panel;
+        border-top: solid $primary;
+    }
+
+    #url-label {
+        width: auto;
+        padding-right: 1;
+    }
+
+    #url-input {
+        width: 1fr;
+    }
+
+    #url-go-btn {
+        width: auto;
+        margin-left: 1;
     }
     """
 
@@ -133,7 +155,7 @@ class HomeScreen(Screen):
     def compose(self) -> ComposeResult:
         """Compose the home screen layout."""
         yield Header()
-        yield Label("Select Input File", id="home-title")
+        yield Label("Select Input File or Paste URL", id="home-title")
 
         tree_pane = Vertical(
             Label("Browse Files"),
@@ -144,12 +166,21 @@ class HomeScreen(Screen):
         recent_pane = Vertical(
             Label("Recent Files"),
             DataTable(id="recent-table"),
-            Button("Process from URL", id="open-url-btn"),
             id="recent-pane",
         )
 
         yield Container(tree_pane, recent_pane, id="home-container")
         yield Input(placeholder="Type / to filter files...", id="filter-input")
+        
+        # Inline URL input row
+        yield Horizontal(
+            Label("🔗 Or paste a URL:", id="url-label"),
+            Input(placeholder="https://youtube.com/watch?v=...", id="url-input"),
+            Button("Go", variant="primary", id="url-go-btn"),
+            Button("⚙️ Settings", variant="default", id="settings-btn"),
+            id="url-row",
+        )
+        
         yield Footer()
 
     def on_mount(self) -> None:
@@ -233,8 +264,8 @@ class HomeScreen(Screen):
         # Post message to app with selected file
         self.app.state.input_path = path
 
-        # Navigate to config screen
-        self.app.push_screen("config")
+        # Navigate to quick run modal for confirmation
+        self.app.push_screen("quick_run")
 
     def action_switch_pane(self) -> None:
         """Switch focus between tree and recent files (Tab key)."""
@@ -258,15 +289,18 @@ class HomeScreen(Screen):
         """Return to the previous screen."""
         self.app.pop_screen()
 
-    def action_open_url_downloads(self) -> None:
-        """Navigate to the URL downloads screen."""
-        self.app.push_screen("url_downloads")
+    def action_focus_url_input(self) -> None:
+        """Focus the URL input field (u key)."""
+        self.query_one("#url-input", Input).focus()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses on the home screen."""
-        if event.button.id == "open-url-btn":
+        if event.button.id == "url-go-btn":
             event.stop()
-            self.action_open_url_downloads()
+            self._process_url_input()
+        elif event.button.id == "settings-btn":
+            event.stop()
+            self.app.push_screen("settings")
 
     def on_directory_tree_file_selected(self, event: FilteredDirectoryTree.FileSelected) -> None:
         """Handle file selection from directory tree.
@@ -304,10 +338,34 @@ class HomeScreen(Screen):
         tree.filter = event.value or ""
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
-        """Filter the directory tree when the filter input is submitted."""
+        """Handle input submission for filter or URL."""
+        if event.input.id == "filter-input":
+            tree = self.query_one("#file-tree", FilteredDirectoryTree)
+            tree.filter = event.value or ""
+        elif event.input.id == "url-input":
+            self._process_url_input()
 
-        if event.input.id != "filter-input":
+    def _process_url_input(self) -> None:
+        """Process the URL from the inline input field."""
+        url_input = self.query_one("#url-input", Input)
+        url = url_input.value.strip()
+
+        if not url:
+            self.notify("Please enter a URL.", severity="warning")
             return
 
-        tree = self.query_one("#file-tree", FilteredDirectoryTree)
-        tree.filter = event.value or ""
+        # Lightweight validation: must at least look like a URL
+        if not (url.startswith("http://") or url.startswith("https://")):
+            self.notify("URL must start with http:// or https://", severity="error")
+            return
+
+        logger.info(f"URL entered: {url}")
+
+        # Store URL on app state; the run service will interpret it
+        self.app.state.input_path = None
+        if self.app.state.pending_run_config is None:
+            self.app.state.pending_run_config = {}
+        self.app.state.pending_run_config["url"] = url
+
+        # Navigate to quick run modal for confirmation
+        self.app.push_screen("quick_run")

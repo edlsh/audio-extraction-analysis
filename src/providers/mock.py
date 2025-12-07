@@ -1,7 +1,7 @@
 """Mock transcription provider for testing."""
 
 import asyncio
-import logging
+from src.utils.logger import get_logger
 import time
 from collections.abc import Callable
 from datetime import datetime
@@ -12,7 +12,7 @@ from ..models.transcription import TranscriptionResult, TranscriptionUtterance
 from ..utils.retry import RetryConfig
 from .base import BaseTranscriptionProvider, CircuitBreakerConfig
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class MockTranscriber(BaseTranscriptionProvider):

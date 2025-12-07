@@ -23,21 +23,24 @@ def detect_mimetype(path: Path) -> str:
     return mapping.get(suffix, "audio/mp3")
 
 
-def build_prerecorded_options(language: str) -> Any:
-    from deepgram import PrerecordedOptions
+def build_prerecorded_options(language: str) -> dict:
+    """Build transcription options dict for Deepgram Nova 3.
 
-    return PrerecordedOptions(
-        model="nova-3",
-        smart_format=True,
-        utterances=True,
-        punctuate=True,
-        paragraphs=True,
-        diarize=True,
-        summarize="v2",
-        topics=True,
-        intents=True,
-        sentiment=True,
-        language=language,
-        detect_language=True,
-        alternatives=1,
-    )
+    Returns a dict of options compatible with the Deepgram SDK v5 API.
+    """
+    return {
+        "model": "nova-3",
+        "smart_format": True,
+        "utterances": True,
+        "punctuate": True,
+        "paragraphs": True,
+        "diarize": True,
+        "summarize": "v2",
+        "topics": True,
+        "intents": True,
+        "sentiment": True,
+        "language": language,
+        "detect_language": True,
+        "alternatives": 1,
+    }
+

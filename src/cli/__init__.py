@@ -2,7 +2,7 @@
 
 import argparse
 import asyncio
-import logging
+from src.utils.logger import get_logger
 import sys
 
 from ..error_handlers import handle_keyboard_interrupt
@@ -13,18 +13,16 @@ from .commands.process import create_process_subparser, process_command
 from .commands.transcribe import create_transcribe_subparser, transcribe_command
 from .commands.tui import create_tui_subparser, tui_command
 
-__version__ = "2.1.0"
+__version__ = "2.2.0"
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def setup_logging(verbose: bool = False) -> None:
     """Setup logging configuration based on verbosity level."""
-    level = logging.DEBUG if verbose else logging.INFO
-    logging.getLogger().setLevel(level)
+    from src.utils.logger import configure_verbose
 
-    # Set specific loggers
-    logging.getLogger("src").setLevel(level)
+    configure_verbose(verbose)
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -69,11 +67,6 @@ For more information, see: https://github.com/lucchesi-sec/audio-extraction-anal
     # Add global arguments
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose logging")
-    parser.add_argument(
-        "--json-output",
-        action="store_true",
-        help="Emit machine-readable JSON events to stderr/stdout",
-    )
 
     # Create subparsers
     subparsers = parser.add_subparsers(dest="command", help="Available commands", required=True)
@@ -97,10 +90,8 @@ def main() -> int:
     # Setup logging
     setup_logging(args.verbose)
 
-    # Setup console manager if not in JSON output mode
-    console_manager = None
-    if not args.json_output:
-        console_manager = ConsoleManager(verbose=args.verbose)
+    # Setup console manager
+    console_manager = ConsoleManager(verbose=args.verbose)
 
     try:
         # Route to appropriate command handler

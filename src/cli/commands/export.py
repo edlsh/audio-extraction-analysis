@@ -1,7 +1,7 @@
 """Export command handler."""
 
 import argparse
-import logging
+from src.utils.logger import get_logger
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -18,7 +18,7 @@ from ..utils import DEFAULT_OUTPUT_DIR
 if TYPE_CHECKING:
     from argparse import _SubParsersAction
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def create_export_markdown_subparser(

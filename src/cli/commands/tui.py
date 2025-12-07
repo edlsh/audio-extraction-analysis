@@ -1,7 +1,7 @@
 """TUI command handler."""
 
 import argparse
-import logging
+from src.utils.logger import get_logger
 import sys
 from typing import TYPE_CHECKING
 
@@ -11,7 +11,7 @@ from ...ui.console import ConsoleManager
 if TYPE_CHECKING:
     from argparse import _SubParsersAction
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def create_tui_subparser(subparsers: "_SubParsersAction[argparse.ArgumentParser]") -> None:

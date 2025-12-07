@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
+from src.utils.logger import get_logger
 import subprocess
 import time
 from datetime import datetime
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 from .base import BaseTranscriptionProvider, CircuitBreakerConfig
 from .provider_utils import get_default_configs, provider_error_handler
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Check for ElevenLabs SDK availability
 try:

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-import logging
+from src.utils.logger import get_logger
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -12,7 +12,7 @@ from ...models.events import Event
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 _VALID_DROP_POLICIES = {"oldest", "newest"}
 _STOP_SENTINEL = object()
@@ -239,7 +239,7 @@ class EventConsumer:
         try:
             self.on_batch(coalesced)
         except Exception as exc:  # pragma: no cover - defensive logging
-            logger.error("Error processing event batch: %s", exc, exc_info=True)
+            logger.error(f"Error processing event batch: {exc}", exc_info=True)
         finally:
             self._batch.clear()
             self._last_progress.clear()

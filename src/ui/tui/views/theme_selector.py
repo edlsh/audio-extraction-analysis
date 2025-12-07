@@ -63,7 +63,7 @@ class ThemeSelectorScreen(Screen):
 
     #current-theme {
         text-align: center;
-        color: $text-muted;
+        color: $text-disabled;
         padding-top: 1;
     }
     """

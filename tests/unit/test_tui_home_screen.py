@@ -90,7 +90,7 @@ def test_action_select_file_from_tree(
 
     assert home_screen.app.state.input_path == file_path
     mock_add_recent.assert_called_once_with(file_path)
-    assert home_screen.app.pushed == ["config"]
+    assert home_screen.app.pushed == ["quick_run"]
 
 
 @patch("src.ui.tui.views.home.add_recent_file")
@@ -112,7 +112,7 @@ def test_action_select_file_from_recent(
 
     assert home_screen.app.state.input_path == file_path
     mock_add_recent.assert_called_once_with(file_path)
-    assert home_screen.app.pushed == ["config"]
+    assert home_screen.app.pushed == ["quick_run"]
 
 
 def test_action_select_file_directory_warns(tmp_path: Path, home_screen: HomeScreen) -> None:

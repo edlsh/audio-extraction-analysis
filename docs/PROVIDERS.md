@@ -9,7 +9,7 @@ Audio Extraction Analysis supports multiple transcription providers with automat
 | Provider | Type | Speed | Accuracy | Cost | Languages | Features | Best For |
 |----------|------|-------|----------|------|-----------|----------|----------|
 | **Deepgram** | Cloud | Real-time | 95%+ | $0.0125/min | 36+ | Diarization, punctuation, paragraphs | Production, streaming |
-| **ElevenLabs** | Cloud | Fast | 92%+ | $0.10/min | 29 | Voice synthesis, multilingual | Content creation |
+| **ElevenLabs** | Cloud | Fast | 92%+ | $0.10/min | 29 | Basic STT with timestamps | Lightweight cloud fallback |
 | **Whisper** | Local | 0.5-5x RT | 85-95% | Free | 100+ | Offline, privacy | Privacy, research |
 | **Parakeet** | Local | 2-10x RT | 90%+ | Free | English | NVIDIA optimized | GPU acceleration |
 
@@ -123,7 +123,7 @@ audio-extraction-analysis transcribe audio.mp3 --provider deepgram
 ## ElevenLabs Provider
 
 ### Overview
-ElevenLabs provides high-quality speech synthesis and transcription with advanced voice cloning capabilities.
+ElevenLabs in this project is used solely for speech-to-text. It is a lightweight cloud fallback with timestamps and language detection—no TTS/voice-cloning features are wired into the CLI.
 
 ### Setup
 ```bash
@@ -145,11 +145,9 @@ ELEVENLABS_ENABLE_SSML=false       # SSML markup support
 ```
 
 ### Features
-- **Voice Synthesis**: Text-to-speech with custom voices
-- **Voice Cloning**: Create custom voice models
-- **Multilingual**: 29 language support
-- **SSML Support**: Speech Synthesis Markup Language
-- **Audio Quality**: Studio-quality output
+- **Timestamps**: Segment-level timestamps
+- **Language Detection**: Basic language detection
+- **Multilingual**: 29 language support for STT
 
 ### Pricing
 - **Free Tier**: 10,000 characters/month

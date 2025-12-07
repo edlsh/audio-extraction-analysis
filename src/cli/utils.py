@@ -1,11 +1,11 @@
 """Common utilities for CLI commands."""
 
 import argparse
-import logging
+from src.utils.logger import get_logger
 
 from ..services.audio_extraction import AudioQuality
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 DEFAULT_OUTPUT_DIR = "output"
 

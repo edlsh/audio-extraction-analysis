@@ -2,7 +2,7 @@
 
 import argparse
 import json
-import logging
+from src.utils.logger import get_logger
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -24,7 +24,7 @@ from .export import _prepare_source_info, _save_markdown_transcript
 if TYPE_CHECKING:
     from argparse import _SubParsersAction
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def create_process_subparser(subparsers: "_SubParsersAction[argparse.ArgumentParser]") -> None:

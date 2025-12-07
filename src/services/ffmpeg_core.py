@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
+from src.utils.logger import get_logger
 import re
 import shlex
 import subprocess
@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     pass
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # =============================================================================

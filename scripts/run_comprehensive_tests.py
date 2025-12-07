@@ -580,7 +580,7 @@ class PipelineTestRunner:
             # Complex argument combinations
             (
                 "Maximum verbosity with all features",
-                f"audio-extraction-analysis process {test_video} --verbose --json-output --quality high --provider auto --language en --analysis-style full --export-markdown --md-template detailed --md-confidence --output-dir {self.temp_dir}/full_test",
+                f"audio-extraction-analysis process {test_video} --verbose --quality high --provider auto --language en --analysis-style full --export-markdown --md-template detailed --md-confidence --output-dir {self.temp_dir}/full_test",
                 0,
             ),
             # Quality presets
@@ -685,7 +685,6 @@ class PipelineTestRunner:
         export commands.
 
         Output Formats Tested:
-            - JSON output mode (--json-output flag for structured data)
             - Markdown export with default template
             - Markdown export with detailed template
             - Markdown export without timestamps
@@ -712,12 +711,6 @@ class PipelineTestRunner:
             return
 
         format_tests = [
-            # JSON output
-            (
-                "JSON output mode",
-                f"audio-extraction-analysis --json-output transcribe {test_audio} --provider deepgram",
-                0,
-            ),
             # Markdown export
             (
                 "Markdown export with defaults",

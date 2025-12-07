@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import logging
+from src.utils.logger import get_logger
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from textual._context import active_app
-from textual.containers import Container, Horizontal, Vertical, VerticalScroll
+from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import Button, Checkbox, Footer, Header, Input, Label, Select
 
@@ -23,7 +23,7 @@ default_settings = _default_settings
 if TYPE_CHECKING:
     from ..app import AudioExtractionApp
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class ConfigScreen(Screen):
@@ -59,7 +59,8 @@ class ConfigScreen(Screen):
         text-align: center;
         text-style: bold;
         padding: 1;
-        background: $accent;
+        background: $panel;
+        color: $accent;
     }
 
     #config-form {
@@ -71,6 +72,7 @@ class ConfigScreen(Screen):
         margin: 1 0;
         padding: 1;
         border: solid $primary;
+        height: auto;
     }
 
     .config-label {
@@ -124,7 +126,7 @@ class ConfigScreen(Screen):
         yield Header()
         yield Label("Configure Pipeline", id="config-title")
 
-        quality_group = Container(
+        quality_group = Vertical(
             Label("Audio Quality", classes="config-label"),
             Label("[dim]Choose extraction quality preset[/dim]", classes="config-help"),
             Select(
@@ -135,12 +137,13 @@ class ConfigScreen(Screen):
                     ("Compressed (smaller files)", "compressed"),
                 ],
                 value=self.settings["defaults"]["quality"],
+                allow_blank=False,
                 id="quality-select",
             ),
             classes="config-group",
         )
 
-        provider_group = Container(
+        provider_group = Vertical(
             Label("Transcription Provider", classes="config-label"),
             Label(
                 "[dim]Select transcription service (auto = best available)[/dim]",
@@ -155,12 +158,13 @@ class ConfigScreen(Screen):
                     ("Parakeet (local, no API key)", "parakeet"),
                 ],
                 value=self.settings["defaults"]["provider"],
+                allow_blank=False,
                 id="provider-select",
             ),
             classes="config-group",
         )
 
-        language_group = Container(
+        language_group = Vertical(
             Label("Language", classes="config-label"),
             Label("[dim]Primary language of the audio content[/dim]", classes="config-help"),
             Select(
@@ -173,12 +177,13 @@ class ConfigScreen(Screen):
                     ("Portuguese", "pt"),
                 ],
                 value=self.settings["defaults"]["language"],
+                allow_blank=False,
                 id="language-select",
             ),
             classes="config-group",
         )
 
-        style_group = Container(
+        style_group = Vertical(
             Label("Analysis Style", classes="config-label"),
             Label(
                 "[dim]Output format: concise = 1 file, full = 5 detailed files[/dim]",
@@ -190,12 +195,13 @@ class ConfigScreen(Screen):
                     ("Full (5 detailed analysis files)", "full"),
                 ],
                 value=self.settings["defaults"]["analysis_style"],
+                allow_blank=False,
                 id="style-select",
             ),
             classes="config-group",
         )
 
-        output_group = Container(
+        output_group = Vertical(
             Label("Output Directory", classes="config-label"),
             Label(
                 "[dim]Where to save output files (default: ./output)[/dim]", classes="config-help"
@@ -208,7 +214,7 @@ class ConfigScreen(Screen):
             classes="config-group",
         )
 
-        export_group = Container(
+        export_group = Vertical(
             Label("Export Options", classes="config-label"),
             Label("[dim]Additional output formats[/dim]", classes="config-help"),
             Checkbox(
@@ -323,8 +329,11 @@ class ConfigScreen(Screen):
     def action_start_run(self) -> None:
         """Start the pipeline run."""
         # Validate configuration
-        if self.app.state.input_path is None:
-            self.notify("No input file selected!", severity="error", timeout=3)
+        pending_config = self.app.state.pending_run_config or {}
+        url_value = pending_config.get("url")
+
+        if self.app.state.input_path is None and not url_value:
+            self.notify("No input file or URL selected!", severity="error", timeout=3)
             return
 
         if self.app.state.output_dir is None:
@@ -348,9 +357,16 @@ class ConfigScreen(Screen):
             "keep_downloaded_videos": keep_videos,
         }
 
+        # Merge any pending run config (e.g., URL from URL screen) while keeping
+        # the latest selections from the current form.
+        merged_config = dict(pending_config)
+        merged_config.update(config)
+        if url_value:
+            merged_config["url"] = url_value
+
         # Store config and navigate to run screen
         logger.info("Starting pipeline run")
-        self.app.state.pending_run_config = config
+        self.app.state.pending_run_config = merged_config
         self.app.push_screen("run")
 
     def action_reset_defaults(self) -> None:

@@ -7,6 +7,8 @@ import json
 import logging
 import re
 import sys
+
+from src.utils.logger import get_logger
 import threading
 import time
 from contextlib import contextmanager
@@ -46,21 +48,29 @@ class ConsoleManager:
 
         self._active_progress: Progress | None = None
 
-    def setup_logging(self, logger: logging.Logger) -> None:
+    def setup_logging(self, logger: logging.Logger | object) -> None:
         """Configure logging with Rich handler or JSON/plain formatter.
 
         Adds a handler and sets logger level based on `verbose`.
+        For loguru loggers, this is a no-op since loguru manages its own handlers.
         """
+        # Check if this is a loguru logger (doesn't have .handlers attribute)
+        if not hasattr(logger, "handlers"):
+            # Loguru logger - skip handler setup, loguru manages its own
+            return
+
+        # Standard library logger - configure handlers
+        stdlib_logger = logger  # type: logging.Logger
 
         # Prevent duplicate handlers if called multiple times
         def _has_handler_of_type(h_type: type[logging.Handler]) -> bool:
-            return any(isinstance(h, h_type) for h in logger.handlers)
+            return any(isinstance(h, h_type) for h in stdlib_logger.handlers)
 
         if self.json_output:
             if not _has_handler_of_type(logging.StreamHandler):
                 handler = logging.StreamHandler(sys.stderr)
                 handler.setFormatter(logging.Formatter("%(message)s"))
-                logger.addHandler(handler)
+                stdlib_logger.addHandler(handler)
         else:
             if not _has_handler_of_type(RichHandler):
                 handler = RichHandler(
@@ -69,8 +79,8 @@ class ConsoleManager:
                     show_path=self.verbose,
                     rich_tracebacks=True,
                 )
-                logger.addHandler(handler)
-        logger.setLevel(logging.DEBUG if self.verbose else logging.INFO)
+                stdlib_logger.addHandler(handler)
+        stdlib_logger.setLevel(logging.DEBUG if self.verbose else logging.INFO)
 
     @contextmanager
     def progress_context(self, description: str, total: int | None = None) -> Any:

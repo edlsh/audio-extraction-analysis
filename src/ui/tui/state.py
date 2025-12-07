@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import dataclasses
+import time
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, TypedDict
 
 from ...models.events import Event
@@ -65,6 +67,9 @@ class AppState:
     stage_totals: dict[str, int] = field(default_factory=dict)  # {stage: total_units}
     stage_completed: dict[str, int] = field(default_factory=dict)  # {stage: completed_units}
     stage_durations: dict[str, float] = field(default_factory=dict)  # {stage: duration_sec}
+    stage_status: dict[str, str] = field(default_factory=dict)  # {stage: pending|running|complete|error}
+    stage_started_at: dict[str, float] = field(default_factory=dict)  # {stage: start_ts}
+    stage_messages: dict[str, str] = field(default_factory=dict)  # {stage: last_message}
 
     # Results
     artifacts: list[dict[str, str]] = field(default_factory=list)
@@ -86,6 +91,9 @@ class AppState:
         self.stage_totals.clear()
         self.stage_completed.clear()
         self.stage_durations.clear()
+        self.stage_status.clear()
+        self.stage_started_at.clear()
+        self.stage_messages.clear()
         self.artifacts.clear()
         self.errors.clear()
         self.logs.clear()
@@ -133,6 +141,21 @@ def _append_to_ring(items: list[Any], item: Any, max_size: int) -> list[Any]:
     return result
 
 
+def _coerce_ts_to_float(ts: Any) -> float:
+    """Convert event timestamp to float seconds since epoch."""
+
+    if isinstance(ts, (int, float)):
+        return float(ts)
+
+    if isinstance(ts, str):
+        try:
+            return datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp()
+        except Exception:
+            return time.time()
+
+    return time.time()
+
+
 def apply_event(state: AppState, event: Event) -> AppState:
     """Pure reducer function: (state, event) -> new_state.
 
@@ -162,12 +185,16 @@ def apply_event(state: AppState, event: Event) -> AppState:
     # Match on event type
     if event_type == "stage_start":
         # data: {"description": str, "total": int}
+        total = event_data.get("total", 100)
         return dataclasses.replace(
             state,
             current_stage=event_stage,
             current_message=event_data.get("description", ""),
-            stage_totals={**state.stage_totals, event_stage: event_data.get("total", 100)},
+            stage_totals={**state.stage_totals, event_stage: total},
             stage_completed={**state.stage_completed, event_stage: 0},
+            stage_status={**state.stage_status, event_stage: "running"},
+            stage_started_at={**state.stage_started_at, event_stage: time.time()},
+            stage_messages={**state.stage_messages, event_stage: event_data.get("description", "")},
             is_running=True,
             can_cancel=True,
         )
@@ -182,19 +209,25 @@ def apply_event(state: AppState, event: Event) -> AppState:
         if total != state.stage_totals.get(event_stage):
             new_totals = {**state.stage_totals, event_stage: total}
 
+        msg = event_data.get("message", state.current_message)
+
         return dataclasses.replace(
             state,
             stage_completed={**state.stage_completed, event_stage: completed},
             stage_totals=new_totals,
-            current_message=event_data.get("message", state.current_message),
+            stage_status={**state.stage_status, event_stage: "running"},
+            stage_messages={**state.stage_messages, event_stage: msg},
+            current_message=msg,
             current_progress=(completed / total * 100) if total > 0 else 0,
         )
 
     elif event_type == "stage_end":
         # data: {"duration": float, "status": str}
+        status = event_data.get("status", "complete")
         return dataclasses.replace(
             state,
             stage_durations={**state.stage_durations, event_stage: event_data.get("duration", 0.0)},
+            stage_status={**state.stage_status, event_stage: status},
             current_stage=None,
             current_progress=0.0,
         )
@@ -210,7 +243,7 @@ def apply_event(state: AppState, event: Event) -> AppState:
         # data: {"message": str, "level": str, "logger": str}
         log_entry = LogEntry(
             type="log",
-            timestamp=event.ts,
+            timestamp=_coerce_ts_to_float(event.ts),
             level=event_data.get("level", "INFO"),
             message=event_data.get("message", ""),
             logger=event_data.get("logger", ""),
@@ -224,7 +257,7 @@ def apply_event(state: AppState, event: Event) -> AppState:
         # data: {"message": str, "level": str, "logger": str}
         log_entry = LogEntry(
             type="warning",
-            timestamp=event.ts,
+            timestamp=_coerce_ts_to_float(event.ts),
             level="WARNING",
             message=event_data.get("message", ""),
             logger=event_data.get("logger", ""),
@@ -239,14 +272,20 @@ def apply_event(state: AppState, event: Event) -> AppState:
         error_msg = event_data.get("message", "Unknown error")
         log_entry = LogEntry(
             type="error",
-            timestamp=event.ts,
+            timestamp=_coerce_ts_to_float(event.ts),
             level="ERROR",
             message=error_msg,
             logger=event_data.get("logger", ""),
         )
+
+        new_stage_status = state.stage_status
+        if event_stage:
+            new_stage_status = {**state.stage_status, event_stage: "error"}
+
         return dataclasses.replace(
             state,
             errors=[*state.errors, error_msg],
+            stage_status=new_stage_status,
             logs=_append_to_ring(state.logs, log_entry, max_size=UIConstants.MAX_LOG_ENTRIES),
         )
 

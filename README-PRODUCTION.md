@@ -1,6 +1,6 @@
 # Audio Extraction Analysis - Production Deployment Guide
 
-## Version: 1.0.0+emergency
+## Version: 2.2.0
 
 ## Table of Contents
 - [System Requirements](#system-requirements)
@@ -279,34 +279,7 @@ def lambda_handler(event, context):
 
 ## Monitoring
 
-### Event Streaming Integration
-
-```python
-# monitoring.py
-import json
-import subprocess
-from datetime import datetime
-
-def monitor_pipeline(video_file):
-    """Monitor pipeline execution via event streaming."""
-    process = subprocess.Popen(
-        ['audio-extraction-analysis', 'process', video_file, '--jsonl'],
-        stdout=subprocess.PIPE,
-        text=True
-    )
-    
-    for line in process.stdout:
-        event = json.loads(line)
-        
-        # Send to monitoring system
-        if event['type'] == 'error':
-            send_alert(event)
-        elif event['type'] == 'stage_end':
-            log_metric(event['stage'], event['data']['duration'])
-        
-        # Log to centralized logging
-        logger.info(f"Event: {event['type']} - {event.get('stage', 'N/A')}")
-```
+The CLI does not expose JSONL event streaming. Use application logs or wrap commands with your existing log shipping/metrics pipeline as needed.
 
 ### Prometheus Metrics
 

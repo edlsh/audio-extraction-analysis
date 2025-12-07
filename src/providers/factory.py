@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import importlib
-import logging
+from src.utils.logger import get_logger
 import os
 from typing import TYPE_CHECKING, Any
 
@@ -30,7 +30,7 @@ from .provider_utils import get_default_configs
 if TYPE_CHECKING:
     from pathlib import Path
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Lazy provider import registry: maps provider names to (module_path, class_name)
 # Providers are imported only when first accessed, not at module load time
@@ -193,6 +193,111 @@ class TranscriptionProviderFactory:
             pass  # Expected when nemo not installed
 
         return configured
+
+    @classmethod
+    def auto_select_provider(
+        cls, audio_file_path: "Path | None" = None, preferred_features: list[str] | None = None
+    ) -> str:
+        """Auto-select the best available provider based on configuration and file.
+
+        Selection priority:
+        1. Deepgram (most features, fastest for API-based)
+        2. ElevenLabs (good alternative API)
+        3. Whisper (local, no API key needed)
+        4. Parakeet (local, specialized)
+
+        Args:
+            audio_file_path: Optional path to audio file (for size-based selection)
+            preferred_features: Optional list of required features
+
+        Returns:
+            Name of the selected provider
+
+        Raises:
+            ValueError: If no providers are configured
+        """
+        configured = cls.get_configured_providers()
+
+        if not configured:
+            raise ValueError(
+                "No transcription providers configured. "
+                "Set DEEPGRAM_API_KEY or ELEVENLABS_API_KEY, or install whisper/parakeet."
+            )
+
+        # Priority order for selection
+        priority_order = ["deepgram", "elevenlabs", "whisper", "parakeet"]
+
+        # If file is very large (>100MB), prefer local providers to avoid upload time
+        if audio_file_path is not None:
+            try:
+                file_size_mb = audio_file_path.stat().st_size / (1024 * 1024)
+                if file_size_mb > 100:
+                    # Prefer local providers for large files
+                    priority_order = ["whisper", "parakeet", "deepgram", "elevenlabs"]
+                    logger.debug(f"Large file ({file_size_mb:.1f}MB), preferring local providers")
+            except (OSError, AttributeError):
+                pass  # File doesn't exist or path is None
+
+        # Select first available provider in priority order
+        for provider_name in priority_order:
+            if provider_name in configured:
+                logger.debug(f"Auto-selected provider: {provider_name}")
+                return provider_name
+
+        # Fallback to first configured provider
+        return configured[0]
+
+    @classmethod
+    def validate_provider_for_file(cls, provider_name: str, file_path: "Path") -> bool:
+        """Validate that a provider can handle the given file.
+
+        Checks:
+        - Provider is available and configured
+        - File size is within provider limits
+        - File format is supported
+
+        Args:
+            provider_name: Name of the provider to validate
+            file_path: Path to the audio file
+
+        Returns:
+            True if provider can handle the file, False otherwise
+        """
+        # Check provider is configured
+        configured = cls.get_configured_providers()
+        if provider_name not in configured:
+            logger.warning(f"Provider '{provider_name}' is not configured")
+            return False
+
+        # Check file exists and get size
+        try:
+            file_size_mb = file_path.stat().st_size / (1024 * 1024)
+        except (OSError, AttributeError) as e:
+            logger.warning(f"Cannot access file '{file_path}': {e}")
+            return False
+
+        # Provider-specific size limits (in MB)
+        size_limits = {
+            "deepgram": 2000,  # 2GB limit
+            "elevenlabs": 500,  # 500MB limit
+            "whisper": float("inf"),  # Local, no limit
+            "parakeet": float("inf"),  # Local, no limit
+        }
+
+        max_size = size_limits.get(provider_name, 100)  # Default 100MB
+        if file_size_mb > max_size:
+            logger.warning(
+                f"File size ({file_size_mb:.1f}MB) exceeds {provider_name} limit ({max_size}MB)"
+            )
+            return False
+
+        # Check file extension is audio
+        audio_extensions = {".mp3", ".wav", ".m4a", ".flac", ".ogg", ".opus", ".webm", ".mp4"}
+        if file_path.suffix.lower() not in audio_extensions:
+            logger.warning(f"File extension '{file_path.suffix}' may not be supported")
+            # Don't fail, just warn - provider might still handle it
+
+        return True
 
     @classmethod
     def _run_health_check(cls, provider: BaseTranscriptionProvider, provider_name: str) -> None:

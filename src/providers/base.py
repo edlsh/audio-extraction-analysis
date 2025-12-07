@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import atexit
 import concurrent.futures
-import logging
+from src.utils.logger import get_logger
 import time
 from abc import ABC, abstractmethod
 from asyncio import timeout as asyncio_timeout
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 from ..utils.constants import Limits, RetryDefaults, Timeouts
 from ..utils.retry import RetryConfig, retry_async
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 _WAIT_FOR = asyncio.wait_for
 
 
