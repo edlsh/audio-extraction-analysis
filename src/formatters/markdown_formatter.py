@@ -30,7 +30,7 @@ class MarkdownFormatter:
     """Formats transcription results as markdown documents."""
 
     def __init__(self, config: Config | None = None) -> None:
-        self.config = config or Config
+        self.config = config if config is not None else Config()
 
     def format_transcript(
         self,

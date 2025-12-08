@@ -7,6 +7,8 @@ from unittest.mock import patch
 
 import pytest
 
+pytest.importorskip("textual")
+
 from src.ui.tui.services.health_service import HealthService
 
 

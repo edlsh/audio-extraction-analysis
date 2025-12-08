@@ -8,6 +8,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+pytest.importorskip("textual")
+
 from src.ui.tui.state import AppState
 from src.ui.tui.views.run import RunScreen
 

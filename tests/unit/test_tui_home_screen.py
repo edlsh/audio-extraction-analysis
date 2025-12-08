@@ -9,6 +9,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+pytest.importorskip("textual")
+
 from src.ui.tui.state import AppState
 from src.ui.tui.views.home import HomeScreen
 from src.ui.tui.widgets.filtered_tree import FilteredDirectoryTree

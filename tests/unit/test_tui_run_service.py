@@ -8,6 +8,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+pytest.importorskip("textual")
+
 from src.models.events import QueueEventSink
 from src.ui.tui.services.run_service import run_pipeline
 

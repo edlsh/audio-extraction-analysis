@@ -7,6 +7,8 @@ import contextlib
 
 import pytest
 
+pytest.importorskip("textual")
+
 from src.models.events import Event
 from src.ui.tui.events import EventConsumer, EventConsumerConfig
 

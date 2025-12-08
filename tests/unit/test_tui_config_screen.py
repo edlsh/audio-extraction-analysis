@@ -8,6 +8,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+pytest.importorskip("textual")
+
 from src.ui.tui.persistence import default_settings
 from src.ui.tui.state import AppState
 from src.ui.tui.views.config import ConfigScreen

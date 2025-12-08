@@ -8,6 +8,8 @@ from unittest.mock import patch
 
 import pytest
 
+pytest.importorskip("textual")
+
 from src.ui.tui.services.os_open import open_path
 
 

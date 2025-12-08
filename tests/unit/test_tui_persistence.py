@@ -8,6 +8,8 @@ from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
+pytest.importorskip("textual")
+
 from src.ui.tui import persistence
 
 

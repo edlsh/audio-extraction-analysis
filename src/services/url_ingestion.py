@@ -8,6 +8,7 @@ from urllib.parse import ParseResult, urlparse
 from yt_dlp import YoutubeDL
 
 from ..exceptions import (
+    AudioAnalysisError,
     AudioExtractionError,
     UnsupportedUrlError,
     UrlDownloadError,
