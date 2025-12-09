@@ -123,38 +123,27 @@ class TestBuildPrerecordedOptions:
     """Test suite for building Deepgram prerecorded options."""
 
     def test_build_prerecorded_options_creates_correct_object(self) -> None:
-        """Test that PrerecordedOptions object is created with correct settings."""
+        """Test that options dict is created with correct settings."""
         language = "en-US"
 
-        # Mock the deepgram module
-        mock_deepgram = MagicMock()
-        mock_options_class = MagicMock()
-        mock_instance = MagicMock()
-        mock_options_class.return_value = mock_instance
-        mock_deepgram.PrerecordedOptions = mock_options_class
+        result = build_prerecorded_options(language)
 
-        with patch.dict("sys.modules", {"deepgram": mock_deepgram}):
-            result = build_prerecorded_options(language)
-
-            # Verify PrerecordedOptions was called with correct parameters
-            mock_options_class.assert_called_once_with(
-                model="nova-3",
-                smart_format=True,
-                utterances=True,
-                punctuate=True,
-                paragraphs=True,
-                diarize=True,
-                summarize="v2",
-                topics=True,
-                intents=True,
-                sentiment=True,
-                language=language,
-                detect_language=True,
-                alternatives=1,
-            )
-
-            # Verify the returned object is the mocked instance
-            assert result is mock_instance
+        # Verify dict was created with correct parameters
+        assert result == {
+            "model": "nova-3",
+            "smart_format": True,
+            "utterances": True,
+            "punctuate": True,
+            "paragraphs": True,
+            "diarize": True,
+            "summarize": "v2",
+            "topics": True,
+            "intents": True,
+            "sentiment": True,
+            "language": language,
+            "detect_language": True,
+            "alternatives": 1,
+        }
 
     @pytest.mark.parametrize(
         "language",
@@ -171,148 +160,74 @@ class TestBuildPrerecordedOptions:
     )
     def test_build_prerecorded_options_with_different_languages(self, language: str) -> None:
         """Test that options are built correctly for various language codes."""
-        mock_deepgram = MagicMock()
-        mock_options_class = MagicMock()
-        mock_instance = MagicMock()
-        mock_options_class.return_value = mock_instance
-        mock_deepgram.PrerecordedOptions = mock_options_class
+        result = build_prerecorded_options(language)
 
-        with patch.dict("sys.modules", {"deepgram": mock_deepgram}):
-            result = build_prerecorded_options(language)
-
-            # Verify language parameter was passed correctly
-            call_kwargs = mock_options_class.call_args[1]
-            assert call_kwargs["language"] == language
-            assert result is mock_instance
+        # Verify language parameter was passed correctly
+        assert result["language"] == language
+        assert isinstance(result, dict)
 
     def test_build_prerecorded_options_all_boolean_flags_enabled(self) -> None:
         """Test that all boolean flags are set to True as expected."""
-        mock_deepgram = MagicMock()
-        mock_options_class = MagicMock()
-        mock_deepgram.PrerecordedOptions = mock_options_class
+        result = build_prerecorded_options("en")
 
-        with patch.dict("sys.modules", {"deepgram": mock_deepgram}):
-            build_prerecorded_options("en")
+        boolean_flags = [
+            "smart_format",
+            "utterances",
+            "punctuate",
+            "paragraphs",
+            "diarize",
+            "topics",
+            "intents",
+            "sentiment",
+            "detect_language",
+        ]
 
-            call_kwargs = mock_options_class.call_args[1]
-            assert call_kwargs["smart_format"] is True
-            assert call_kwargs["utterances"] is True
-            assert call_kwargs["punctuate"] is True
-            assert call_kwargs["paragraphs"] is True
-            assert call_kwargs["diarize"] is True
-            assert call_kwargs["topics"] is True
-            assert call_kwargs["intents"] is True
-            assert call_kwargs["sentiment"] is True
-            assert call_kwargs["detect_language"] is True
+        for flag in boolean_flags:
+            assert result[flag] is True, f"Expected {flag} to be True"
 
     def test_build_prerecorded_options_model_version(self) -> None:
         """Test that nova-3 model is specified."""
-        mock_deepgram = MagicMock()
-        mock_options_class = MagicMock()
-        mock_deepgram.PrerecordedOptions = mock_options_class
-
-        with patch.dict("sys.modules", {"deepgram": mock_deepgram}):
-            build_prerecorded_options("en")
-
-            call_kwargs = mock_options_class.call_args[1]
-            assert call_kwargs["model"] == "nova-3"
+        result = build_prerecorded_options("en")
+        assert result["model"] == "nova-3"
 
     def test_build_prerecorded_options_summarize_version(self) -> None:
         """Test that summarize v2 is used."""
-        mock_deepgram = MagicMock()
-        mock_options_class = MagicMock()
-        mock_deepgram.PrerecordedOptions = mock_options_class
-
-        with patch.dict("sys.modules", {"deepgram": mock_deepgram}):
-            build_prerecorded_options("en")
-
-            call_kwargs = mock_options_class.call_args[1]
-            assert call_kwargs["summarize"] == "v2"
+        result = build_prerecorded_options("en")
+        assert result["summarize"] == "v2"
 
     def test_build_prerecorded_options_alternatives_count(self) -> None:
         """Test that alternatives is set to 1."""
-        mock_deepgram = MagicMock()
-        mock_options_class = MagicMock()
-        mock_deepgram.PrerecordedOptions = mock_options_class
-
-        with patch.dict("sys.modules", {"deepgram": mock_deepgram}):
-            build_prerecorded_options("en")
-
-            call_kwargs = mock_options_class.call_args[1]
-            assert call_kwargs["alternatives"] == 1
+        result = build_prerecorded_options("en")
+        assert result["alternatives"] == 1
 
     def test_build_prerecorded_options_with_empty_string_language(self) -> None:
         """Test options building with empty language string (edge case)."""
-        mock_deepgram = MagicMock()
-        mock_options_class = MagicMock()
-        mock_instance = MagicMock()
-        mock_options_class.return_value = mock_instance
-        mock_deepgram.PrerecordedOptions = mock_options_class
-
-        with patch.dict("sys.modules", {"deepgram": mock_deepgram}):
-            result = build_prerecorded_options("")
-
-            call_kwargs = mock_options_class.call_args[1]
-            assert call_kwargs["language"] == ""
-            assert result is mock_instance
+        result = build_prerecorded_options("")
+        assert result["language"] == ""
+        assert isinstance(result, dict)
 
     def test_build_prerecorded_options_preserves_language_casing(self) -> None:
         """Test that language parameter is passed as-is without modification."""
-        mock_deepgram = MagicMock()
-        mock_options_class = MagicMock()
-        mock_deepgram.PrerecordedOptions = mock_options_class
-
-        with patch.dict("sys.modules", {"deepgram": mock_deepgram}):
-            language = "EN-us"  # Mixed case
-            build_prerecorded_options(language)
-
-            call_kwargs = mock_options_class.call_args[1]
-            assert call_kwargs["language"] == language
+        language = "EN-us"  # Mixed case
+        result = build_prerecorded_options(language)
+        assert result["language"] == language
 
     def test_build_prerecorded_options_with_special_characters(self) -> None:
         """Test language code with special characters (edge case)."""
-        mock_deepgram = MagicMock()
-        mock_options_class = MagicMock()
-        mock_instance = MagicMock()
-        mock_options_class.return_value = mock_instance
-        mock_deepgram.PrerecordedOptions = mock_options_class
-
-        with patch.dict("sys.modules", {"deepgram": mock_deepgram}):
-            language = "en-US_variant"
-            result = build_prerecorded_options(language)
-
-            call_kwargs = mock_options_class.call_args[1]
-            assert call_kwargs["language"] == language
-            assert result is mock_instance
+        language = "zh-Hans-CN"  # Chinese Simplified
+        result = build_prerecorded_options(language)
+        assert result["language"] == language
+        assert isinstance(result, dict)
 
     def test_build_prerecorded_options_with_numeric_language(self) -> None:
         """Test language parameter with numeric values (unusual but valid string)."""
-        mock_deepgram = MagicMock()
-        mock_options_class = MagicMock()
-        mock_instance = MagicMock()
-        mock_options_class.return_value = mock_instance
-        mock_deepgram.PrerecordedOptions = mock_options_class
-
-        with patch.dict("sys.modules", {"deepgram": mock_deepgram}):
-            language = "lang-123"
-            result = build_prerecorded_options(language)
-
-            call_kwargs = mock_options_class.call_args[1]
-            assert call_kwargs["language"] == language
-            assert result is mock_instance
+        language = "lang-123"
+        result = build_prerecorded_options(language)
+        assert result["language"] == language
 
     def test_build_prerecorded_options_with_long_language_code(self) -> None:
         """Test language parameter with very long string."""
-        mock_deepgram = MagicMock()
-        mock_options_class = MagicMock()
-        mock_instance = MagicMock()
-        mock_options_class.return_value = mock_instance
-        mock_deepgram.PrerecordedOptions = mock_options_class
-
-        with patch.dict("sys.modules", {"deepgram": mock_deepgram}):
-            language = "en-US-x-very-long-variant-name"
-            result = build_prerecorded_options(language)
-
-            call_kwargs = mock_options_class.call_args[1]
-            assert call_kwargs["language"] == language
-            assert result is mock_instance
+        language = "en-US-x-very-long-variant-name"
+        result = build_prerecorded_options(language)
+        assert result["language"] == language
+        assert isinstance(result, dict)
