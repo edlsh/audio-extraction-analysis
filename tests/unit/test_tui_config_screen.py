@@ -58,7 +58,9 @@ def test_action_start_run_missing_input(config_screen: ConfigScreen) -> None:
     config_screen.app.state.input_path = None
     config_screen.notify = MagicMock()
     config_screen.action_start_run()
-    config_screen.notify.assert_called_with("No input file selected!", severity="error", timeout=3)
+    config_screen.notify.assert_called_with(
+        "No input file or URL selected!", severity="error", timeout=3
+    )
 
 
 @patch("src.ui.tui.views.config.save_settings", return_value=True)

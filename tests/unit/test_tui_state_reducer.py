@@ -235,7 +235,9 @@ class TestApplyEventLogs:
         assert new_state.logs[0].type == "log"
         assert new_state.logs[0].message == "Test log"
         assert new_state.logs[0].level == "INFO"
-        assert new_state.logs[0].timestamp == "2025-11-15T18:00:00Z"
+        # Timestamp is now stored as Unix float
+        assert isinstance(new_state.logs[0].timestamp, float)
+        assert new_state.logs[0].timestamp == 1763229600.0
 
     def test_warning_event(self):
         """Test warning event creates warning log entry."""

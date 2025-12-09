@@ -174,7 +174,7 @@ async def test_process_pipeline_transcription_failure(monkeypatch, tmp_path: Pat
 
 @pytest.mark.asyncio
 async def test_process_pipeline_analysis_failure_cleanup(monkeypatch, tmp_path: Path) -> None:
-    """Test that partial files are cleaned up when analysis fails."""
+    """Test that pipeline succeeds with partial results when analysis fails (graceful degradation)."""
     input_file = tmp_path / "test.mp4"
     input_file.write_bytes(b"video")
     output_dir = tmp_path / "analysis_fail_out"
@@ -214,14 +214,12 @@ async def test_process_pipeline_analysis_failure_cleanup(monkeypatch, tmp_path: 
         analysis_style="full",
     )
 
-    assert results["success"] is False
+    # Graceful degradation: pipeline succeeds if transcription completes
+    assert results["success"] is True
     assert any("Analysis failed" in err for err in results["errors"])
     assert "analysis" not in results["stages_completed"]
-    # Verify partial files were cleaned up
-    audio_file = output_dir / "test.mp3"
-    transcript_file = output_dir / "test_transcript.txt"
-    assert not audio_file.exists(), "Audio file should be cleaned up after analysis failure"
-    assert not transcript_file.exists(), "Transcript should be cleaned up after analysis failure"
+    assert "audio_extraction" in results["stages_completed"]
+    assert "transcription" in results["stages_completed"]
 
 
 @pytest.mark.asyncio
