@@ -3,8 +3,7 @@ name: Test Suite
 on:
   push:
     branches: [ main, develop ]
-  pull_request:
-    branches: [ main, develop ]
+  # PR tests handled by pr-ci.yml to avoid duplicate runs
 
 permissions:
   contents: write  # Allow pushing auto-fixes

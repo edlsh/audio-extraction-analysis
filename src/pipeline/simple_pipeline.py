@@ -423,7 +423,8 @@ async def process_pipeline(
             results["errors"].append(f"Analysis failed: {e!s}")
             logger.exception("Analysis failed")
             _emit_error("analyze", str(e), run_id)
-            results["success"] = False
+            # Graceful degradation: success if we have transcript (extraction + transcription)
+            results["success"] = len(results["stages_completed"]) >= 2
             _cleanup_on_failure(results.get("files_created", []))
 
         # Finalize
