@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from src.utils.logger import get_logger
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import ParseResult, urlparse
 
 from yt_dlp import YoutubeDL
+
+from src.utils.logger import get_logger
 
 from ..exceptions import (
     AudioAnalysisError,

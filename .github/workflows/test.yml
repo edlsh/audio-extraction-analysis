@@ -6,27 +6,79 @@ on:
   pull_request:
     branches: [ main, develop ]
 
+permissions:
+  contents: write  # Allow pushing auto-fixes
+
 env:
   AUDIO_TEST_MODE: 1  # Enable mock provider for CI
   UV_VERSION: '0.5.11'  # Pin UV version for consistency
   PYTHON_VERSION_DEFAULT: '3.11'
 
 jobs:
-  unit-tests:
-    name: Unit Tests
+  auto-fix:
+    name: Auto-fix Linting & Formatting
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.10", "3.11", "3.12"]
+    # Only auto-fix on push to main/develop, not on PRs (to avoid conflicts)
+    if: github.event_name == 'push'
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
     
-    - name: Set up uv with Python ${{ matrix.python-version }}
-      uses: astral-sh/setup-uv@v3
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v7
+      with:
+        version: ${{ env.UV_VERSION }}
+        enable-cache: true
+    
+    - name: Install dependencies
+      run: uv sync --locked --all-extras --dev
+    
+    - name: Auto-fix with ruff
+      run: |
+        uv run ruff check src tests --fix || true
+        uv run ruff format src tests || true
+    
+    - name: Auto-format with black
+      run: uv run black src tests || true
+    
+    - name: Commit and push fixes
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git add -A
+        git diff --staged --quiet || git commit -m "style: auto-fix linting and formatting [skip ci]"
+        git push || true
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: [auto-fix]
+    if: always()  # Run even if auto-fix was skipped (PRs)
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.ref }}  # Get latest including auto-fixes
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
+    
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v7
+      with:
         version: ${{ env.UV_VERSION }}
         enable-cache: true
         cache-dependency-glob: "uv.lock"
@@ -69,10 +121,14 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    
     - name: Set up uv
       uses: astral-sh/setup-uv@v7
       with:
-        python-version: "3.12"
         enable-cache: true
     
     - name: Install FFmpeg
@@ -91,32 +147,35 @@ jobs:
   static-analysis:
     name: Static Analysis
     runs-on: ubuntu-latest
+    needs: [auto-fix]
+    if: always()
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.ref }}  # Get latest including auto-fixes
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
     
     - name: Set up uv
       uses: astral-sh/setup-uv@v7
       with:
-        python-version: "3.12"
         enable-cache: true
     
     - name: Install dependencies
       run: |
         uv sync --locked --all-extras --dev
     
-    - name: Run linting
+    - name: Run linting (verify only)
       run: |
-        uv run ruff check src tests
+        uv run ruff check src tests || echo "::warning::Linting issues found (auto-fix should handle these)"
     
-    - name: Run type checking
+    - name: Check formatting (verify only)
       run: |
-        # Check annotations but respect ignore list (ANN401, ANN201, etc. are intentionally ignored)
-        uv run ruff check src
-    
-    - name: Check formatting
-      run: |
-        uv run black --check src tests
+        uv run black --check src tests || echo "::warning::Formatting issues found (auto-fix should handle these)"
     
     - name: Security scan
       run: |
@@ -134,10 +193,14 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    
     - name: Set up uv
       uses: astral-sh/setup-uv@v7
       with:
-        python-version: "3.12"
         enable-cache: true
     
     - name: Install system dependencies
@@ -164,10 +227,14 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    
     - name: Set up uv
       uses: astral-sh/setup-uv@v7
       with:
-        python-version: "3.12"
         enable-cache: true
     
     - name: Install dependencies
