@@ -103,7 +103,8 @@ Transform audio/video files into analyzed transcripts with ease.
   • Multiple transcription providers (Deepgram, ElevenLabs, Whisper, Parakeet)
   • Provider health monitoring
   • Auto-save configuration and recent files
-  • URL-based media processing (YouTube and more)\n""")
+  • URL-based media processing (YouTube and more)\n"""
+        )
 
     def _section_overview(self) -> Text:
         """Build overview section."""

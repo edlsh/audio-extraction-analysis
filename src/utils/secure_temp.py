@@ -9,11 +9,12 @@ This module provides secure patterns for temporary file creation with:
 
 from __future__ import annotations
 
-from src.utils.logger import get_logger
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from src.utils.logger import get_logger
 
 if TYPE_CHECKING:
     from collections.abc import Generator

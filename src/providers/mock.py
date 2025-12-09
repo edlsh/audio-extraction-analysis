@@ -1,12 +1,13 @@
 """Mock transcription provider for testing."""
 
 import asyncio
-from src.utils.logger import get_logger
 import time
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from src.utils.logger import get_logger
 
 from ..models.transcription import TranscriptionResult, TranscriptionUtterance
 from ..utils.retry import RetryConfig

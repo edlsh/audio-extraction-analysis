@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import asyncio
-from src.utils.logger import get_logger
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+
+from src.utils.logger import get_logger
 
 from ...models.events import Event
 

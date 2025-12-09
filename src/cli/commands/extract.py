@@ -1,9 +1,10 @@
 """Extract command handler."""
 
 import argparse
-from src.utils.logger import get_logger
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from src.utils.logger import get_logger
 
 from ...error_handlers import handle_cli_error
 from ...services.audio_extraction import AudioExtractor, AudioQuality

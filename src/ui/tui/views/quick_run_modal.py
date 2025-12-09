@@ -156,7 +156,7 @@ class QuickRunModal(ModalScreen):
         """Get display string for input file or URL."""
         if self.app.state.input_path:
             return self.app.state.input_path.name
-        
+
         pending = self.app.state.pending_run_config or {}
         url = pending.get("url", "")
         if url:
@@ -164,7 +164,7 @@ class QuickRunModal(ModalScreen):
             if len(url) > 40:
                 return url[:37] + "..."
             return url
-        
+
         return "No input selected"
 
     def _format_quality(self, quality: str) -> str:

@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import json
-from src.utils.logger import get_logger
 import subprocess
 import time
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+from src.utils.logger import get_logger
 
 from ..config import get_config
 from ..models.transcription import TranscriptionResult, TranscriptionUtterance

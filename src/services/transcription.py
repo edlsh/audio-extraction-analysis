@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import json
-from src.utils.logger import get_logger
 import math
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+from src.utils.logger import get_logger
 
 if TYPE_CHECKING:
     from collections.abc import Callable

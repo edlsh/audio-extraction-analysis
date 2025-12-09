@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from src.utils.logger import get_logger
 from pathlib import Path
 from typing import Any
+
+from src.utils.logger import get_logger
 
 from .sanitization import PathSanitizer
 

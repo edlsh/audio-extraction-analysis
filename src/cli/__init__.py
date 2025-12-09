@@ -2,8 +2,9 @@
 
 import argparse
 import asyncio
-from src.utils.logger import get_logger
 import sys
+
+from src.utils.logger import get_logger
 
 from ..error_handlers import handle_keyboard_interrupt
 from ..ui.console import ConsoleManager

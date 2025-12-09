@@ -10,11 +10,12 @@ circuit breaker patterns for production reliability.
 from __future__ import annotations
 
 import asyncio
-from src.utils.logger import get_logger
 import os
 import time
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, BinaryIO
+
+from src.utils.logger import get_logger
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -177,96 +178,96 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
 
     def _extract_topics(self, response: Any, result: TranscriptionResult, duration: float) -> None:
         """Extract topics and chapters from response."""
-        results = getattr(response, 'results', None)
+        results = getattr(response, "results", None)
         if results is None:
             return
-        topics_obj = getattr(results, 'topics', None)
+        topics_obj = getattr(results, "topics", None)
         if topics_obj is None:
             return
         # SDK v5: topics.results.topics.segments
-        topics_results = getattr(topics_obj, 'results', topics_obj)
+        topics_results = getattr(topics_obj, "results", topics_obj)
         if topics_results is None:
             return
-        topics_data = getattr(topics_results, 'topics', topics_results)
+        topics_data = getattr(topics_results, "topics", topics_results)
         if topics_data is None:
             return
-        segments = getattr(topics_data, 'segments', None)
+        segments = getattr(topics_data, "segments", None)
         if not segments:
             return
         for topic_segment in segments:
-            seg_topics = getattr(topic_segment, 'topics', [])
+            seg_topics = getattr(topic_segment, "topics", [])
             chapter = TranscriptionChapter(
-                start_time=getattr(topic_segment, 'start_time', 0),
-                end_time=getattr(topic_segment, 'end_time', duration),
-                topics=[getattr(t, 'topic', '') for t in seg_topics],
-                confidence_scores=[
-                    getattr(t, 'confidence_score', 0.0) for t in seg_topics
-                ],
+                start_time=getattr(topic_segment, "start_time", 0),
+                end_time=getattr(topic_segment, "end_time", duration),
+                topics=[getattr(t, "topic", "") for t in seg_topics],
+                confidence_scores=[getattr(t, "confidence_score", 0.0) for t in seg_topics],
             )
             result.chapters.append(chapter)
             for topic in seg_topics:
-                tname = getattr(topic, 'topic', '')
+                tname = getattr(topic, "topic", "")
                 if tname:
                     result.topics[tname] = result.topics.get(tname, 0) + 1
 
     def _extract_intents(self, response: Any, result: TranscriptionResult) -> None:
         """Extract intents from response."""
-        results = getattr(response, 'results', None)
+        results = getattr(response, "results", None)
         if results is None:
             return
-        intents_obj = getattr(results, 'intents', None)
+        intents_obj = getattr(results, "intents", None)
         if intents_obj is None:
             return
         # SDK v5: intents.results.intents.segments
-        intents_results = getattr(intents_obj, 'results', intents_obj)
+        intents_results = getattr(intents_obj, "results", intents_obj)
         if intents_results is None:
             return
-        intents_data = getattr(intents_results, 'intents', intents_results)
+        intents_data = getattr(intents_results, "intents", intents_results)
         if intents_data is None:
             return
-        segments = getattr(intents_data, 'segments', None)
+        segments = getattr(intents_data, "segments", None)
         if not segments:
             return
         for segment in segments:
-            seg_intents = getattr(segment, 'intents', [])
+            seg_intents = getattr(segment, "intents", [])
             for intent in seg_intents:
-                intent_name = getattr(intent, 'intent', '')
+                intent_name = getattr(intent, "intent", "")
                 if intent_name:
                     result.intents.append(intent_name)
 
     def _extract_sentiments(self, response: Any, result: TranscriptionResult) -> None:
         """Extract sentiment distribution from response."""
-        results = getattr(response, 'results', None)
+        results = getattr(response, "results", None)
         if results is None:
             return
-        sentiments_obj = getattr(results, 'sentiments', None)
+        sentiments_obj = getattr(results, "sentiments", None)
         if sentiments_obj is None:
             return
-        segments = getattr(sentiments_obj, 'segments', None)
+        segments = getattr(sentiments_obj, "segments", None)
         if not segments:
             return
         for segment in segments:
-            sentiment = getattr(segment, 'sentiment', None)
+            sentiment = getattr(segment, "sentiment", None)
             if sentiment:
-                result.sentiment_distribution[sentiment] = result.sentiment_distribution.get(sentiment, 0) + 1
+                result.sentiment_distribution[sentiment] = (
+                    result.sentiment_distribution.get(sentiment, 0) + 1
+                )
 
     def _extract_utterances(
         self, response: Any, result: TranscriptionResult, duration: float
     ) -> None:
         """Extract speaker utterances and calculate speaker statistics."""
-        results = getattr(response, 'results', None)
+        results = getattr(response, "results", None)
         if results is None:
             return
-        utterances = getattr(results, 'utterances', None)
+        utterances = getattr(results, "utterances", None)
         if not utterances:
             return
 
         speaker_times: dict[int, float] = {}
         for utterance in utterances:
-            speaker_id = getattr(utterance, 'speaker', 0)
-            start = getattr(utterance, 'start', 0.0)
-            end = getattr(utterance, 'end', 0.0)
-            transcript_text = getattr(utterance, 'transcript', '')
+            speaker_id = getattr(utterance, "speaker", 0)
+            start = getattr(utterance, "start", 0.0)
+            end = getattr(utterance, "end", 0.0)
+            transcript_text = getattr(utterance, "transcript", "")
             duration_segment = end - start
             speaker_times[speaker_id] = speaker_times.get(speaker_id, 0.0) + duration_segment
             result.utterances.append(
@@ -293,19 +294,19 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
     ) -> TranscriptionResult:
         """Parse Deepgram API response into structured TranscriptionResult."""
         # SDK v5: access via attributes with safe fallbacks
-        results = getattr(response, 'results', None)
-        metadata = getattr(response, 'metadata', None)
-        
+        results = getattr(response, "results", None)
+        metadata = getattr(response, "metadata", None)
+
         # Get transcript from channels
-        channels = getattr(results, 'channels', []) if results else []
-        transcript = ''
+        channels = getattr(results, "channels", []) if results else []
+        transcript = ""
         if channels:
-            alternatives = getattr(channels[0], 'alternatives', [])
+            alternatives = getattr(channels[0], "alternatives", [])
             if alternatives:
-                transcript = getattr(alternatives[0], 'transcript', '')
-        
+                transcript = getattr(alternatives[0], "transcript", "")
+
         # Get duration from metadata
-        duration = getattr(metadata, 'duration', 0.0) if metadata else 0.0
+        duration = getattr(metadata, "duration", 0.0) if metadata else 0.0
 
         result = TranscriptionResult(
             transcript=transcript,
@@ -318,9 +319,9 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
 
         # Extract summary if available
         if results:
-            summary_obj = getattr(results, 'summary', None)
+            summary_obj = getattr(results, "summary", None)
             if summary_obj:
-                result.summary = getattr(summary_obj, 'short', '')
+                result.summary = getattr(summary_obj, "short", "")
 
         self._extract_topics(response, result, duration)
         self._extract_intents(response, result)

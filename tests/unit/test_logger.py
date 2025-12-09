@@ -97,10 +97,10 @@ class TestConfigureLogger:
         """Test configure_logger with file handler enabled."""
         log_file = tmp_path / "test.log"
         configure_logger(add_file_handler=True, file_path=str(log_file))
-        
+
         logger = get_logger("test.file")
         logger.info("Test file message")
-        
+
         # Loguru writes to configured directory
         # The actual log file location is managed by loguru_config
 

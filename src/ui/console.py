@@ -7,13 +7,13 @@ import json
 import logging
 import re
 import sys
-
-from src.utils.logger import get_logger
 import threading
 import time
 from contextlib import contextmanager
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
+
+from src.utils.logger import get_logger
 
 if TYPE_CHECKING:
     from rich.progress import TaskID
@@ -255,7 +255,11 @@ class ConsoleManager:
         if self.json_output:
             print(
                 json.dumps(
-                    {"timestamp": self._get_timestamp(), "type": "error", "message": message}
+                    {
+                        "timestamp": self._get_timestamp(),
+                        "type": "error",
+                        "message": message,
+                    }
                 ),
                 file=sys.stderr,
             )

@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import asyncio
-from src.utils.logger import get_logger
 import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from src.utils.logger import get_logger
 
 if TYPE_CHECKING:
     from collections.abc import Callable

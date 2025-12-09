@@ -9,11 +9,11 @@ This module configures loguru for structured logging with features optimized for
 
 Usage:
     from src.utils.loguru_config import configure_loguru, get_logger
-    
+
     configure_loguru()  # Call once at application startup
     logger = get_logger(__name__)
     logger.info("Starting process", extra_context="value")
-    
+
     # For TUI mode:
     from src.utils.loguru_config import set_tui_mode
     set_tui_mode(enabled=True, event_sink=my_sink)  # Route logs to TUI

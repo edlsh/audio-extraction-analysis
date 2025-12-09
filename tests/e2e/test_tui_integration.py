@@ -31,7 +31,7 @@ async def test_help_key_opens_help_screen() -> None:
     app = AudioExtractionApp()
     async with app.run_test() as pilot:
         await pilot.pause()
-        
+
         # Press 'h' to open help
         await pilot.press("h")
         await pilot.pause()
@@ -45,11 +45,11 @@ async def test_help_key_opens_help_screen() -> None:
 async def test_ctrl_s_opens_settings_screen() -> None:
     """Verify pressing Ctrl+S opens settings screen from home."""
     from src.ui.tui.views.settings import SettingsScreen
-    
+
     app = AudioExtractionApp()
     async with app.run_test() as pilot:
         await pilot.pause()
-        
+
         # Press Ctrl+S to open settings
         await pilot.press("ctrl+s")
         await pilot.pause()

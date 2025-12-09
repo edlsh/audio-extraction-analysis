@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from src.utils.logger import get_logger
 import platform
 import subprocess
 from typing import TYPE_CHECKING
+
+from src.utils.logger import get_logger
 
 if TYPE_CHECKING:
     from pathlib import Path

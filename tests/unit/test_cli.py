@@ -47,7 +47,14 @@ class TestCLIParser:
         parser = create_parser()
 
         args = parser.parse_args(
-            ["extract", "video.mp4", "--output", "audio.mp3", "--quality", "high"]
+            [
+                "extract",
+                "video.mp4",
+                "--output",
+                "audio.mp3",
+                "--quality",
+                "high",
+            ]
         )
         assert args.command == "extract"
         assert args.input_file == "video.mp4"

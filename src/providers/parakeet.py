@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import gc
-from src.utils.logger import get_logger
 import os
 import tempfile
 import time
@@ -12,6 +11,8 @@ from datetime import datetime
 from pathlib import Path
 from threading import Lock
 from typing import TYPE_CHECKING, Any
+
+from src.utils.logger import get_logger
 
 from ..exceptions import ParakeetAudioError, ParakeetError, ParakeetGPUError, ParakeetModelError
 from ..models.transcription import TranscriptionResult, TranscriptionUtterance

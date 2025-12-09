@@ -18,9 +18,10 @@ from __future__ import annotations
 
 import asyncio
 import importlib
-from src.utils.logger import get_logger
 import os
 from typing import TYPE_CHECKING, Any
+
+from src.utils.logger import get_logger
 
 from ..config import get_config
 from ..utils.retry import RetryConfig
@@ -196,7 +197,7 @@ class TranscriptionProviderFactory:
 
     @classmethod
     def auto_select_provider(
-        cls, audio_file_path: "Path | None" = None, preferred_features: list[str] | None = None
+        cls, audio_file_path: Path | None = None, preferred_features: list[str] | None = None
     ) -> str:
         """Auto-select the best available provider based on configuration and file.
 
@@ -248,7 +249,7 @@ class TranscriptionProviderFactory:
         return configured[0]
 
     @classmethod
-    def validate_provider_for_file(cls, provider_name: str, file_path: "Path") -> bool:
+    def validate_provider_for_file(cls, provider_name: str, file_path: Path) -> bool:
         """Validate that a provider can handle the given file.
 
         Checks:

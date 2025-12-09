@@ -6,7 +6,6 @@ replacing the legacy custom implementation with a battle-tested library.
 
 from __future__ import annotations
 
-from src.utils.logger import get_logger
 import random
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -20,6 +19,8 @@ from tenacity import (
     stop_after_attempt,
     wait_exponential_jitter,
 )
+
+from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 

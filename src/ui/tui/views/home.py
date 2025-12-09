@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from src.utils.logger import get_logger
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
@@ -10,6 +9,8 @@ from textual._context import active_app
 from textual.containers import Container, Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import Button, DataTable, Footer, Header, Input, Label
+
+from src.utils.logger import get_logger
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
@@ -171,7 +172,7 @@ class HomeScreen(Screen):
 
         yield Container(tree_pane, recent_pane, id="home-container")
         yield Input(placeholder="Type / to filter files...", id="filter-input")
-        
+
         # Inline URL input row
         yield Horizontal(
             Label("🔗 Or paste a URL:", id="url-label"),
@@ -180,7 +181,7 @@ class HomeScreen(Screen):
             Button("⚙️ Settings", variant="default", id="settings-btn"),
             id="url-row",
         )
-        
+
         yield Footer()
 
     def on_mount(self) -> None:

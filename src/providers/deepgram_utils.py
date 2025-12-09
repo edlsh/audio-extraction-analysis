@@ -43,4 +43,3 @@ def build_prerecorded_options(language: str) -> dict:
         "detect_language": True,
         "alternatives": 1,
     }
-

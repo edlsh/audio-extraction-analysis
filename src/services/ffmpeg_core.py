@@ -8,13 +8,14 @@ from __future__ import annotations
 
 import asyncio
 import json
-from src.utils.logger import get_logger
 import re
 import shlex
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from src.utils.logger import get_logger
 
 if TYPE_CHECKING:
     pass

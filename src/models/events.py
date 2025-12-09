@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import json
-from src.utils.logger import get_logger
 import threading
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from typing import Literal, Protocol
+
+from src.utils.logger import get_logger
 
 EventType = Literal[
     "stage_start",

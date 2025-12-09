@@ -1,6 +1,7 @@
 """Common utilities for CLI commands."""
 
 import argparse
+
 from src.utils.logger import get_logger
 
 from ..services.audio_extraction import AudioQuality

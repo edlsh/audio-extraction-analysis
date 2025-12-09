@@ -139,7 +139,11 @@ class SettingsScreen(Screen):
                 Horizontal(
                     Label("Deepgram API Key", classes="api-key-label"),
                     Static(
-                        "[green]✓ Configured[/green]" if self.api_keys.get("deepgram") else "[dim]Not set[/dim]",
+                        (
+                            "[green]✓ Configured[/green]"
+                            if self.api_keys.get("deepgram")
+                            else "[dim]Not set[/dim]"
+                        ),
                         id="deepgram-status",
                         classes="key-status",
                     ),
@@ -158,7 +162,11 @@ class SettingsScreen(Screen):
                 Horizontal(
                     Label("ElevenLabs API Key", classes="api-key-label"),
                     Static(
-                        "[green]✓ Configured[/green]" if self.api_keys.get("elevenlabs") else "[dim]Not set[/dim]",
+                        (
+                            "[green]✓ Configured[/green]"
+                            if self.api_keys.get("elevenlabs")
+                            else "[dim]Not set[/dim]"
+                        ),
                         id="elevenlabs-status",
                         classes="key-status",
                     ),
@@ -177,7 +185,11 @@ class SettingsScreen(Screen):
                 Horizontal(
                     Label("Gemini API Key", classes="api-key-label"),
                     Static(
-                        "[green]✓ Configured[/green]" if self.api_keys.get("gemini") else "[dim]Not set[/dim]",
+                        (
+                            "[green]✓ Configured[/green]"
+                            if self.api_keys.get("gemini")
+                            else "[dim]Not set[/dim]"
+                        ),
                         id="gemini-status",
                         classes="key-status",
                     ),

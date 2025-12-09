@@ -76,7 +76,7 @@ def test_load_api_keys_returns_defaults_when_empty(monkeypatch):
     """Test load_api_keys returns empty strings when no keys are configured."""
     monkeypatch.setattr("src.ui.tui.persistence.get_config_dir", lambda: None)
     keys = persistence.load_api_keys()
-    
+
     assert "deepgram" in keys
     assert "elevenlabs" in keys
     assert "gemini" in keys
@@ -93,13 +93,13 @@ def test_load_api_keys_returns_stored_keys(monkeypatch):
             "gemini": "gem-key",
         }
     }
-    
+
     monkeypatch.setattr("src.ui.tui.persistence.get_config_dir", lambda: settings_file.parent)
     patcher = mock_open(read_data=json.dumps(stored_settings))
-    
+
     with patch("builtins.open", patcher), patch.object(Path, "exists", return_value=True):
         keys = persistence.load_api_keys()
-    
+
     assert keys["deepgram"] == "dg-test-key"
     assert keys["elevenlabs"] == ""
     assert keys["gemini"] == "gem-key"
@@ -110,9 +110,9 @@ def test_load_api_keys_returns_stored_keys(monkeypatch):
 def test_save_api_key_updates_settings(mock_load, mock_save):
     """Test save_api_key updates the correct provider key."""
     mock_load.return_value = persistence.default_settings()
-    
+
     result = persistence.save_api_key("deepgram", "new-key-123")
-    
+
     assert result is True
     assert mock_save.called
     saved_settings = mock_save.call_args[0][0]
@@ -132,16 +132,16 @@ def test_inject_api_keys_to_env_sets_variables(monkeypatch):
         "src.ui.tui.persistence.load_api_keys",
         lambda: {"deepgram": "test-dg-key", "elevenlabs": "", "gemini": "test-gem-key"},
     )
-    
+
     # Clear any existing env vars
     monkeypatch.delenv("DEEPGRAM_API_KEY", raising=False)
     monkeypatch.delenv("ELEVENLABS_API_KEY", raising=False)
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
-    
+
     import os
-    
+
     count = persistence.inject_api_keys_to_env()
-    
+
     assert count == 2  # Only deepgram and gemini have values
     assert os.environ.get("DEEPGRAM_API_KEY") == "test-dg-key"
     assert os.environ.get("ELEVENLABS_API_KEY") is None  # Empty string not set
@@ -151,17 +151,17 @@ def test_inject_api_keys_to_env_sets_variables(monkeypatch):
 def test_inject_api_keys_does_not_override_existing(monkeypatch):
     """Test inject_api_keys_to_env does not override existing env vars."""
     import os
-    
+
     # Set existing env var
     monkeypatch.setenv("DEEPGRAM_API_KEY", "existing-key")
-    
+
     # Mock load_api_keys to return different key
     monkeypatch.setattr(
         "src.ui.tui.persistence.load_api_keys",
         lambda: {"deepgram": "stored-key", "elevenlabs": "", "gemini": ""},
     )
-    
+
     count = persistence.inject_api_keys_to_env()
-    
+
     assert count == 0  # Nothing injected since DEEPGRAM_API_KEY exists
     assert os.environ.get("DEEPGRAM_API_KEY") == "existing-key"

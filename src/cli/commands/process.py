@@ -2,10 +2,11 @@
 
 import argparse
 import json
-from src.utils.logger import get_logger
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from src.utils.logger import get_logger
 
 from ...config import get_config
 from ...error_handlers import handle_cli_error

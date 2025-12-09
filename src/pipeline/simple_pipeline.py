@@ -10,10 +10,11 @@ totaling ~2,700 LOC for what is fundamentally a 3-step sequential process.
 from __future__ import annotations
 
 import asyncio
-from src.utils.logger import get_logger
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, NotRequired, Required, TypedDict
+
+from src.utils.logger import get_logger
 
 from ..analysis.concise_analyzer import ConciseAnalyzer
 from ..analysis.full_analyzer import FullAnalyzer
@@ -196,7 +197,9 @@ async def _transcribe_audio(
 
         def progress_callback(completed: int, total: int) -> None:
             progress.update(completed, total, "Transcribing audio...")
-            _emit_stage_progress("transcribe", completed, total or 100, "Transcribing audio...", run_id)
+            _emit_stage_progress(
+                "transcribe", completed, total or 100, "Transcribing audio...", run_id
+            )
 
         provider_name: str | None = None if provider == "auto" else provider
         transcript: TranscriptionResultType | None = await service.transcribe_with_progress(

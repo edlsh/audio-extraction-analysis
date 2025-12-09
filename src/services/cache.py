@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import hashlib
 import json
-from src.utils.logger import get_logger
 import os
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from src.utils.logger import get_logger
 
 if TYPE_CHECKING:
     from ..models.transcription import TranscriptionResult

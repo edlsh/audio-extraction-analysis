@@ -67,7 +67,9 @@ class AppState:
     stage_totals: dict[str, int] = field(default_factory=dict)  # {stage: total_units}
     stage_completed: dict[str, int] = field(default_factory=dict)  # {stage: completed_units}
     stage_durations: dict[str, float] = field(default_factory=dict)  # {stage: duration_sec}
-    stage_status: dict[str, str] = field(default_factory=dict)  # {stage: pending|running|complete|error}
+    stage_status: dict[str, str] = field(
+        default_factory=dict
+    )  # {stage: pending|running|complete|error}
     stage_started_at: dict[str, float] = field(default_factory=dict)  # {stage: start_ts}
     stage_messages: dict[str, str] = field(default_factory=dict)  # {stage: last_message}
 

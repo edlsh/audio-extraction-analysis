@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from src.utils.logger import get_logger
 import sys
 from typing import NoReturn
 
@@ -21,6 +20,7 @@ from src.exceptions import (
     UrlIngestionError,
     ValidationError,
 )
+from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 

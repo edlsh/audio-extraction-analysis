@@ -1,9 +1,10 @@
 """TUI command handler."""
 
 import argparse
-from src.utils.logger import get_logger
 import sys
 from typing import TYPE_CHECKING
+
+from src.utils.logger import get_logger
 
 from ...error_handlers import handle_cli_error
 from ...ui.console import ConsoleManager

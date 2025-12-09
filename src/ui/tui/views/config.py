@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from src.utils.logger import get_logger
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
@@ -10,6 +9,8 @@ from textual._context import active_app
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import Button, Checkbox, Footer, Header, Input, Label, Select
+
+from src.utils.logger import get_logger
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult

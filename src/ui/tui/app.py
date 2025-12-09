@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-from src.utils.logger import get_logger
 from pathlib import Path
 from typing import Any
 
@@ -11,6 +10,8 @@ from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical
 from textual.screen import Screen as TextualScreen
 from textual.widgets import Button, Footer, Header, Label
+
+from src.utils.logger import get_logger
 
 from ...models.events import Event, QueueEventSink
 from .persistence import load_settings, save_settings

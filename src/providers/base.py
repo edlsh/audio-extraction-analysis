@@ -9,7 +9,6 @@ from __future__ import annotations
 import asyncio
 import atexit
 import concurrent.futures
-from src.utils.logger import get_logger
 import time
 from abc import ABC, abstractmethod
 from asyncio import timeout as asyncio_timeout
@@ -17,6 +16,8 @@ from collections.abc import Awaitable
 from dataclasses import dataclass
 from threading import Lock
 from typing import TYPE_CHECKING, Any, TypeVar
+
+from src.utils.logger import get_logger
 
 T = TypeVar("T")
 

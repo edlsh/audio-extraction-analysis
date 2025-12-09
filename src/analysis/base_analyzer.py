@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from src.utils.logger import get_logger
 from typing import TYPE_CHECKING
+
+from src.utils.logger import get_logger
 
 from ..utils.constants import AnalysisConstants
 from ..utils.formatting import format_duration
