@@ -102,9 +102,7 @@ class TestPrepareExtractionPaths:
             "src.services.ffmpeg_core.validate_media_file_or_raise",
             return_value=input_file,
         ):
-            _, output_result = prepare_extraction_paths(
-                input_file, None, default_suffix=".wav"
-            )
+            _, output_result = prepare_extraction_paths(input_file, None, default_suffix=".wav")
 
             assert output_result.suffix == ".wav"
 
@@ -208,7 +206,9 @@ class TestValidatePathSecurity:
         with pytest.raises(ValueError) as exc_info:
             validate_path_security(unsafe_path)
 
-        assert "dangerous" in str(exc_info.value).lower() or "invalid" in str(exc_info.value).lower()
+        assert (
+            "dangerous" in str(exc_info.value).lower() or "invalid" in str(exc_info.value).lower()
+        )
 
     def test_path_with_ampersand_raises(self, tmp_path):
         """Path with ampersand should raise ValueError."""
@@ -217,7 +217,9 @@ class TestValidatePathSecurity:
         with pytest.raises(ValueError) as exc_info:
             validate_path_security(unsafe_path)
 
-        assert "dangerous" in str(exc_info.value).lower() or "invalid" in str(exc_info.value).lower()
+        assert (
+            "dangerous" in str(exc_info.value).lower() or "invalid" in str(exc_info.value).lower()
+        )
 
     def test_path_with_backtick_raises(self, tmp_path):
         """Path with backtick should raise ValueError."""
@@ -226,7 +228,9 @@ class TestValidatePathSecurity:
         with pytest.raises(ValueError) as exc_info:
             validate_path_security(unsafe_path)
 
-        assert "dangerous" in str(exc_info.value).lower() or "invalid" in str(exc_info.value).lower()
+        assert (
+            "dangerous" in str(exc_info.value).lower() or "invalid" in str(exc_info.value).lower()
+        )
 
 
 class TestCleanupTempFile:

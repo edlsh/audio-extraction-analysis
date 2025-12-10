@@ -236,7 +236,8 @@ class TestElevenLabsTranscriberTranscription:
 
         with patch("builtins.open", mock_open(read_data=b"fake_audio_data")):
             with patch(
-                "src.providers.elevenlabs.validate_audio_file_or_raise", return_value=temp_audio_file
+                "src.providers.elevenlabs.validate_audio_file_or_raise",
+                return_value=temp_audio_file,
             ):
                 with patch(
                     "src.providers.elevenlabs.asyncio.wait_for", new_callable=AsyncMock
@@ -589,7 +590,8 @@ class TestElevenLabsTranscriberEdgeCases:
 
         with patch("builtins.open", mock_open(read_data=b"test_audio")):
             with patch(
-                "src.providers.elevenlabs.validate_audio_file_or_raise", return_value=temp_audio_file
+                "src.providers.elevenlabs.validate_audio_file_or_raise",
+                return_value=temp_audio_file,
             ):
                 with patch(
                     "src.providers.elevenlabs.asyncio.wait_for", new_callable=AsyncMock
@@ -613,7 +615,8 @@ class TestElevenLabsTranscriberEdgeCases:
 
         with patch("builtins.open", mock_open(read_data=b"test_audio")):
             with patch(
-                "src.providers.elevenlabs.validate_audio_file_or_raise", return_value=temp_audio_file
+                "src.providers.elevenlabs.validate_audio_file_or_raise",
+                return_value=temp_audio_file,
             ):
                 with patch(
                     "src.providers.elevenlabs.asyncio.wait_for", new_callable=AsyncMock
@@ -637,7 +640,8 @@ class TestElevenLabsTranscriberEdgeCases:
 
         with patch("builtins.open", mock_open(read_data=b"test_audio")):
             with patch(
-                "src.providers.elevenlabs.validate_audio_file_or_raise", return_value=temp_audio_file
+                "src.providers.elevenlabs.validate_audio_file_or_raise",
+                return_value=temp_audio_file,
             ):
                 with patch.object(
                     transcriber,
@@ -668,7 +672,8 @@ class TestElevenLabsTranscriberEdgeCases:
 
         with patch("builtins.open", mock_open(read_data=b"test_audio")):
             with patch(
-                "src.providers.elevenlabs.validate_audio_file_or_raise", return_value=temp_audio_file
+                "src.providers.elevenlabs.validate_audio_file_or_raise",
+                return_value=temp_audio_file,
             ):
                 with patch(
                     "src.providers.elevenlabs.asyncio.wait_for", new_callable=AsyncMock

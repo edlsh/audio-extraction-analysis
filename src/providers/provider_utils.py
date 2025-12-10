@@ -31,10 +31,10 @@ T = TypeVar("T")
 
 def check_sdk_available(meta: ProviderMeta) -> bool:
     """Check if required SDK modules are available for a provider.
-    
+
     Args:
         meta: ProviderMeta with sdk_imports list
-        
+
     Returns:
         True if all required modules can be imported, False otherwise
     """
@@ -51,10 +51,10 @@ def check_sdk_available(meta: ProviderMeta) -> bool:
 
 def require_sdk(meta: ProviderMeta) -> None:
     """Raise ImportError if SDK is not available.
-    
+
     Args:
         meta: ProviderMeta with sdk_imports and install_command
-        
+
     Raises:
         ImportError: If required SDK modules are not installed
     """

@@ -81,6 +81,7 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
     def _create_client(self) -> Any:
         """Create and return a Deepgram client."""
         from deepgram import DeepgramClient
+
         return DeepgramClient(api_key=self.api_key)
 
     def _log_file_info(self, audio_file_path: Path) -> None:
@@ -203,9 +204,13 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
         for segment in getattr(sentiments_obj, "segments", []):
             sentiment = getattr(segment, "sentiment", None)
             if sentiment:
-                result.sentiment_distribution[sentiment] = result.sentiment_distribution.get(sentiment, 0) + 1
+                result.sentiment_distribution[sentiment] = (
+                    result.sentiment_distribution.get(sentiment, 0) + 1
+                )
 
-    def _extract_utterances(self, response: Any, result: TranscriptionResult, duration: float) -> None:
+    def _extract_utterances(
+        self, response: Any, result: TranscriptionResult, duration: float
+    ) -> None:
         """Extract speaker utterances and calculate speaker statistics."""
         results = getattr(response, "results", None)
         if not results:
@@ -222,7 +227,9 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
             transcript_text = getattr(utterance, "transcript", "")
             speaker_times[speaker_id] = speaker_times.get(speaker_id, 0.0) + (end - start)
             result.utterances.append(
-                TranscriptionUtterance(speaker=speaker_id, start=start, end=end, text=transcript_text)
+                TranscriptionUtterance(
+                    speaker=speaker_id, start=start, end=end, text=transcript_text
+                )
             )
 
         safe_total = duration if duration and duration > 0 else 1.0
@@ -232,7 +239,9 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
                 TranscriptionSpeaker(id=speaker_id, total_time=total_time, percentage=percentage)
             )
 
-    def _parse_response(self, response: Any, audio_file_path: Path, language: str) -> TranscriptionResult:
+    def _parse_response(
+        self, response: Any, audio_file_path: Path, language: str
+    ) -> TranscriptionResult:
         """Parse Deepgram API response into structured TranscriptionResult."""
         results = getattr(response, "results", None)
         metadata = getattr(response, "metadata", None)
@@ -270,14 +279,24 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
     # ---------------------- Public API ----------------------
     async def health_check_async(self) -> dict[str, Any]:
         """Perform health check for Deepgram service."""
+
         async def _check() -> dict[str, Any]:
             from deepgram import DeepgramClient
 
             if not self.api_key or len(self.api_key) < self.META.api_key_min_length:
-                return {"healthy": False, "status": "invalid_api_key", "error": "API key appears to be invalid or missing"}
+                return {
+                    "healthy": False,
+                    "status": "invalid_api_key",
+                    "error": "API key appears to be invalid or missing",
+                }
 
             DeepgramClient(self.api_key)
-            return {"healthy": True, "status": "operational", "api_accessible": True, "authentication": "key_format_valid"}
+            return {
+                "healthy": True,
+                "status": "operational",
+                "api_accessible": True,
+                "authentication": "key_format_valid",
+            }
 
         return await self._run_health_check(_check)
 
@@ -286,7 +305,7 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
         self, audio_file_path: Path, language: str = "en"
     ) -> TranscriptionResult | None:
         """Internal transcription implementation.
-        
+
         Uses streaming upload for files larger than 100MB to avoid memory issues.
         """
         audio_file_path = validate_audio_file_or_raise(audio_file_path, provider_name="deepgram")
@@ -296,10 +315,12 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
 
         client = self._create_client()
         file_size = self._get_file_size(audio_file_path)
-        
+
         if file_size > STREAMING_THRESHOLD_BYTES:
             # Large file: use streaming upload to avoid loading entire file into memory
-            logger.info(f"Using streaming upload for large file ({file_size / (1024 * 1024):.1f} MB)")
+            logger.info(
+                f"Using streaming upload for large file ({file_size / (1024 * 1024):.1f} MB)"
+            )
             with open(audio_file_path, "rb") as audio_file:
                 response = self._submit_transcription_job_streaming(client, audio_file, language)
         else:
@@ -307,6 +328,6 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
             logger.info("Sending to Deepgram Nova 3...")
             audio_bytes = audio_file_path.read_bytes()
             response = self._submit_transcription_job(client, audio_bytes, language)
-        
+
         logger.info("Transcription completed successfully")
         return self._parse_response(response, audio_file_path, language)

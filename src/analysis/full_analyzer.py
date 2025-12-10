@@ -249,7 +249,9 @@ class FullAnalyzer(BaseAnalyzer):
             if current_min > last_section_min:
                 lines.append(f"\n## Section starting at [{self._format_timestamp(utt.start)}]\n")
                 last_section_min = current_min
-            lines.append(f"[{self._format_timestamp(utt.start)}] Speaker {utt.speaker + 1}: {utt.text}")
+            lines.append(
+                f"[{self._format_timestamp(utt.start)}] Speaker {utt.speaker + 1}: {utt.text}"
+            )
         return lines
 
     def _render_speaker_statistics(
@@ -262,7 +264,9 @@ class FullAnalyzer(BaseAnalyzer):
             totals[utt.speaker] = totals.get(utt.speaker, 0.0) + max(0.0, utt.end - utt.start)
         for speaker_id, seconds in sorted(totals.items()):
             pct = (seconds / duration) * 100
-            lines.append(f"- Speaker {speaker_id + 1}: {self._format_timestamp(seconds)} ({pct:.1f}%)")
+            lines.append(
+                f"- Speaker {speaker_id + 1}: {self._format_timestamp(seconds)} ({pct:.1f}%)"
+            )
         return lines
 
     def _render_full_transcript(self, result: TranscriptionResult) -> str:

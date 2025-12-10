@@ -64,9 +64,9 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
         """Initialize the ElevenLabs transcriber with API key and configurations."""
         retry_config, circuit_config = get_default_configs(retry_config, circuit_config)
         super().__init__(api_key, circuit_config, retry_config)
-        
+
         self.api_key = self._resolve_api_key()
-        
+
         if not PROVIDER_AVAILABLE:
             raise ImportError("ElevenLabs SDK not available. Install with: uv add elevenlabs")
 
@@ -77,9 +77,14 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
 
     async def health_check_async(self) -> dict[str, Any]:
         """Perform health check for ElevenLabs service."""
+
         async def _check() -> dict[str, Any]:
             if not PROVIDER_AVAILABLE:
-                return {"healthy": False, "status": "sdk_not_available", "error": "ElevenLabs SDK not installed"}
+                return {
+                    "healthy": False,
+                    "status": "sdk_not_available",
+                    "error": "ElevenLabs SDK not installed",
+                }
 
             client = ElevenLabsClient(api_key=self.api_key)
             config = get_config()

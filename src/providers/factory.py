@@ -165,10 +165,10 @@ class TranscriptionProviderFactory:
             try:
                 provider_class = cls._get_provider_class(provider_name)
                 meta: ProviderMeta | None = getattr(provider_class, "META", None)
-                
+
                 if meta is None:
                     continue
-                    
+
                 if meta.is_local:
                     # Local provider - check SDK imports are available via unified helper
                     if check_sdk_available(meta):

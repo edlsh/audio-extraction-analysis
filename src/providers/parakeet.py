@@ -1057,9 +1057,14 @@ class ParakeetTranscriber(BaseTranscriptionProvider):
 
     async def health_check_async(self) -> dict[str, Any]:
         """Perform health check for Parakeet provider."""
+
         async def _check() -> dict[str, Any]:
             if not NEMO_AVAILABLE:
-                return {"healthy": False, "status": "dependencies_missing", "error": "NeMo toolkit not installed"}
+                return {
+                    "healthy": False,
+                    "status": "dependencies_missing",
+                    "error": "NeMo toolkit not installed",
+                }
 
             try:
                 model = await self.model_cache.get_model_async(self.model_name)

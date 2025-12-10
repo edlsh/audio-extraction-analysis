@@ -254,9 +254,14 @@ class WhisperTranscriber(BaseTranscriptionProvider):
 
     async def health_check_async(self) -> dict[str, Any]:
         """Perform health check for Whisper provider."""
+
         async def _check() -> dict[str, Any]:
             if not _ensure_whisper_available():
-                return {"healthy": False, "status": "dependencies_missing", "error": "Whisper dependencies not installed"}
+                return {
+                    "healthy": False,
+                    "status": "dependencies_missing",
+                    "error": "Whisper dependencies not installed",
+                }
 
             if self.model is None:
                 await self._load_model()

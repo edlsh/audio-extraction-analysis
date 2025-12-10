@@ -322,23 +322,17 @@ async def _analyze_transcript(
                 concise_analyzer.analyze_and_save, transcript, output_dir, input_stem
             )
             progress.update(100)
-            _emit_stage_progress(
-                "analyze", 100, 100, "Finalizing analysis...", run_id, event_sink
-            )
+            _emit_stage_progress("analyze", 100, 100, "Finalizing analysis...", run_id, event_sink)
             analysis_files = [str(result_path)]
         else:
             full_analyzer = FullAnalyzer()
             progress.update(60)
-            _emit_stage_progress(
-                "analyze", 60, 100, "Running full analysis...", run_id, event_sink
-            )
+            _emit_stage_progress("analyze", 60, 100, "Running full analysis...", run_id, event_sink)
             paths: dict[str, Path] = await asyncio.to_thread(
                 full_analyzer.analyze_and_save, transcript, output_dir, input_stem
             )
             progress.update(100)
-            _emit_stage_progress(
-                "analyze", 100, 100, "Finalizing analysis...", run_id, event_sink
-            )
+            _emit_stage_progress("analyze", 100, 100, "Finalizing analysis...", run_id, event_sink)
             analysis_files = [str(p) for p in paths.values()]
 
     duration: float = time.time() - start

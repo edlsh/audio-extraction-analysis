@@ -1,6 +1,6 @@
 """Tests for validation error handling in Deepgram _transcribe_impl.
 
-These tests verify that validation errors (missing files, invalid formats, etc.) are 
+These tests verify that validation errors (missing files, invalid formats, etc.) are
 handled consistently via the provider_error_handler decorator and validate_audio_file_or_raise.
 """
 
@@ -86,6 +86,5 @@ class TestDeepgramValidationErrorMapping:
 
             error = exc_info.value
             assert (
-                (hasattr(error, "context") and "file_path" in error.context)
-                or "not found" in str(error).lower()
-            )
+                hasattr(error, "context") and "file_path" in error.context
+            ) or "not found" in str(error).lower()

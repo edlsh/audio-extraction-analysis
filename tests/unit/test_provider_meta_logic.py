@@ -72,9 +72,7 @@ class TestProviderMetaBasedConfiguration:
         """Local providers (Whisper, Parakeet) use SDK availability checks."""
         with (
             patch("src.providers.factory.get_config") as mock_get_config,
-            patch(
-                "src.providers.factory.check_sdk_available"
-            ) as mock_sdk_check,
+            patch("src.providers.factory.check_sdk_available") as mock_sdk_check,
         ):
             mock_config = Mock()
             mock_config.DEEPGRAM_API_KEY = None

@@ -46,7 +46,7 @@ class CircuitBreakerConfig:
 @dataclass
 class ProviderMeta:
     """Provider metadata for unified configuration and behavior.
-    
+
     This dataclass centralizes provider-specific configuration that was
     previously duplicated across provider implementations.
     """
@@ -186,7 +186,7 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
 
     def _resolve_api_key(self) -> str | None:
         """Resolve API key from instance or config based on META.
-        
+
         Returns:
             Resolved API key or None if not found/not applicable.
         """
@@ -194,6 +194,7 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
             return self.api_key
         if self.META and self.META.api_key_env:
             from ..config import get_config
+
             return getattr(get_config(), self.META.api_key_env, None)
         return None
 
@@ -242,7 +243,7 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
 
     def validate_configuration(self) -> bool:
         """Validate that the provider is properly configured.
-        
+
         Default implementation checks API key for cloud providers.
         Local providers or those with custom validation should override.
         """
@@ -285,13 +286,13 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
         self, check_fn: Callable[[], Awaitable[dict[str, Any]]]
     ) -> dict[str, Any]:
         """Template method for health checks with standardized error handling.
-        
+
         Wraps provider-specific health check logic with timing and error handling.
-        
+
         Args:
             check_fn: Async function that performs provider-specific health check.
                       Should return dict with 'healthy', 'status', and optional details.
-        
+
         Returns:
             Standardized health check response dict.
         """

@@ -1,6 +1,6 @@
 """Tests for validation error handling in ElevenLabs _transcribe_impl.
 
-These tests verify that validation errors (missing files, invalid formats, etc.) are 
+These tests verify that validation errors (missing files, invalid formats, etc.) are
 handled consistently via the provider_error_handler decorator and validate_audio_file_or_raise.
 """
 
