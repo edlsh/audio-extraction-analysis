@@ -98,7 +98,8 @@ jobs:
           path: .
 
   performance:
-    if: ${{ github.event_name == 'schedule' || github.event.inputs.suite == 'performance' || github.event.inputs.suite == 'all' }}
+    # Manual-only: CI cannot generate test data files required by TestDataManager
+    if: ${{ github.event.inputs.suite == 'performance' }}
     runs-on: ubuntu-latest
     env:
       DEEPGRAM_API_KEY: dummy_test_key
