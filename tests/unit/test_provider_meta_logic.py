@@ -27,7 +27,10 @@ class TestProviderMetaBasedConfiguration:
 
     def test_cloud_provider_requires_api_key_min_length(self):
         """Cloud providers must have API key meeting minimum length from META."""
-        with patch("src.providers.factory.get_config") as mock_get_config:
+        with (
+            patch("src.providers.factory.get_config") as mock_get_config,
+            patch("src.providers.factory.check_sdk_available", return_value=False),
+        ):
             mock_config = Mock()
             # Deepgram requires 20 chars, ElevenLabs requires 10 chars
             mock_config.DEEPGRAM_API_KEY = "short"  # Too short (5 chars)
@@ -43,7 +46,10 @@ class TestProviderMetaBasedConfiguration:
 
     def test_cloud_provider_with_sufficient_key_length(self):
         """Cloud providers with keys meeting minimum length should be configured."""
-        with patch("src.providers.factory.get_config") as mock_get_config:
+        with (
+            patch("src.providers.factory.get_config") as mock_get_config,
+            patch("src.providers.factory.check_sdk_available", return_value=False),
+        ):
             mock_config = Mock()
             # Deepgram requires 20 chars
             mock_config.DEEPGRAM_API_KEY = "12345678901234567890"  # Exactly 20 chars
@@ -57,7 +63,10 @@ class TestProviderMetaBasedConfiguration:
 
     def test_cloud_provider_with_no_key(self):
         """Cloud providers without API key should not be configured."""
-        with patch("src.providers.factory.get_config") as mock_get_config:
+        with (
+            patch("src.providers.factory.get_config") as mock_get_config,
+            patch("src.providers.factory.check_sdk_available", return_value=False),
+        ):
             mock_config = Mock()
             mock_config.DEEPGRAM_API_KEY = None
             mock_config.ELEVENLABS_API_KEY = ""
