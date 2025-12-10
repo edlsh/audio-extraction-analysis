@@ -115,19 +115,19 @@ def test_full_analyzer_returns_correct_paths(tmp_path):
         assert path.exists()
 
 
-def test_format_hms_helper():
-    """Test time formatting helper method."""
+def test_format_timestamp_helper():
+    """Test time formatting helper method (inherited from BaseAnalyzer)."""
     analyzer = FullAnalyzer()
 
     # Test various time formats
-    assert analyzer._format_hms(0.0) == "00:00:00"
-    assert analyzer._format_hms(59.0) == "00:00:59"
-    assert analyzer._format_hms(60.0) == "00:01:00"
-    assert analyzer._format_hms(3661.0) == "01:01:01"
-    assert analyzer._format_hms(120.5) == "00:02:00"  # Rounds down seconds
+    assert analyzer._format_timestamp(0.0) == "00:00:00"
+    assert analyzer._format_timestamp(59.0) == "00:00:59"
+    assert analyzer._format_timestamp(60.0) == "00:01:00"
+    assert analyzer._format_timestamp(3661.0) == "01:01:01"
+    assert analyzer._format_timestamp(120.5) == "00:02:00"  # Rounds down seconds
 
     # Test edge cases
-    assert analyzer._format_hms(-10.0) == "00:00:00"  # Negative should default to zero
+    assert analyzer._format_timestamp(-10.0) == "00:00:00"  # Negative should default to zero
 
 
 def test_overall_sentiment_helper():

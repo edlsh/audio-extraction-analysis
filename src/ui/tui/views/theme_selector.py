@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from textual.app import ComposeResult
 
 from ..persistence import save_settings
-from ..themes import CUSTOM_THEMES
+from ..themes import CUSTOM_THEMES, THEME_CATEGORIES
 
 if TYPE_CHECKING:
     from ..app import AudioExtractionApp
@@ -40,8 +40,9 @@ class ThemeSelectorScreen(Screen):
         height: 80%;
         min-height: 20;
         max-height: 40;
-        border: solid $accent;
-        padding: 1;
+        border: round $panel;
+        background: $surface;
+        padding: 1 2;
     }
 
     #theme-title {
@@ -55,10 +56,15 @@ class ThemeSelectorScreen(Screen):
         height: 1fr;
         border: none;
         padding: 0 1;
+        background: transparent;
     }
 
     OptionList:focus {
         border: none;
+    }
+
+    OptionList > .option-list--option-highlighted {
+        background: $panel;
     }
 
     #current-theme {
@@ -119,28 +125,28 @@ class ThemeSelectorScreen(Screen):
         """Initialize the theme list when screen is mounted."""
         option_list = self.query_one("#theme-list", OptionList)
 
-        # Add custom themes section
-        custom_theme_names = [theme.name for theme in CUSTOM_THEMES]
-        self._add_theme_section(option_list, "Custom Themes", custom_theme_names)
+        # Add themes by category from THEME_CATEGORIES
+        for category, theme_names in THEME_CATEGORIES.items():
+            available = self._get_available_themes(theme_names)
+            if available:
+                self._add_theme_section(option_list, category, available)
 
         # Add built-in dark themes
         dark_themes = [
             "nord",
-            "gruvbox",
             "dracula",
             "monokai",
-            "catppuccin-mocha",
             "tokyo-night",
             "textual-dark",
         ]
         self._add_theme_section(
-            option_list, "Built-in Dark Themes", self._get_available_themes(dark_themes)
+            option_list, "Built-in Dark", self._get_available_themes(dark_themes)
         )
 
         # Add built-in light themes
-        light_themes = ["textual-light", "catppuccin-latte", "solarized-light"]
+        light_themes = ["textual-light"]
         self._add_theme_section(
-            option_list, "Built-in Light Themes", self._get_available_themes(light_themes)
+            option_list, "Built-in Light", self._get_available_themes(light_themes)
         )
 
         # Finalize setup
@@ -160,22 +166,30 @@ class ThemeSelectorScreen(Screen):
         # Remove prefixes
         name = theme_name.replace("audio-extraction-", "")
         name = name.replace("textual-", "")
+        name = name.replace("catppuccin-", "")
         name = name.replace("-", " ")
 
         # Capitalize words
         words = name.split()
         formatted = " ".join(word.capitalize() for word in words)
 
-        # Add emoji indicators for our custom themes
-        if theme_name.startswith("audio-extraction"):
-            if "blue" in theme_name:
-                formatted = f"🔵 {formatted}"
-            elif "purple" in theme_name:
-                formatted = f"🟣 {formatted}"
-            elif "green" in theme_name:
-                formatted = f"🟢 {formatted}"
-            elif "light" in theme_name:
-                formatted = f"☀️ {formatted}"
+        # Add emoji indicators
+        emoji_map = {
+            "audio-extraction-blue": "🔵",
+            "audio-extraction-purple": "🟣",
+            "audio-extraction-green": "🟢",
+            "audio-extraction-light": "☀️",
+            "catppuccin-mocha": "🌙",
+            "catppuccin-macchiato": "🌃",
+            "catppuccin-latte": "☕",
+            "gruvbox-dark": "🟤",
+            "gruvbox-light": "🟡",
+            "solarized-dark": "🌑",
+            "solarized-light": "🌕",
+        }
+
+        if theme_name in emoji_map:
+            formatted = f"{emoji_map[theme_name]} {formatted}"
 
         return formatted
 

@@ -16,10 +16,12 @@ from src.utils.logger import get_logger
 
 from ..exceptions import ParakeetAudioError, ParakeetError, ParakeetGPUError, ParakeetModelError
 from ..models.transcription import TranscriptionResult, TranscriptionUtterance
+from ..utils.file_validation import validate_audio_file_or_raise
 
 if TYPE_CHECKING:
     from ..utils.retry import RetryConfig
-from .base import BaseTranscriptionProvider, CircuitBreakerConfig
+from .base import BaseTranscriptionProvider, CircuitBreakerConfig, ProviderMeta
+from .provider_utils import provider_error_handler
 
 logger = get_logger(__name__)
 
@@ -653,19 +655,30 @@ class ParakeetMetrics:
 class ParakeetTranscriber(BaseTranscriptionProvider):
     """NVIDIA Parakeet STT transcription service with CTC/RNN-T model support."""
 
+    META = ProviderMeta(
+        name="NVIDIA Parakeet",
+        provider_key="parakeet",
+        supported_features=[
+            "timestamps",
+            "speaker_diarization",
+            "language_detection",
+            "punctuation_restoration",
+            "local_processing",
+            "offline_capable",
+            "gpu_acceleration",
+        ],
+        sdk_imports=["nemo.collections.asr", "torch"],
+        install_command='uv add "nemo-toolkit[asr]@1.20.0" --extra parakeet',
+        is_local=True,
+    )
+
     def __init__(
         self,
         api_key: str | None = None,
         circuit_config: CircuitBreakerConfig | None = None,
         retry_config: RetryConfig | None = None,
     ) -> None:
-        """Initialize the Parakeet transcriber.
-
-        Args:
-            api_key: Optional API key (not used for local Parakeet)
-            circuit_config: Circuit breaker configuration
-            retry_config: Retry configuration
-        """
+        """Initialize the Parakeet transcriber."""
         super().__init__(api_key, circuit_config, retry_config)
         self.gpu_manager = GPUManager()
         self.model_cache = ParakeetModelCache()
@@ -683,9 +696,7 @@ class ParakeetTranscriber(BaseTranscriptionProvider):
     def _validate_dependencies(self) -> bool:
         """Check required dependencies are available."""
         if not NEMO_AVAILABLE:
-            logger.error(
-                'NeMo toolkit not installed. Install with: uv add "nemo-toolkit[asr]@1.20.0" --extra parakeet'
-            )
+            logger.error(f"NeMo toolkit not installed. Install with: {self.META.install_command}")
             return False
         if not TORCH_AVAILABLE:
             logger.error("PyTorch not installed")
@@ -792,13 +803,9 @@ class ParakeetTranscriber(BaseTranscriptionProvider):
             return False
 
     def get_provider_name(self) -> str:
-        """Get the name of this transcription provider.
-
-        Returns:
-            Human-readable name of the provider
-        """
+        """Get provider name including model type."""
         model_type = PARAKEET_MODELS.get(self.model_name, {}).get("type", "unknown")
-        return f"NVIDIA Parakeet ({model_type})"
+        return f"{self.META.name} ({model_type})"
 
     def get_supported_features(self) -> list[str]:
         """Get list of features supported by Parakeet.
@@ -806,16 +813,9 @@ class ParakeetTranscriber(BaseTranscriptionProvider):
         Returns:
             List of supported feature names
         """
-        return [
-            "timestamps",
-            "speaker_diarization",
-            "language_detection",
-            "punctuation_restoration",
-            "local_processing",
-            "offline_capable",
-            "gpu_acceleration",
-        ]
+        return self.META.supported_features
 
+    @provider_error_handler("parakeet", 'uv add "nemo-toolkit[asr]@1.20.0" --extra parakeet')
     async def _transcribe_impl(
         self, audio_file_path: Path, language: str = "en"
     ) -> TranscriptionResult | None:
@@ -828,27 +828,25 @@ class ParakeetTranscriber(BaseTranscriptionProvider):
         Returns:
             TranscriptionResult object or None if failed
         """
+        if not self._check_dependencies():
+            raise ImportError("Parakeet dependencies (NeMo, PyTorch) not available")
+
+        # Use shared validation for consistency with other providers
+        audio_file_path = validate_audio_file_or_raise(audio_file_path, provider_name="parakeet")
+
+        preprocess_result = self._validate_and_preprocess(audio_file_path)
+        if preprocess_result is None:
+            raise ParakeetAudioError("Audio preprocessing failed")
+
+        processed_path, audio_duration, temp_file_created = preprocess_result
+
         try:
-            if not self._check_dependencies():
-                return None
-
-            preprocess_result = self._validate_and_preprocess(audio_file_path)
-            if preprocess_result is None:
-                return None
-
-            processed_path, audio_duration, temp_file_created = preprocess_result
-
-            try:
-                return await self._execute_transcription(
-                    processed_path, audio_file_path, audio_duration
-                )
-            finally:
-                if temp_file_created:
-                    self.audio_preprocessor.cleanup_temp_file(processed_path)
-
-        except Exception as e:
-            logger.error(f"Parakeet transcription failed: {e}")
-            return None
+            return await self._execute_transcription(
+                processed_path, audio_file_path, audio_duration
+            )
+        finally:
+            if temp_file_created:
+                self.audio_preprocessor.cleanup_temp_file(processed_path)
 
     def _check_dependencies(self) -> bool:
         """Check if required dependencies are available."""
@@ -1058,23 +1056,11 @@ class ParakeetTranscriber(BaseTranscriptionProvider):
             return self._create_error_result(e, audio_file_path, processing_time, audio_duration)
 
     async def health_check_async(self) -> dict[str, Any]:
-        """Perform health check for Parakeet provider.
-
-        Returns:
-            Dictionary containing health check results
-        """
-        start_time = time.time()
-
-        try:
+        """Perform health check for Parakeet provider."""
+        async def _check() -> dict[str, Any]:
             if not NEMO_AVAILABLE:
-                return self._build_health_response(
-                    healthy=False,
-                    status="dependencies_missing",
-                    response_time_ms=0,
-                    error="NeMo toolkit not installed",
-                )
+                return {"healthy": False, "status": "dependencies_missing", "error": "NeMo toolkit not installed"}
 
-            # Test model loading
             try:
                 model = await self.model_cache.get_model_async(self.model_name)
                 model_available = model is not None
@@ -1082,25 +1068,17 @@ class ParakeetTranscriber(BaseTranscriptionProvider):
                 logger.debug(f"Model loading test failed during health check: {e}")
                 model_available = False
 
-            return self._build_health_response(
-                healthy=model_available,
-                status="ready" if model_available else "model_not_loaded",
-                response_time_ms=(time.time() - start_time) * 1000,
-                model_loaded=model_available,
-                model_name=self.model_name,
-                device=self.gpu_manager.device,
-                cuda_available=TORCH_AVAILABLE and self.gpu_manager.device.startswith("cuda"),
-                cache_stats=self.model_cache.get_cache_stats(),
-            )
+            return {
+                "healthy": model_available,
+                "status": "ready" if model_available else "model_not_loaded",
+                "model_loaded": model_available,
+                "model_name": self.model_name,
+                "device": self.gpu_manager.device,
+                "cuda_available": TORCH_AVAILABLE and self.gpu_manager.device.startswith("cuda"),
+                "cache_stats": self.model_cache.get_cache_stats(),
+            }
 
-        except Exception as e:
-            return self._build_health_response(
-                healthy=False,
-                status="health_check_failed",
-                response_time_ms=(time.time() - start_time) * 1000,
-                error=str(e),
-                error_type=type(e).__name__,
-            )
+        return await self._run_health_check(_check)
 
 
 # Maintain backward compatibility by exposing all classes at module level

@@ -35,56 +35,59 @@ class WelcomeScreen(TextualScreen):
         """Compose the welcome screen."""
         yield Header()
         yield Container(
-            Label("🎵 Audio Extraction & Transcription Analysis", id="title"),
-            Label(""),
-            Label("Welcome to the interactive TUI!", classes="welcome-text"),
-            Label(""),
-            Label(
-                "Transform audio/video files into analyzed transcripts with ease.",
-                classes="welcome-text",
-            ),
-            Label(""),
-            Label("[dim]Features:[/dim]", classes="welcome-text"),
-            Label(
-                "  • Live progress monitoring with ETAs",
-                classes="welcome-text feature-item",
-            ),
-            Label(
-                "  • Real-time log streaming and filtering",
-                classes="welcome-text feature-item",
-            ),
-            Label(
-                "  • Multiple transcription providers (Deepgram, ElevenLabs, Whisper, Parakeet)",
-                classes="welcome-text feature-item",
-            ),
-            Label(
-                "  • Provider health monitoring",
-                classes="welcome-text feature-item",
-            ),
-            Label(
-                "  • Auto-save configuration and recent files",
-                classes="welcome-text feature-item",
-            ),
-            Label(""),
-            Label("[dim]Press 'h' or '?' anytime for help[/dim]", classes="welcome-text"),
-            Label(""),
-            Horizontal(
-                Button(
-                    "Start Processing",
-                    variant="primary",
-                    id="start-btn",
+            Container(
+                Label("🎵 Audio Extraction & Transcription Analysis", id="title"),
+                Label(""),
+                Label("Welcome to the interactive TUI!", classes="welcome-text"),
+                Label(""),
+                Label(
+                    "Transform audio/video files into analyzed transcripts with ease.",
+                    classes="welcome-text",
                 ),
-                Button(
-                    "Help",
-                    variant="default",
-                    id="help-btn",
+                Label(""),
+                Label("Features", classes="section-label"),
+                Label(
+                    "• Live progress monitoring with ETAs",
+                    classes="feature-item",
                 ),
-                Button(
-                    "Exit",
-                    variant="error",
-                    id="exit-btn",
+                Label(
+                    "• Real-time log streaming and filtering",
+                    classes="feature-item",
                 ),
-                classes="button-row",
+                Label(
+                    "• Multiple transcription providers",
+                    classes="feature-item",
+                ),
+                Label(
+                    "• Provider health monitoring",
+                    classes="feature-item",
+                ),
+                Label(
+                    "• Auto-save configuration",
+                    classes="feature-item",
+                ),
+                Label(""),
+                Label("[dim]Press 'h' or '?' anytime for help[/dim]", classes="welcome-text"),
+                Label(""),
+                Horizontal(
+                    Button(
+                        "Start Processing",
+                        variant="primary",
+                        id="start-btn",
+                    ),
+                    Button(
+                        "Help",
+                        variant="default",
+                        id="help-btn",
+                    ),
+                    Button(
+                        "Exit",
+                        variant="error",
+                        id="exit-btn",
+                    ),
+                    classes="button-row",
+                ),
+                id="welcome-card",
             ),
             id="welcome-container",
         )
@@ -92,11 +95,16 @@ class WelcomeScreen(TextualScreen):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button press events on the welcome screen."""
+        logger.debug(f"WelcomeScreen button pressed: {event.button.id}")
         if event.button.id == "exit-btn":
+            logger.debug("Exiting app...")
             self.app.exit()
         elif event.button.id == "start-btn":
+            logger.debug("Pushing home screen...")
             self.app.push_screen("home")
+            logger.debug("Home screen pushed successfully")
         elif event.button.id == "help-btn":
+            logger.debug("Pushing help screen...")
             self.app.push_screen("help")
 
 
@@ -118,43 +126,157 @@ class AudioExtractionApp(App):
     }
 
     CSS = """
+    /* =================================================================
+       Global Layout & Design System
+       ================================================================= */
+
     Screen {
-        background: $surface;
+        background: $background;
+        padding: 0;
     }
 
-    /* Override Header to use panel color instead of $primary */
-    /* This fixes the orange header issue in Catppuccin theme */
+    /* Header: subtle, borderless look */
     Header {
         background: $panel;
-        color: $text;
+        color: $foreground;
+        height: 1;
+    }
+
+    /* Footer consistency */
+    Footer {
+        background: $panel;
+    }
+
+    /* =================================================================
+       Typography & Spacing
+       ================================================================= */
+
+    .body-text {
+        color: $foreground;
+        padding: 0 2;
+    }
+
+    .text-muted {
+        color: $text-disabled;
+    }
+
+    .text-disabled {
+        color: $text-disabled;
+    }
+
+    .section-label {
+        text-style: bold;
+        color: $text-disabled;
+        margin-top: 1;
+        margin-bottom: 1;
+    }
+
+    /* =================================================================
+       Welcome Screen
+       ================================================================= */
+
+    #welcome-container {
+        align: center middle;
+        width: 100%;
+        height: 100%;
+        padding: 1 2;
+    }
+
+    #welcome-card {
+        width: 80%;
+        max-width: 90;
+        border: round $panel;
+        background: $surface;
+        padding: 2 4;
+        content-align: center middle;
     }
 
     #title {
         text-align: center;
         text-style: bold;
         color: $accent;
-        padding: 1;
+        padding: 1 0 0 0;
+        margin-bottom: 1;
     }
 
     .welcome-text {
         text-align: center;
-        padding: 0 2;
+        padding: 0 3;
+        color: $foreground;
     }
 
-    #welcome-container {
-        align: center middle;
-        width: 100%;
-        height: 100%;
+    .feature-item {
+        text-align: left;
+        padding: 0 4;
+        color: $text-disabled;
     }
+
+    /* =================================================================
+       Buttons - Modern pill-like styling
+       ================================================================= */
 
     .button-row {
+        padding-top: 1;
+        width: 100%;
         align: center middle;
-        width: auto;
-        height: auto;
     }
 
     Button {
         margin: 0 1;
+        padding: 0 3;
+        height: 3;
+        min-width: 16;
+        border: round $accent;
+    }
+
+    Button.-primary {
+        background: $accent;
+        color: $button-color-foreground;
+        text-style: bold;
+    }
+
+    Button.-default {
+        background: $panel;
+        color: $foreground;
+        border: round $panel;
+    }
+
+    Button.-error {
+        background: $error;
+        color: $button-color-foreground;
+        border: round $error;
+    }
+
+    Button:focus {
+        border: round $accent;
+    }
+
+    /* =================================================================
+       Containers & Cards
+       ================================================================= */
+
+    .content-container {
+        padding: 1 2;
+        width: 100%;
+        height: 100%;
+    }
+
+    .card-container {
+        border: round $panel;
+        background: $surface;
+        padding: 1 2;
+        margin: 1 0;
+    }
+
+    /* =================================================================
+       Scrollable areas
+       ================================================================= */
+
+    VerticalScroll {
+        scrollbar-background: $surface;
+        scrollbar-color: $panel;
+        scrollbar-color-hover: $accent;
+        scrollbar-color-active: $accent;
     }
     """
 

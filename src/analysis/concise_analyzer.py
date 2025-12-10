@@ -311,16 +311,3 @@ class ConciseAnalyzer(BaseAnalyzer):
             content += f"**Total Utterances:** {len(result.utterances)}\n"
 
         return content
-
-    def _get_sentiment_emoji(self, sentiment: str) -> str:
-        """Get emoji representation for sentiment category.
-
-        Args:
-            sentiment: Sentiment category name (case-insensitive).
-
-        Returns:
-            str: Corresponding emoji. Returns "😊" for positive, "😔" for negative,
-                "😐" for neutral, or "🤔" for unknown/unrecognized sentiments.
-        """
-        sentiment_map = {"positive": "😊", "negative": "😔", "neutral": "😐"}
-        return sentiment_map.get(sentiment.lower(), "🤔")

@@ -11,6 +11,8 @@ from src.utils.logger import get_logger
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
+    from .base import ProviderMeta
+
 from ..config import get_config
 from ..exceptions import (
     AudioFileNotFoundError,
@@ -25,6 +27,40 @@ from .base import CircuitBreakerConfig
 logger = get_logger(__name__)
 
 T = TypeVar("T")
+
+
+def check_sdk_available(meta: ProviderMeta) -> bool:
+    """Check if required SDK modules are available for a provider.
+    
+    Args:
+        meta: ProviderMeta with sdk_imports list
+        
+    Returns:
+        True if all required modules can be imported, False otherwise
+    """
+    if not meta.sdk_imports:
+        return True
+    try:
+        for module in meta.sdk_imports:
+            __import__(module)
+        return True
+    except ImportError as e:
+        logger.warning(f"{meta.name} provider dependencies not installed: {e}")
+        return False
+
+
+def require_sdk(meta: ProviderMeta) -> None:
+    """Raise ImportError if SDK is not available.
+    
+    Args:
+        meta: ProviderMeta with sdk_imports and install_command
+        
+    Raises:
+        ImportError: If required SDK modules are not installed
+    """
+    if not check_sdk_available(meta):
+        install_hint = f" Install with: {meta.install_command}" if meta.install_command else ""
+        raise ImportError(f"{meta.name} SDK not available.{install_hint}")
 
 
 def get_default_configs(

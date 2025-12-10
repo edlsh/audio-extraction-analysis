@@ -42,22 +42,20 @@ from src.utils.logger import get_logger
 from ..config import get_config
 from ..models.transcription import TranscriptionResult, TranscriptionUtterance
 from ..utils.constants import UIConstants
+from ..utils.file_validation import validate_audio_file_or_raise
 
 if TYPE_CHECKING:
     from ..utils.retry import RetryConfig
-from .base import BaseTranscriptionProvider, CircuitBreakerConfig
+from .base import BaseTranscriptionProvider, CircuitBreakerConfig, ProviderMeta
+from .provider_utils import provider_error_handler
 
 logger = get_logger(__name__)
 
-# Lazy dependency resolution to avoid import-time failures in environments
-# where Whisper/torch are not installed or incompatible. These globals are
-# populated on-demand during the first call to _ensure_whisper_available().
-# This pattern allows the module to be imported without requiring heavy
-# dependencies, deferring the import until actually needed.
-PROVIDER_AVAILABLE = None  # Tri-state: None (unknown), True (available), False (missing)
-whisper = None  # openai-whisper module, loaded on demand
-torch = None  # PyTorch module, loaded on demand
-get_writer = None  # Whisper output writer utility, optional
+# Lazy dependency resolution
+PROVIDER_AVAILABLE = None
+whisper = None
+torch = None
+get_writer = None
 
 
 def _ensure_whisper_available() -> bool:
@@ -86,27 +84,29 @@ def _ensure_whisper_available() -> bool:
 class WhisperTranscriber(BaseTranscriptionProvider):
     """Local Whisper transcription. No speaker diarization. Supports GPU acceleration."""
 
+    META = ProviderMeta(
+        name="OpenAI Whisper",
+        provider_key="whisper",
+        supported_features=[
+            "timestamps",
+            "word_timestamps",
+            "language_detection",
+            "vad_filter",
+            "local_processing",
+            "offline_capable",
+        ],
+        sdk_imports=["whisper", "torch"],
+        install_command="uv add openai-whisper torch",
+        is_local=True,
+    )
+
     def __init__(
         self,
         api_key: str | None = None,
         circuit_config: CircuitBreakerConfig | None = None,
         retry_config: RetryConfig | None = None,
     ) -> None:
-        """Initialize the Whisper transcriber.
-
-        Args:
-            api_key: Optional API key. Not used for local Whisper processing but
-                included for interface compatibility with BaseTranscriptionProvider
-                and other cloud-based providers.
-            circuit_config: Circuit breaker configuration for resilience patterns.
-                Controls failure thresholds and recovery behavior.
-            retry_config: Retry configuration for transient failures. Defines
-                retry attempts, backoff strategy, and timeout values.
-
-        Note:
-            Model loading is deferred until the first transcription request to
-            minimize initialization time and memory usage.
-        """
+        """Initialize the Whisper transcriber."""
         super().__init__(api_key, circuit_config, retry_config)
         self.model = None
         config = get_config()
@@ -130,28 +130,13 @@ class WhisperTranscriber(BaseTranscriptionProvider):
             return None
 
     def validate_configuration(self) -> bool:
-        """Validate that Whisper is properly configured and dependencies are available.
-
-        This method checks for required dependencies and performs device availability
-        verification. It automatically falls back to CPU if CUDA is requested but
-        unavailable, ensuring graceful degradation.
-
-        Returns:
-            True if configuration is valid and dependencies are available,
-            False if required dependencies are missing.
-
-        Note:
-            When CUDA is requested but unavailable, the device is automatically
-            changed to "cpu" and validation still returns True. Only missing
-            dependencies cause validation to fail.
-        """
+        """Validate Whisper dependencies are available."""
         if not _ensure_whisper_available():
             logger.error(
-                "Whisper dependencies not installed. Install with: uv add openai-whisper torch"
+                f"Whisper dependencies not installed. Install with: {self.META.install_command}"
             )
             return False
 
-        # Check if CUDA device is available, fall back to CPU if not
         if self.device == "cuda" and torch and not torch.cuda.is_available():
             logger.warning("CUDA requested but not available, falling back to CPU")
             self.device = "cpu"
@@ -159,48 +144,14 @@ class WhisperTranscriber(BaseTranscriptionProvider):
         return True
 
     def get_provider_name(self) -> str:
-        """Get the name of this transcription provider.
-
-        Returns:
-            Human-readable name of the provider
-        """
-        return f"OpenAI Whisper ({self.model_name})"
-
-    def get_supported_features(self) -> list[str]:
-        """Get list of features supported by Whisper.
-
-        Returns:
-            List of supported feature names
-        """
-        return [
-            "timestamps",
-            "word_timestamps",
-            "language_detection",
-            "vad_filter",  # Voice Activity Detection
-            "local_processing",
-            "offline_capable",
-        ]
+        """Get provider name including model variant."""
+        return f"{self.META.name} ({self.model_name})"
 
     async def _load_model(self) -> None:
-        """Load the Whisper model asynchronously.
-
-        This method loads the model on first use (lazy loading). The model file
-        is downloaded from OpenAI's servers if not already cached locally. Model
-        loading is performed in a thread pool executor to prevent blocking the
-        event loop, as it can take several seconds for larger models.
-
-        Raises:
-            Exception: If model loading fails (e.g., network error, insufficient
-                memory, invalid model name).
-
-        Note:
-            Subsequent calls are no-ops if the model is already loaded. Model
-            files are cached in ~/.cache/whisper by default.
-        """
+        """Load the Whisper model asynchronously."""
         if self.model is None:
             logger.info(f"Loading Whisper model: {self.model_name} on {self.device}")
             try:
-                # Run model loading in thread pool to avoid blocking the event loop
                 loop = asyncio.get_event_loop()
                 self.model = await loop.run_in_executor(
                     None, whisper.load_model, self.model_name, self.device
@@ -210,111 +161,55 @@ class WhisperTranscriber(BaseTranscriptionProvider):
                 logger.error(f"Failed to load Whisper model: {e}")
                 raise
 
+    @provider_error_handler("whisper", "uv add openai-whisper torch")
     async def _transcribe_impl(
         self, audio_file_path: Path, language: str = "en"
     ) -> TranscriptionResult | None:
-        """Internal implementation of Whisper transcription.
-
-        This method performs the core transcription logic, including model loading,
-        transcription execution, and result parsing. The actual transcription runs
-        in a thread pool executor to avoid blocking the async event loop.
-
-        Args:
-            audio_file_path: Path to the audio file to transcribe. Must exist and
-                be in a format supported by ffmpeg (mp3, wav, m4a, etc.).
-            language: ISO 639-1 language code (e.g., 'en', 'es', 'fr'). Use 'auto'
-                to enable automatic language detection. Defaults to 'en'.
-
-        Returns:
-            TranscriptionResult object containing the transcript, utterances,
-            timestamps, and metadata.
-
-        Raises:
-            ImportError: If Whisper dependencies are not installed.
-            FileNotFoundError: If the audio file does not exist.
-            Exception: For transcription failures (e.g., corrupted audio, OOM).
-
-        Note:
-            When language is set to 'auto', Whisper will automatically detect
-            the language from the audio content, which may add a small processing
-            overhead but ensures accuracy for multilingual content.
-        """
+        """Internal implementation of Whisper transcription."""
         if not _ensure_whisper_available():
             raise ImportError("Whisper dependencies not installed")
 
-        if not audio_file_path.exists():
-            raise FileNotFoundError(f"Audio file not found: {audio_file_path}")
+        audio_file_path = validate_audio_file_or_raise(audio_file_path, provider_name="whisper")
 
         await self._load_model()
 
-        # Prepare transcription options for Whisper
         options = {
-            "language": language if language != "auto" else None,  # None triggers auto-detection
-            "task": "transcribe",  # Alternative is "translate" (to English)
-            "fp16": self.compute_type == "float16",  # Use half-precision for speed/memory
-            "verbose": False,  # Suppress detailed logging from Whisper internals
+            "language": language if language != "auto" else None,
+            "task": "transcribe",
+            "fp16": self.compute_type == "float16",
+            "verbose": False,
         }
 
         logger.info(f"Transcribing with Whisper: {audio_file_path.name}")
         start_time = time.time()
 
-        try:
-            # Run transcription in thread pool
-            loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(
-                None, self.model.transcribe, str(audio_file_path), **options
-            )
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None, self.model.transcribe, str(audio_file_path), **options
+        )
 
-            processing_time = time.time() - start_time
-            logger.info(f"Whisper transcription completed in {processing_time:.2f}s")
+        processing_time = time.time() - start_time
+        logger.info(f"Whisper transcription completed in {processing_time:.2f}s")
 
-            return self._parse_whisper_result(result, audio_file_path, processing_time)
-
-        except Exception as e:
-            logger.error(f"Whisper transcription failed: {e}")
-            raise
+        return self._parse_whisper_result(result, audio_file_path, processing_time)
 
     def _parse_whisper_result(
         self, whisper_result: dict[str, object], audio_file_path: Path, processing_time: float
     ) -> TranscriptionResult:
-        """Parse Whisper result into TranscriptionResult format.
-
-        Converts the raw dictionary output from Whisper into a structured
-        TranscriptionResult object. This includes extracting segments, calculating
-        duration, and building metadata.
-
-        Args:
-            whisper_result: Raw Whisper transcription result dictionary containing
-                'segments', 'language', and optionally 'words' data.
-            audio_file_path: Path to the source audio file that was transcribed.
-            processing_time: Time taken for transcription in seconds, used for
-                performance metrics.
-
-        Returns:
-            Formatted TranscriptionResult with utterances, metadata, and timing
-            information.
-
-        Note:
-            All utterances are assigned speaker ID of 1 because Whisper does not
-            perform speaker diarization. For multi-speaker content, consider using
-            a separate diarization provider or a different transcription service
-            that supports speaker identification.
-        """
+        """Parse Whisper result into TranscriptionResult format."""
         utterances = []
 
         for segment in whisper_result.get("segments", []):
             utterance = TranscriptionUtterance(
-                speaker=1,  # Whisper lacks speaker diarization; all segments assigned to speaker 1
+                speaker=1,
                 start=segment["start"],
                 end=segment["end"],
                 text=segment["text"].strip(),
             )
             utterances.append(utterance)
 
-        # Calculate total duration from audio file or segments
         total_duration = max(utterance.end for utterance in utterances) if utterances else 0
 
-        # Create metadata dict
         metadata = {
             "whisper_model": self.model_name,
             "device": self.device,
@@ -343,25 +238,7 @@ class WhisperTranscriber(BaseTranscriptionProvider):
     def _generate_chapters(
         self, utterances: list[TranscriptionUtterance]
     ) -> list[dict[str, object]]:
-        """Generate simple chapters based on time intervals.
-
-        Creates chapter markers at fixed intervals (default 5 minutes) to help
-        with navigation in long audio content. This is a basic implementation that
-        does not consider content or topic boundaries.
-
-        Args:
-            utterances: List of transcription utterances from which to derive the
-                total duration for chapter generation.
-
-        Returns:
-            List of chapter dictionaries with 'start_time' and 'end_time' keys
-            in seconds. Returns empty list if no utterances provided.
-
-        Note:
-            The interval is configurable via UIConstants.CHAPTER_INTERVAL_SECONDS.
-            For more sophisticated chaptering based on topic changes or speaker
-            transitions, consider implementing content-aware segmentation.
-        """
+        """Generate simple chapters based on time intervals."""
         if not utterances:
             return []
 
@@ -376,57 +253,22 @@ class WhisperTranscriber(BaseTranscriptionProvider):
         return chapters
 
     async def health_check_async(self) -> dict[str, Any]:
-        """Perform health check for Whisper provider.
+        """Perform health check for Whisper provider."""
+        async def _check() -> dict[str, Any]:
+            if not _ensure_whisper_available():
+                return {"healthy": False, "status": "dependencies_missing", "error": "Whisper dependencies not installed"}
 
-        Verifies that dependencies are available and optionally loads the model
-        to confirm full operational readiness. The health check includes dependency
-        verification, device availability, and model loading status.
-
-        Returns:
-            Dictionary containing health check results with keys:
-                - healthy (bool): Overall health status
-                - status (str): Status description ('ready', 'dependencies_missing', etc.)
-                - response_time_ms (float): Time taken for health check in milliseconds
-                - details (dict): Provider-specific details including model info,
-                  device configuration, and CUDA availability
-
-        Note:
-            This method has a side effect: if the model is not already loaded,
-            it will be loaded during the health check. This ensures readiness
-            but may take several seconds on first call. Subsequent calls will
-            be fast as the model remains in memory.
-        """
-        start_time = time.time()
-
-        try:
-            if not PROVIDER_AVAILABLE:
-                return self._build_health_response(
-                    healthy=False,
-                    status="dependencies_missing",
-                    response_time_ms=0,
-                    error="Whisper dependencies not installed",
-                )
-
-            # Test model loading if not already loaded
             if self.model is None:
                 await self._load_model()
 
-            return self._build_health_response(
-                healthy=self.model is not None,
-                status="ready" if self.model else "model_not_loaded",
-                response_time_ms=(time.time() - start_time) * 1000,
-                model_loaded=self.model is not None,
-                model_name=self.model_name,
-                device=self.device,
-                compute_type=self.compute_type,
-                cuda_available=torch.cuda.is_available() if torch else False,
-            )
+            return {
+                "healthy": self.model is not None,
+                "status": "ready" if self.model else "model_not_loaded",
+                "model_loaded": self.model is not None,
+                "model_name": self.model_name,
+                "device": self.device,
+                "compute_type": self.compute_type,
+                "cuda_available": torch.cuda.is_available() if torch else False,
+            }
 
-        except Exception as e:
-            return self._build_health_response(
-                healthy=False,
-                status="health_check_failed",
-                response_time_ms=(time.time() - start_time) * 1000,
-                error=str(e),
-                error_type=type(e).__name__,
-            )
+        return await self._run_health_check(_check)

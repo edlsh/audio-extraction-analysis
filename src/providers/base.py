@@ -13,9 +13,9 @@ import time
 from abc import ABC, abstractmethod
 from asyncio import timeout as asyncio_timeout
 from collections.abc import Awaitable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from threading import Lock
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
 
 from src.utils.logger import get_logger
 
@@ -41,6 +41,39 @@ class CircuitBreakerConfig:
     enabled: bool = False  # Disabled by default for CLI use
     failure_threshold: int = 5
     recovery_timeout: float = 60.0
+
+
+@dataclass
+class ProviderMeta:
+    """Provider metadata for unified configuration and behavior.
+    
+    This dataclass centralizes provider-specific configuration that was
+    previously duplicated across provider implementations.
+    """
+
+    name: str
+    """Human-readable provider name (e.g., 'Deepgram Nova 3')"""
+
+    provider_key: str
+    """Short identifier for error messages (e.g., 'deepgram')"""
+
+    supported_features: list[str] = field(default_factory=list)
+    """List of features supported by this provider"""
+
+    api_key_env: str | None = None
+    """Config attribute name for API key (e.g., 'DEEPGRAM_API_KEY'), None for local providers"""
+
+    api_key_min_length: int = 10
+    """Minimum valid API key length for validation"""
+
+    sdk_imports: list[str] = field(default_factory=list)
+    """Module paths required for this provider (e.g., ['deepgram'])"""
+
+    install_command: str | None = None
+    """Install command for missing SDK (e.g., 'uv add deepgram-sdk')"""
+
+    is_local: bool = False
+    """True for local providers (Whisper, Parakeet) that don't need API keys"""
 
 
 class CircuitBreakerError(Exception):
@@ -96,20 +129,7 @@ class CircuitBreakerMixin:
     async def circuit_breaker_call_async(
         self, func: Callable[..., Awaitable[T]], *args: object, **kwargs: object
     ) -> T:
-        """Execute an async function with circuit breaker protection.
-
-        Args:
-            func: Async function to execute
-            *args: Positional arguments for function
-            **kwargs: Keyword arguments for function
-
-        Returns:
-            Function result
-
-        Raises:
-            CircuitBreakerError: If circuit is open
-            Exception: Any exception raised by the function
-        """
+        """Execute an async function with circuit breaker protection."""
         self._check_circuit_state()
 
         try:
@@ -128,15 +148,12 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
     must implement, ensuring consistency across different services like
     Deepgram, ElevenLabs, etc.
 
-    Combines two resilience patterns:
-    - Retry logic: Handles transient failures with exponential backoff
-    - Circuit breaker: Prevents overwhelming a failing service by failing fast
-
-    The circuit breaker wraps the retry logic, so:
-    1. Circuit checks if service is healthy (fails fast if open)
-    2. Retry logic attempts operation with backoff on transient failures
-    3. Circuit tracks overall success/failure to manage state transitions
+    Subclasses should define a META class variable with ProviderMeta to enable
+    automatic configuration handling, or override the relevant methods manually.
     """
+
+    # Provider metadata - subclasses should override with their specific config
+    META: ClassVar[ProviderMeta | None] = None
 
     # Default configurations for all providers
     DEFAULT_RETRY_CONFIG = RetryConfig(
@@ -161,62 +178,36 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
         circuit_config: CircuitBreakerConfig | None = None,
         retry_config: RetryConfig | None = None,
     ) -> None:
-        """Initialize the transcription provider.
-
-        Args:
-            api_key: Optional API key for the service
-            circuit_config: Circuit breaker configuration (uses DEFAULT_CIRCUIT_CONFIG if None)
-            retry_config: Retry configuration (uses DEFAULT_RETRY_CONFIG if None)
-        """
+        """Initialize the transcription provider."""
         self.api_key = api_key
         self._retry_config = retry_config or self.DEFAULT_RETRY_CONFIG
         self._transcribe_timeout = self._DEFAULT_TIMEOUT_SECONDS
-
-        # Initialize circuit breaker with default config if not provided
         CircuitBreakerMixin.__init__(self, circuit_config or self.DEFAULT_CIRCUIT_CONFIG)
+
+    def _resolve_api_key(self) -> str | None:
+        """Resolve API key from instance or config based on META.
+        
+        Returns:
+            Resolved API key or None if not found/not applicable.
+        """
+        if self.api_key:
+            return self.api_key
+        if self.META and self.META.api_key_env:
+            from ..config import get_config
+            return getattr(get_config(), self.META.api_key_env, None)
+        return None
 
     @abstractmethod
     async def _transcribe_impl(
         self, audio_file_path: Path, language: str = "en"
     ) -> TranscriptionResult | None:
-        """Internal implementation of transcription.
-
-        This method should contain the actual transcription logic
-        without retry or circuit breaker handling.
-
-        Args:
-            audio_file_path: Path to the audio file to transcribe
-            language: Language code for transcription (e.g., 'en', 'es')
-
-        Returns:
-            TranscriptionResult object with all available features, or None if failed
-        """
+        """Internal implementation of transcription."""
         pass
 
     async def transcribe_async(
         self, audio_file_path: Path, language: str = "en", *, timeout: float | None = None
     ) -> TranscriptionResult | None:
-        """Transcribe audio file asynchronously with retry and circuit breaker.
-
-        This method applies retry logic and circuit breaker protection.
-        Exceptions from the provider implementation are allowed to propagate.
-
-        Args:
-            audio_file_path: Path to the audio file to transcribe
-            language: Language code for transcription (e.g., 'en', 'es')
-
-        Returns:
-            TranscriptionResult object with all available features
-
-        Raises:
-            ValidationError: If audio file validation fails
-            ProviderNotAvailableError: If provider SDK not installed
-            ProviderAuthenticationError: If API key invalid
-            ProviderRateLimitError: If rate limit exceeded
-            ProviderTimeoutError: If request times out
-            ProviderAPIError: If provider API fails
-            CircuitBreakerError: If circuit breaker is open
-        """
+        """Transcribe audio file asynchronously with retry and circuit breaker."""
 
         @retry_async(config=self._retry_config)
         async def _transcribe_with_retry() -> TranscriptionResult | None:
@@ -232,31 +223,7 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
     def transcribe(
         self, audio_file_path: Path, language: str = "en", *, timeout: float | None = None
     ) -> TranscriptionResult | None:
-        """Transcribe audio file synchronously with retry and circuit breaker.
-
-        This is a convenience wrapper around transcribe_async() for synchronous
-        contexts. For async code, prefer using transcribe_async() directly to
-        avoid blocking the event loop.
-
-        Handles nested event loops by running async code in a thread pool when
-        called from an async context.
-
-        Args:
-            audio_file_path: Path to the audio file to transcribe
-            language: Language code for transcription (e.g., 'en', 'es')
-
-        Returns:
-            TranscriptionResult object with all available features
-
-        Raises:
-            ValidationError: If audio file validation fails
-            ProviderNotAvailableError: If provider SDK not installed
-            ProviderAuthenticationError: If API key invalid
-            ProviderRateLimitError: If rate limit exceeded
-            ProviderTimeoutError: If request times out
-            ProviderAPIError: If provider API fails
-            CircuitBreakerError: If circuit breaker is open
-        """
+        """Transcribe audio file synchronously with retry and circuit breaker."""
         effective_timeout = timeout if timeout is not None else self._transcribe_timeout
 
         async def _run() -> TranscriptionResult | None:
@@ -271,36 +238,33 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
             future = self._SYNC_EXECUTOR.submit(_runner)
             return future.result(timeout=effective_timeout)
         except RuntimeError:
-            # No running loop - safe to use asyncio.run()
             return asyncio.run(_run())
 
-    @abstractmethod
     def validate_configuration(self) -> bool:
         """Validate that the provider is properly configured.
-
-        Returns:
-            True if configuration is valid, False otherwise
+        
+        Default implementation checks API key for cloud providers.
+        Local providers or those with custom validation should override.
         """
-        pass
+        if self.META:
+            if self.META.is_local:
+                return True  # Local providers override with dependency checks
+            if self.META.api_key_env:
+                key = self._resolve_api_key()
+                return bool(key and len(key) >= self.META.api_key_min_length)
+        return bool(self.api_key)
 
-    @abstractmethod
     def get_provider_name(self) -> str:
-        """Get the name of this transcription provider.
+        """Get the name of this transcription provider."""
+        if self.META:
+            return self.META.name
+        return self.__class__.__name__
 
-        Returns:
-            Human-readable name of the provider (e.g., 'Deepgram Nova 3', 'ElevenLabs')
-        """
-        pass
-
-    @abstractmethod
     def get_supported_features(self) -> list[str]:
-        """Get list of features supported by this provider.
-
-        Returns:
-            List of feature names like 'speaker_diarization', 'topic_detection',
-            'sentiment_analysis', 'timestamps', etc.
-        """
-        pass
+        """Get list of features supported by this provider."""
+        if self.META:
+            return self.META.supported_features
+        return []
 
     def _build_health_response(
         self,
@@ -309,25 +273,7 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
         response_time_ms: float,
         **details: Any,
     ) -> dict[str, Any]:
-        """Build a standardized health check response dictionary.
-
-        This helper ensures consistent health check response format across all
-        providers. Subclasses should use this method in their health_check_async
-        implementations.
-
-        Args:
-            healthy: Whether the provider is healthy and operational.
-            status: Status string (e.g., 'operational', 'error', 'sdk_not_available').
-            response_time_ms: Time taken for the health check in milliseconds.
-            **details: Additional provider-specific details to include.
-
-        Returns:
-            Standardized health check response dictionary with keys:
-            - healthy (bool)
-            - status (str)
-            - response_time_ms (float)
-            - details (dict) including provider name and any additional details
-        """
+        """Build a standardized health check response dictionary."""
         return {
             "healthy": healthy,
             "status": status,
@@ -335,46 +281,61 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
             "details": {"provider": self.get_provider_name(), **details},
         }
 
+    async def _run_health_check(
+        self, check_fn: Callable[[], Awaitable[dict[str, Any]]]
+    ) -> dict[str, Any]:
+        """Template method for health checks with standardized error handling.
+        
+        Wraps provider-specific health check logic with timing and error handling.
+        
+        Args:
+            check_fn: Async function that performs provider-specific health check.
+                      Should return dict with 'healthy', 'status', and optional details.
+        
+        Returns:
+            Standardized health check response dict.
+        """
+        start_time = time.time()
+        try:
+            result = await check_fn()
+            return self._build_health_response(
+                healthy=result.pop("healthy", True),
+                status=result.pop("status", "operational"),
+                response_time_ms=(time.time() - start_time) * 1000,
+                **result,
+            )
+        except ImportError:
+            sdk_name = self.META.name if self.META else self.get_provider_name()
+            return self._build_health_response(
+                healthy=False,
+                status="sdk_not_available",
+                response_time_ms=(time.time() - start_time) * 1000,
+                error=f"{sdk_name} SDK not installed",
+            )
+        except Exception as e:
+            return self._build_health_response(
+                healthy=False,
+                status="error",
+                response_time_ms=(time.time() - start_time) * 1000,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+
     @abstractmethod
     async def health_check_async(self) -> dict[str, Any]:
-        """Perform asynchronous health check for the provider.
-
-        This should verify API connectivity, authentication, and service availability.
-
-        Returns:
-            Dictionary containing health check results:
-            {
-                "healthy": bool,
-                "status": str,
-                "response_time_ms": float,
-                "details": dict
-            }
-        """
+        """Perform asynchronous health check for the provider."""
         pass
 
     def health_check(self) -> dict[str, Any]:
-        """Perform synchronous health check for the provider.
-
-        This is a convenience wrapper around health_check_async() for synchronous
-        contexts. For async code, prefer using health_check_async() directly.
-
-        Handles nested event loops by running async code in a thread pool when
-        called from an async context.
-
-        Returns:
-            Dictionary containing health check results (see health_check_async for format)
-        """
+        """Perform synchronous health check for the provider."""
         try:
-            # Check if there's a running event loop
             asyncio.get_running_loop()
-            # We're in async context - run in thread pool to avoid conflict
             import concurrent.futures
 
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 future = executor.submit(asyncio.run, self.health_check_async())
                 return future.result(timeout=Timeouts.HEALTH_CHECK)
         except RuntimeError:
-            # No running loop - safe to use asyncio.run()
             return asyncio.run(self.health_check_async())
 
     def update_transcription_timeout(self, timeout_seconds: float) -> None:

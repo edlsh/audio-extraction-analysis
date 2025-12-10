@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING
 from src.utils.logger import get_logger
 
 from ..utils.constants import AnalysisConstants
-from ..utils.formatting import format_timestamp
 from .base_analyzer import BaseAnalyzer
 
 if TYPE_CHECKING:
@@ -92,7 +91,7 @@ class FullAnalyzer(BaseAnalyzer):
         Returns:
             Formatted markdown string for the executive summary file
         """
-        duration = self._format_hms(result.duration)
+        duration = self._format_timestamp(result.duration)
         speakers_count = len(result.speakers) if result.speakers else 0
         topic_count = len(result.topics or {})
         intents_count = len(result.intents or [])
@@ -136,8 +135,8 @@ class FullAnalyzer(BaseAnalyzer):
         """Render detailed chapter sections."""
         lines: list[str] = []
         for idx, ch in enumerate(chapters, 1):
-            start = self._format_hms(ch.start_time)
-            end = self._format_hms(ch.end_time)
+            start = self._format_timestamp(ch.start_time)
+            end = self._format_timestamp(ch.end_time)
             pct = self._calc_chapter_percentage(ch.start_time, ch.end_time, total_duration)
             title = self._get_chapter_title(ch.topics, idx)
 
@@ -160,8 +159,8 @@ class FullAnalyzer(BaseAnalyzer):
             "|---|------------|---:|-------|",
         ]
         for idx, ch in enumerate(chapters, 1):
-            start = self._format_hms(ch.start_time)
-            end = self._format_hms(ch.end_time)
+            start = self._format_timestamp(ch.start_time)
+            end = self._format_timestamp(ch.end_time)
             pct = self._calc_chapter_percentage(ch.start_time, ch.end_time, total_duration)
             title = self._get_chapter_title(ch.topics, idx)
             lines.append(f"| {idx} | [{start}] - [{end}] | {pct:.1f}% | {title} |")
@@ -248,9 +247,9 @@ class FullAnalyzer(BaseAnalyzer):
         for utt in utterances:
             current_min = int(utt.start // 600)
             if current_min > last_section_min:
-                lines.append(f"\n## Section starting at [{self._format_hms(utt.start)}]\n")
+                lines.append(f"\n## Section starting at [{self._format_timestamp(utt.start)}]\n")
                 last_section_min = current_min
-            lines.append(f"[{self._format_hms(utt.start)}] Speaker {utt.speaker + 1}: {utt.text}")
+            lines.append(f"[{self._format_timestamp(utt.start)}] Speaker {utt.speaker + 1}: {utt.text}")
         return lines
 
     def _render_speaker_statistics(
@@ -263,7 +262,7 @@ class FullAnalyzer(BaseAnalyzer):
             totals[utt.speaker] = totals.get(utt.speaker, 0.0) + max(0.0, utt.end - utt.start)
         for speaker_id, seconds in sorted(totals.items()):
             pct = (seconds / duration) * 100
-            lines.append(f"- Speaker {speaker_id + 1}: {self._format_hms(seconds)} ({pct:.1f}%)")
+            lines.append(f"- Speaker {speaker_id + 1}: {self._format_timestamp(seconds)} ({pct:.1f}%)")
         return lines
 
     def _render_full_transcript(self, result: TranscriptionResult) -> str:
@@ -324,7 +323,7 @@ class FullAnalyzer(BaseAnalyzer):
             # against utterances. This helps readers locate the insight in the full transcript.
             ts = self._approx_timestamp_for_sentence(sentence, result.utterances or [])
             if ts is not None:
-                lines.append(f"**Timestamp:** [{self._format_hms(ts)}]")
+                lines.append(f"**Timestamp:** [{self._format_timestamp(ts)}]")
             lines.append("**Implications:** Describe potential impact or meaning.")
             lines.append("**Action Items:** Define next steps or owners.")
             lines.append("")
@@ -332,10 +331,6 @@ class FullAnalyzer(BaseAnalyzer):
         return "\n".join(lines) + "\n"
 
     # ---------------------- Helpers ----------------------
-    def _format_hms(self, seconds: float) -> str:
-        """Format seconds as HH:MM:SS timestamp string."""
-        return format_timestamp(seconds)
-
     def _overall_sentiment(self, result: TranscriptionResult) -> str:
         """Determine the dominant sentiment from sentiment distribution.
 

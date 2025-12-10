@@ -65,12 +65,12 @@ class HomeScreen(Screen):
 
     #home-container {
         layout: horizontal;
-        height: 100%;
+        height: 1fr;
     }
 
     #tree-pane {
         width: 60%;
-        border-right: solid $primary;
+        border-right: solid $panel;
     }
 
     #recent-pane {
@@ -94,7 +94,7 @@ class HomeScreen(Screen):
         height: auto;
         padding: 1 2;
         background: $panel;
-        border-top: solid $primary;
+        border-top: solid $panel;
     }
 
     #url-label {
@@ -155,23 +155,31 @@ class HomeScreen(Screen):
 
     def compose(self) -> ComposeResult:
         """Compose the home screen layout."""
+        logger.debug("HomeScreen.compose() starting...")
         yield Header()
+        logger.debug("HomeScreen: Header yielded")
         yield Label("Select Input File or Paste URL", id="home-title")
+        logger.debug("HomeScreen: Title yielded")
 
+        logger.debug(f"HomeScreen: Creating tree pane with path: {self.initial_path}")
         tree_pane = Vertical(
             Label("Browse Files"),
             FilteredDirectoryTree(str(self.initial_path), id="file-tree"),
             id="tree-pane",
         )
+        logger.debug("HomeScreen: Tree pane created")
 
         recent_pane = Vertical(
             Label("Recent Files"),
             DataTable(id="recent-table"),
             id="recent-pane",
         )
+        logger.debug("HomeScreen: Recent pane created")
 
         yield Container(tree_pane, recent_pane, id="home-container")
+        logger.debug("HomeScreen: Container yielded")
         yield Input(placeholder="Type / to filter files...", id="filter-input")
+        logger.debug("HomeScreen: Filter input yielded")
 
         # Inline URL input row
         yield Horizontal(
@@ -181,20 +189,28 @@ class HomeScreen(Screen):
             Button("⚙️ Settings", variant="default", id="settings-btn"),
             id="url-row",
         )
+        logger.debug("HomeScreen: URL row yielded")
 
         yield Footer()
+        logger.debug("HomeScreen.compose() completed")
 
     def on_mount(self) -> None:
         """Set up the screen on mount."""
+        logger.debug("HomeScreen.on_mount() starting...")
         # Configure recent files table
         table = self.query_one("#recent-table", DataTable)
+        logger.debug("HomeScreen: Got recent table")
         table.add_columns("File", "Size", "Last Used")
         table.cursor_type = "row"
 
+        logger.debug("HomeScreen: Loading recent files...")
         self._load_recent_files()
+        logger.debug("HomeScreen: Recent files loaded")
 
         # Focus the file tree initially
+        logger.debug("HomeScreen: Focusing file tree...")
         self.query_one("#file-tree").focus()
+        logger.debug("HomeScreen.on_mount() completed")
 
     def _load_recent_files(self) -> None:
         """Load and display recent files in table."""

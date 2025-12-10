@@ -14,15 +14,17 @@ from ..exceptions import (
     AudioExtractionTimeoutError,
     AudioFileCorruptedError,
     FFmpegExecutionError,
-    FFmpegNotFoundError,
 )
 from ..utils.constants import MediaLimits, Timeouts
-from ..utils.file_validation import FileValidator, safe_validate_media_file
+from ..utils.file_validation import FileValidator
 from .ffmpeg_core import (
     build_extract_commands,
+    check_ffmpeg_available,
     cleanup_temp_file,
+    prepare_extraction_paths,
     probe_media_sync,
     validate_path_security,
+    verify_extraction_output,
 )
 
 logger = get_logger(__name__)
@@ -45,7 +47,7 @@ class AudioExtractor:
     MAX_FILE_SIZE = MediaLimits.MAX_FILE_SIZE_BYTES
 
     def __init__(self) -> None:
-        self._check_ffmpeg()
+        check_ffmpeg_available()
 
     def _validate_path(self, file_path: Path) -> None:
         """Validate file path for security.
@@ -66,37 +68,6 @@ class AudioExtractor:
 
         # Security: Check for dangerous shell characters
         validate_path_security(file_path)
-
-    def _check_ffmpeg(self) -> None:
-        """Check if FFmpeg is available.
-
-        Raises:
-            FFmpegNotFoundError: If FFmpeg is not installed or not accessible
-        """
-        try:
-            subprocess.run(
-                ["ffmpeg", "-version"],
-                capture_output=True,
-                check=True,
-                timeout=Timeouts.FFMPEG_VERSION_CHECK,
-            )
-        except subprocess.CalledProcessError as e:
-            logger.error("FFmpeg check failed")
-            raise FFmpegNotFoundError(
-                "FFmpeg is required but not installed or not accessible",
-                context={"check_type": "version"},
-            ) from e
-        except FileNotFoundError as e:
-            logger.error("FFmpeg is not installed or not in PATH")
-            raise FFmpegNotFoundError(
-                "FFmpeg not found in PATH", context={"error": "not_in_path"}
-            ) from e
-        except subprocess.TimeoutExpired as e:
-            logger.error(f"FFmpeg version check timed out after {Timeouts.FFMPEG_VERSION_CHECK}s")
-            raise FFmpegNotFoundError(
-                "FFmpeg version check timed out",
-                context={"timeout": Timeouts.FFMPEG_VERSION_CHECK},
-            ) from e
 
     def get_video_info(self, input_path: Path) -> dict[str, Any]:
         """Get video/audio file information using ffprobe.
@@ -157,13 +128,15 @@ class AudioExtractor:
             Path to extracted audio file
 
         Raises:
+            ValidationError: If input file validation fails (missing, invalid, too large)
             AudioExtractionTimeoutError: If extraction exceeds timeout (600s)
-            FFmpegNotFoundError: If FFmpeg is not installed
             FFmpegExecutionError: If FFmpeg execution fails
             AudioFileCorruptedError: If input file is corrupted
             AudioExtractionError: For other extraction failures
         """
-        input_path, output_path = self._prepare_extraction_paths(input_path, output_path)
+        input_path, output_path = prepare_extraction_paths(
+            input_path, output_path, max_file_size=self.MAX_FILE_SIZE
+        )
         logger.info(f"Extracting audio from {input_path} with {quality.value} quality")
 
         temp_path = None
@@ -171,7 +144,7 @@ class AudioExtractor:
             self._log_input_info(input_path)
             cmds, temp_path = build_extract_commands(input_path, output_path, quality.value)
             self._run_ffmpeg_commands(cmds)
-            return self._verify_output(input_path, output_path)
+            return verify_extraction_output(input_path, output_path)
 
         except subprocess.TimeoutExpired as e:
             raise self._timeout_error(input_path, quality) from e
@@ -184,21 +157,7 @@ class AudioExtractor:
                 context={"input_path": str(input_path), "error_type": type(e).__name__},
             ) from e
         finally:
-            self._cleanup_temp_file(temp_path)
-
-    def _prepare_extraction_paths(
-        self, input_path: Path, output_path: Path | None
-    ) -> tuple[Path, Path]:
-        """Validate input and prepare output path."""
-        validated_path = safe_validate_media_file(input_path, max_file_size=self.MAX_FILE_SIZE)
-        if validated_path is None:
-            raise ValueError(f"Invalid media file: {input_path}")
-
-        if output_path is None:
-            output_path = validated_path.with_suffix(".mp3")
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-
-        return validated_path, output_path
+            cleanup_temp_file(temp_path)
 
     def _log_input_info(self, input_path: Path) -> None:
         """Log input video information."""
@@ -222,19 +181,6 @@ class AudioExtractor:
                 check=True,
                 timeout=Timeouts.FFMPEG_EXTRACTION,
             )
-
-    def _verify_output(self, input_path: Path, output_path: Path) -> Path:
-        """Verify output file was created and log success."""
-        if not output_path.exists():
-            logger.error("Audio extraction completed but output file not found")
-            raise AudioExtractionError(
-                f"FFmpeg completed but output file not found: {output_path.name}",
-                context={"input_path": str(input_path), "expected_output": str(output_path)},
-            )
-
-        final_size = output_path.stat().st_size / (1024 * 1024)
-        logger.info(f"Successfully extracted audio: {final_size:.2f} MB")
-        return output_path
 
     def _timeout_error(
         self, input_path: Path, quality: AudioQuality
@@ -278,7 +224,3 @@ class AudioExtractor:
                 "quality": quality.value,
             },
         )
-
-    def _cleanup_temp_file(self, temp_path: Path | None) -> None:
-        """Clean up temporary file if it exists."""
-        cleanup_temp_file(temp_path)

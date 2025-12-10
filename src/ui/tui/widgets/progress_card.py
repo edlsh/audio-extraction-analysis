@@ -1,10 +1,11 @@
 """Modern progress card widget using composable Textual widgets.
 
 Features:
+- Rounded borders with status-based styling
 - LoadingIndicator for pending stages
 - Digits widget for large percentage display
 - Sparkline for processing rate visualization
-- Smooth CSS animations for status transitions
+- Theme-aware colors via CSS variables
 """
 
 from __future__ import annotations
@@ -16,6 +17,8 @@ from textual.app import ComposeResult
 from textual.containers import Vertical
 from textual.reactive import reactive
 from textual.widgets import Digits, Label, LoadingIndicator, Sparkline, Static
+
+from ..themes import ANIM_EASING, ANIM_FAST, ANIM_MED
 
 if TYPE_CHECKING:
     from ..state import AppState
@@ -43,35 +46,55 @@ class ProgressCard(Static):
         width: 100%;
         height: auto;
         min-height: 7;
-        border: solid $primary;
+        border: round $panel;
         padding: 0 1;
         margin: 0 0 1 0;
         background: $surface;
     }
 
+    /* Status variants with rounded borders */
     ProgressCard.pending {
-        border: solid $panel-darken-2;
+        border: round $panel;
+        background: $surface;
     }
 
     ProgressCard.running {
-        border: solid $accent;
+        border: round $accent;
+        background: $surface;
     }
 
     ProgressCard.complete {
-        border: solid $success;
+        border: round $success;
+        background: $surface;
     }
 
     ProgressCard.error {
-        border: solid $error;
+        border: round $error;
+        background: $surface;
     }
 
+    /* Card header */
     ProgressCard .card-header {
         text-style: bold;
         text-align: center;
         padding: 0;
         margin-bottom: 1;
+        color: $accent;
     }
 
+    ProgressCard.pending .card-header {
+        color: $text-disabled;
+    }
+
+    ProgressCard.complete .card-header {
+        color: $success;
+    }
+
+    ProgressCard.error .card-header {
+        color: $error;
+    }
+
+    /* Percentage display */
     ProgressCard .percentage-display {
         text-align: center;
         height: 3;
@@ -82,22 +105,26 @@ class ProgressCard(Static):
         width: 100%;
     }
 
+    /* Status line */
     ProgressCard .status-line {
         text-align: center;
         color: $text-disabled;
+        padding-top: 1;
     }
 
+    /* Sparkline */
     ProgressCard .rate-sparkline {
         height: 1;
         margin: 0 2;
+        color: $accent;
     }
 
+    /* Loading indicator */
     ProgressCard LoadingIndicator {
         height: 3;
     }
     """
 
-    # Reactive attributes
     status: reactive[str] = reactive("pending")
     percentage: reactive[float] = reactive(0.0)
     message: reactive[str] = reactive("")
@@ -107,8 +134,8 @@ class ProgressCard(Static):
         self,
         stage_id: str,
         stage_name: str,
-        *args,
-        **kwargs,
+        *args: object,
+        **kwargs: object,
     ) -> None:
         """Initialize progress card.
 
@@ -138,11 +165,9 @@ class ProgressCard(Static):
         """Configure initial visibility on mount."""
         self._update_display_mode()
 
-    def watch_status(self, status: str) -> None:
-        """React to status changes."""
-        # Remove old status classes
+    def watch_status(self, old_status: str, status: str) -> None:
+        """React to status changes with optional animation."""
         self.remove_class("pending", "running", "complete", "error")
-        # Add new status class
         self.add_class(status)
         self._update_display_mode()
 
@@ -152,7 +177,7 @@ class ProgressCard(Static):
             digits = self.query_one(f"#digits-{self.stage_id}", Digits)
             digits.update(f"{percentage:.0f}%")
         except Exception:
-            pass  # Widget not yet mounted
+            pass
 
     def watch_message(self, message: str) -> None:
         """React to message changes."""
@@ -170,20 +195,18 @@ class ProgressCard(Static):
             sparkline = self.query_one(f"#sparkline-{self.stage_id}", Sparkline)
 
             if self.status == "pending":
-                # Show loading indicator, hide digits
                 loading.display = True
                 digits.display = False
                 sparkline.display = False
             else:
-                # Show digits and sparkline, hide loading
                 loading.display = False
                 digits.display = True
                 sparkline.display = self.status == "running" and len(self.rate_history) > 1
         except Exception:
-            pass  # Widgets not yet mounted
+            pass
 
     def _update_status_line(self) -> None:
-        """Update the status line text."""
+        """Update the status line text with theme-aware colors."""
         try:
             status_label = self.query_one(f"#status-{self.stage_id}", Label)
 
@@ -192,11 +215,11 @@ class ProgressCard(Static):
             elif self.status == "running":
                 eta_text = f" (ETA {self.eta})" if self.eta != "--:--" else ""
                 msg = self.message[:40] if self.message else "Processing..."
-                status_label.update(f"[cyan]{msg}{eta_text}[/cyan]")
+                status_label.update(f"{msg}{eta_text}")
             elif self.status == "complete":
-                status_label.update(f"[green]✓ {self.message or 'Completed'}[/green]")
+                status_label.update(f"✓ {self.message or 'Completed'}")
             elif self.status == "error":
-                status_label.update(f"[red]✗ {self.message or 'Error'}[/red]")
+                status_label.update(f"✗ {self.message or 'Error'}")
         except Exception:
             pass
 
@@ -206,7 +229,6 @@ class ProgressCard(Static):
         Args:
             state: Current application state
         """
-        # Determine status
         status = state.stage_status.get(self.stage_id, "pending")
         if not status or status not in ("pending", "running", "complete", "error"):
             if state.current_stage == self.stage_id:
@@ -218,26 +240,22 @@ class ProgressCard(Static):
 
         self.status = status
 
-        # Get progress
         completed = state.stage_completed.get(self.stage_id, 0)
         total = state.stage_totals.get(self.stage_id, 100)
         self.percentage = (completed / total * 100) if total > 0 else 0
 
-        # Calculate rate for sparkline
         now = time.time()
         if status == "running" and completed > self._last_completed:
             elapsed = now - self._last_update_time if self._last_update_time > 0 else 1.0
-            if elapsed > 0.1:  # Avoid division by tiny intervals
+            if elapsed > 0.1:
                 rate = (completed - self._last_completed) / elapsed
                 self.rate_history.append(rate)
-                # Keep last 30 data points
                 if len(self.rate_history) > 30:
                     self.rate_history = self.rate_history[-30:]
 
                 self._last_update_time = now
                 self._last_completed = completed
 
-                # Update sparkline
                 try:
                     sparkline = self.query_one(f"#sparkline-{self.stage_id}", Sparkline)
                     sparkline.data = self.rate_history
@@ -245,7 +263,6 @@ class ProgressCard(Static):
                 except Exception:
                     pass
 
-        # Get message
         if state.current_stage == self.stage_id:
             self.message = state.current_message or state.stage_messages.get(self.stage_id, "")
         else:
@@ -256,7 +273,6 @@ class ProgressCard(Static):
             else:
                 self.message = msg
 
-        # Calculate ETA
         self.eta = self._calculate_eta(state, completed, total)
 
     def _calculate_eta(self, state: AppState, completed: int, total: int) -> str:

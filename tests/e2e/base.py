@@ -158,6 +158,13 @@ class E2ETestBase:
         if env_vars:
             test_env.update(env_vars)
 
+        # Convert "audio-extraction-analysis" to "python -m src.cli" for running from source
+        if command and command[0] == "audio-extraction-analysis":
+            command = ["python", "-m", "src.cli", *command[1:]]
+
+        # Run from project root to ensure src package is importable
+        project_root = Path(__file__).parent.parent.parent
+
         try:
             result = subprocess.run(
                 command,
@@ -165,7 +172,7 @@ class E2ETestBase:
                 text=True,
                 timeout=timeout,
                 env=test_env,
-                cwd=self.temp_dir,
+                cwd=project_root,
             )
 
             duration = time.time() - start_time

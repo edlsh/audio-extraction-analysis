@@ -1,8 +1,7 @@
-"""Tests for FileNotFoundError → AudioFileNotFoundError mapping in ElevenLabs _transcribe_impl.
+"""Tests for validation error handling in ElevenLabs _transcribe_impl.
 
-These tests verify that when a FileNotFoundError is raised during transcription
-(e.g., audio file doesn't exist), it maps to AudioFileNotFoundError via the
-provider_error_handler decorator.
+These tests verify that validation errors (missing files, invalid formats, etc.) are 
+handled consistently via the provider_error_handler decorator and validate_audio_file_or_raise.
 """
 
 from pathlib import Path
@@ -13,8 +12,8 @@ import pytest
 from src.exceptions import AudioFileNotFoundError
 
 
-class TestElevenLabsFileNotFoundMapping:
-    """Test FileNotFoundError handling in ElevenLabs _transcribe_impl."""
+class TestElevenLabsValidationErrorMapping:
+    """Test validation error handling in ElevenLabs _transcribe_impl."""
 
     @pytest.fixture
     def mock_elevenlabs_sdk(self):
@@ -41,8 +40,8 @@ class TestElevenLabsFileNotFoundMapping:
             yield mock
 
     @pytest.mark.asyncio
-    async def test_file_not_found_maps_to_audio_file_not_found_error(self, mock_config):
-        """FileNotFoundError in _transcribe_impl should map to AudioFileNotFoundError."""
+    async def test_validation_error_maps_to_audio_file_not_found(self, mock_config):
+        """Validation error for missing file should map to AudioFileNotFoundError."""
         # Patch the SDK check
         with patch("src.providers.elevenlabs.PROVIDER_AVAILABLE", True):
             with patch("src.providers.elevenlabs.ElevenLabsClient"):
@@ -53,9 +52,9 @@ class TestElevenLabsFileNotFoundMapping:
                 # Use a non-existent file path
                 non_existent_path = Path("/nonexistent/audio.mp3")
 
-                # Mock safe_validate_audio_file to raise FileNotFoundError
+                # Mock validate_audio_file_or_raise to raise FileNotFoundError
                 with patch(
-                    "src.providers.elevenlabs.safe_validate_audio_file",
+                    "src.providers.elevenlabs.validate_audio_file_or_raise",
                     side_effect=FileNotFoundError(f"No such file: {non_existent_path}"),
                 ):
                     with pytest.raises(AudioFileNotFoundError) as exc_info:
@@ -68,7 +67,7 @@ class TestElevenLabsFileNotFoundMapping:
                     )
 
     @pytest.mark.asyncio
-    async def test_file_not_found_during_file_read_maps_correctly(self, mock_config):
+    async def test_file_read_error_maps_to_audio_file_not_found(self, mock_config):
         """FileNotFoundError when reading file should map to AudioFileNotFoundError."""
         with patch("src.providers.elevenlabs.PROVIDER_AVAILABLE", True):
             with patch("src.providers.elevenlabs.ElevenLabsClient"):
@@ -83,7 +82,7 @@ class TestElevenLabsFileNotFoundMapping:
 
                 with (
                     patch(
-                        "src.providers.elevenlabs.safe_validate_audio_file",
+                        "src.providers.elevenlabs.validate_audio_file_or_raise",
                         return_value=test_path,
                     ),
                     patch.object(

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from src.utils.logger import get_logger
 
 from ..utils.constants import AnalysisConstants
-from ..utils.formatting import format_duration
+from ..utils.formatting import format_duration, format_timestamp
 
 if TYPE_CHECKING:
     from ..models.transcription import TranscriptionResult, TranscriptionUtterance
@@ -77,3 +77,27 @@ class BaseAnalyzer:
                 action_sentences.append(sentence)
 
         return action_sentences
+
+    def _format_timestamp(self, seconds: float) -> str:
+        """Format seconds as HH:MM:SS timestamp string.
+
+        Args:
+            seconds: Time in seconds
+
+        Returns:
+            Formatted string like "01:23:45" or "00:05:30"
+        """
+        return format_timestamp(seconds)
+
+    def _get_sentiment_emoji(self, sentiment: str) -> str:
+        """Get emoji representation for sentiment category.
+
+        Args:
+            sentiment: Sentiment category name (case-insensitive).
+
+        Returns:
+            Corresponding emoji: "😊" for positive, "😔" for negative,
+            "😐" for neutral, or "🤔" for unknown/unrecognized sentiments.
+        """
+        sentiment_map = {"positive": "😊", "negative": "😔", "neutral": "😐"}
+        return sentiment_map.get(sentiment.lower(), "🤔")

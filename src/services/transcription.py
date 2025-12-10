@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 from ..config import Config
 from ..exceptions import ProviderTimeoutError, TranscriptionError
 from ..providers.factory import TranscriptionProviderFactory
-from ..utils.file_validation import safe_validate_audio_file
+from ..utils.file_validation import validate_audio_file_or_raise
 
 logger = get_logger(__name__)
 
@@ -79,12 +79,7 @@ class TranscriptionService:
         )
 
         # Validate audio file
-        validated_path = safe_validate_audio_file(audio_file_path)
-        if validated_path is None:
-            raise ValidationError(
-                f"Audio file validation failed: {audio_file_path}",
-                context={"file_path": str(audio_file_path)},
-            )
+        validated_path = validate_audio_file_or_raise(audio_file_path)
 
         # Auto-select provider if not specified
         if not provider_name:

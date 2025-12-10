@@ -88,9 +88,13 @@ async def run_pipeline(
                     if keep_downloaded_videos is not None
                     else cfg.url_ingest_keep_video_default
                 ),
+                event_sink=event_sink,
             )
             try:
-                ingest_result = ingestion_service.ingest(url, quality=quality_enum)
+                # Run blocking ingest() in thread pool to avoid blocking event loop
+                ingest_result = await asyncio.to_thread(
+                    ingestion_service.ingest, url, quality=quality_enum
+                )
             except UrlIngestionError as exc:
                 event_models.emit_event(
                     "error",
@@ -109,18 +113,9 @@ async def run_pipeline(
                 data={"duration": download_duration, "status": "complete"},
                 run_id=run_id,
             )
-            event_models.emit_event(
-                "stage_start",
-                stage="url_prepare",
-                data={"description": "Preparing downloaded media", "total": 1},
-                run_id=run_id,
-            )
-            event_models.emit_event(
-                "stage_end",
-                stage="url_prepare",
-                data={"duration": 0.1, "status": "complete"},
-                run_id=run_id,
-            )
+
+            # url_prepare stage is handled automatically by the pipeline
+            # The ingest() call already processed the file (extracted audio if video)
 
         if effective_input_path is None:
             raise ValueError("No input path provided for pipeline run.")
@@ -135,6 +130,7 @@ async def run_pipeline(
             analysis_style=analysis_style,
             console_manager=None,  # Disable console output in TUI mode
             run_id=run_id,
+            event_sink=event_sink,  # Pass event sink for direct emission
         )
         return result
 

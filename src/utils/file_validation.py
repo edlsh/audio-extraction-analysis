@@ -628,3 +628,86 @@ def safe_validate_audio_file(
         return validate_audio_file(audio_file_path, max_file_size, provider_name)
     except ValidationError:
         return None
+
+
+def validate_audio_file_or_raise(
+    audio_file_path: Path | str,
+    max_file_size: int | None = None,
+    provider_name: str | None = None,
+) -> Path:
+    """Validate audio file and raise ValidationError with context if invalid.
+
+    Combines validation and error raising into a single call, reducing boilerplate
+    in callers that need to validate then raise on failure.
+
+    Args:
+        audio_file_path: Path to audio file (Path or string).
+        max_file_size: Optional maximum file size in bytes.
+        provider_name: Optional provider name for context in error messages.
+
+    Returns:
+        Validated Path object if validation passes.
+
+    Raises:
+        src.exceptions.ValidationError: If validation fails, with file_path and provider in context.
+
+    Example:
+        >>> # Instead of:
+        >>> validated = safe_validate_audio_file(path, provider_name="deepgram")
+        >>> if validated is None:
+        ...     raise ValidationError(f"Audio file validation failed: {path}", ...)
+        >>>
+        >>> # Use:
+        >>> validated = validate_audio_file_or_raise(path, provider_name="deepgram")
+    """
+    from ..exceptions import ValidationError as ExcValidationError
+
+    validated_path = safe_validate_audio_file(audio_file_path, max_file_size, provider_name)
+    if validated_path is None:
+        context: dict[str, str] = {"file_path": str(audio_file_path)}
+        if provider_name:
+            context["provider"] = provider_name
+        raise ExcValidationError(
+            f"Audio file validation failed: {audio_file_path}",
+            context=context,
+        )
+    return validated_path
+
+
+def validate_media_file_or_raise(
+    media_file_path: Path | str,
+    max_file_size: int | None = None,
+) -> Path:
+    """Validate media file and raise ValidationError with context if invalid.
+
+    Combines validation and error raising into a single call, reducing boilerplate
+    in callers that need to validate then raise on failure.
+
+    Args:
+        media_file_path: Path to media file (Path or string).
+        max_file_size: Optional maximum file size in bytes.
+
+    Returns:
+        Validated Path object if validation passes.
+
+    Raises:
+        src.exceptions.ValidationError: If validation fails, with file_path in context.
+
+    Example:
+        >>> # Instead of:
+        >>> validated = safe_validate_media_file(path)
+        >>> if validated is None:
+        ...     raise ValueError(f"Invalid media file: {path}")
+        >>>
+        >>> # Use:
+        >>> validated = validate_media_file_or_raise(path)
+    """
+    from ..exceptions import ValidationError as ExcValidationError
+
+    validated_path = safe_validate_media_file(media_file_path, max_file_size)
+    if validated_path is None:
+        raise ExcValidationError(
+            f"Media file validation failed: {media_file_path}",
+            context={"file_path": str(media_file_path)},
+        )
+    return validated_path

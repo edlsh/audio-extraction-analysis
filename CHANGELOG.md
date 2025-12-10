@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.1.0] - 2025-12-02
 
+## [2.3.0] - 2025-12-09
+
+### Changed
+- **Provider Unification**: All 4 providers (Deepgram, ElevenLabs, Whisper, Parakeet) now use `ProviderMeta` dataclass for unified configuration, API key resolution, and SDK availability checks
+- **Audio Extraction**: Consolidated shared FFmpeg logic into `ffmpeg_core.py` including `check_ffmpeg_available()`, `prepare_extraction_paths()`, `verify_extraction_output()`
+- **Analyzer Helpers**: Moved `_format_timestamp()` and `_get_sentiment_emoji()` to `BaseAnalyzer` for code reuse across `FullAnalyzer` and `ConciseAnalyzer`
+- **Factory Configuration**: `get_configured_providers()` now uses provider META for dynamic configuration checks instead of hardcoded logic
+- **Validation Wrappers**: Replaced repetitive validate-then-raise patterns with `validate_audio_file_or_raise()` and `validate_media_file_or_raise()` helpers
+
+### Added
+- `ProviderMeta` dataclass in `base.py` for centralized provider metadata (name, API key config, SDK imports, features)
+- `_check_sdk_available()` helper in factory for checking SDK imports without loading heavyweight dependencies
+- `validate_audio_file_or_raise()` and `validate_media_file_or_raise()` in `file_validation.py` for concise validation with error context
+- `_format_timestamp()` and `_get_sentiment_emoji()` methods in `BaseAnalyzer`
+
+### Removed
+- Duplicate `_format_hms()` from `FullAnalyzer` (now `_format_timestamp()` in base)
+- Duplicate `_get_sentiment_emoji()` from `ConciseAnalyzer` (now in base)
+- Hardcoded API key checks in `factory.py` (replaced with META-driven logic)
+- Repetitive validation+raise patterns in providers and services
+
+### Fixed
+- E2E tests now run CLI as `python -m src.cli` instead of expecting installed binary
+
+### Developer Experience
+- Reduced code duplication by ~200+ lines across providers, analyzers, and services
+- Adding new providers no longer requires modifying factory configuration checks
+- Single source of truth for provider metadata via `ProviderMeta`
+
 ## [2.2.0] - 2025-12-07
 
 ### Removed

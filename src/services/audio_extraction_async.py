@@ -19,13 +19,14 @@ from ..exceptions import (
     FFmpegExecutionError,
     ValidationError,
 )
-from ..utils.file_validation import safe_validate_media_file
 from .audio_extraction import AudioExtractor, AudioQuality
 from .ffmpeg_core import (
     MediaProbeResult,
     build_extract_commands,
     cleanup_temp_file,
+    prepare_extraction_paths,
     probe_media_async,
+    verify_extraction_output,
 )
 
 logger = get_logger(__name__)
@@ -78,7 +79,10 @@ class AsyncAudioExtractor(AudioExtractor):
             FFmpegExecutionError: If FFmpeg returns a non-zero code
             AudioExtractionError: For other extraction failures
         """
-        input_path, output_path = self._validate_and_prepare_paths(input_path, output_path)
+        input_path, output_path = prepare_extraction_paths(
+            input_path, output_path, max_file_size=self.MAX_FILE_SIZE
+        )
+
         logger.info(f"Extracting audio from {input_path} with {quality.value} quality")
 
         temp_path = None
@@ -90,29 +94,13 @@ class AsyncAudioExtractor(AudioExtractor):
             cmds, temp_path = build_extract_commands(input_path, output_path, quality.value)
             await self._run_extraction_stages(cmds, probe.duration or 100, progress_callback)
 
-            return self._finalize_extraction(input_path, output_path)
+            return verify_extraction_output(input_path, output_path)
 
         except Exception as exc:
             raise self._map_extraction_error(exc, input_path, output_path) from exc
 
         finally:
-            self._cleanup_temp_file(temp_path)
-
-    def _validate_and_prepare_paths(
-        self, input_path: Path, output_path: Path | None
-    ) -> tuple[Path, Path]:
-        """Validate input and prepare output path."""
-        validated_path = safe_validate_media_file(input_path, max_file_size=self.MAX_FILE_SIZE)
-        if validated_path is None:
-            raise ValidationError(
-                f"Invalid media file: {input_path}", context={"input_path": str(input_path)}
-            )
-
-        if output_path is None:
-            output_path = validated_path.with_suffix(".mp3")
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-
-        return validated_path, output_path
+            cleanup_temp_file(temp_path)
 
     def _log_probe_info(self, probe: MediaProbeResult, input_path: Path) -> None:
         """Log input video information from probe result (no subprocess call)."""
@@ -133,19 +121,6 @@ class AsyncAudioExtractor(AudioExtractor):
         )
         for cmd, stage in zip(cmds, stage_names, strict=False):
             await self._run_ffmpeg_with_progress(cmd, duration, progress_callback, stage=stage)
-
-    def _finalize_extraction(self, input_path: Path, output_path: Path) -> Path:
-        """Verify and log successful extraction."""
-        if output_path.exists():
-            final_size = output_path.stat().st_size / (1024 * 1024)
-            logger.info(f"Successfully extracted audio: {final_size:.2f} MB")
-            return output_path
-
-        logger.error("Audio extraction completed but output file not found")
-        raise AudioExtractionError(
-            "FFmpeg completed but output file was not created",
-            context={"input_path": str(input_path), "expected_output": str(output_path)},
-        )
 
     def _map_extraction_error(
         self, exc: Exception, input_path: Path, output_path: Path
@@ -187,10 +162,6 @@ class AsyncAudioExtractor(AudioExtractor):
         return AudioExtractionError(
             "Unexpected error during async audio extraction", context=ctx, original_error=exc
         )
-
-    def _cleanup_temp_file(self, temp_path: Path | None) -> None:
-        """Clean up temporary file if it exists."""
-        cleanup_temp_file(temp_path)
 
     async def _run_ffmpeg_with_progress(
         self,

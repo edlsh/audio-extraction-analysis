@@ -1,6 +1,6 @@
 [project]
 name = "audio-extraction-analysis"
-version = "2.2.0"
+version = "2.3.0"
 description = "Audio extraction and transcription analysis tool with multiple providers (Deepgram, ElevenLabs)"
 authors = [{name = "Enzo", email = "enzo@edl.sh"}]
 readme = "README.md"

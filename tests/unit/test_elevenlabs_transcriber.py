@@ -86,11 +86,19 @@ class TestElevenLabsTranscriberInit:
         """Test initialization with API key from environment."""
         # Mock get_config to return a config with the API key set
         mock_config = Mock()
-        mock_config.ELEVENLABS_API_KEY = "env_key"
+        mock_config.ELEVENLABS_API_KEY = "env_key_test_12345"  # 20+ chars for validation
+        mock_config.max_retries = 3
+        mock_config.retry_delay = 1.0
+        mock_config.max_retry_delay = 30.0
+        mock_config.retry_exponential_base = 2.0
+        mock_config.retry_jitter = 0.1
+        mock_config.circuit_breaker_failure_threshold = 5
+        mock_config.circuit_breaker_recovery_timeout = 30.0
 
-        with patch("src.providers.elevenlabs.get_config", return_value=mock_config):
+        # Patch at src.config module level since base._resolve_api_key imports from there
+        with patch("src.config.get_config", return_value=mock_config):
             transcriber = ElevenLabsTranscriber()
-            assert transcriber.api_key == "env_key"
+            assert transcriber.api_key == "env_key_test_12345"
 
     def test_init_without_api_key_raises_error(self, clear_elevenlabs_env):
         """Test initialization without API key raises ValueError."""
@@ -99,12 +107,12 @@ class TestElevenLabsTranscriberInit:
 
     def test_validate_configuration_with_key(self):
         """Test configuration validation with valid API key."""
-        transcriber = ElevenLabsTranscriber(api_key="test_key")
+        transcriber = ElevenLabsTranscriber(api_key="test_key_valid_123")  # 18+ chars
         assert transcriber.validate_configuration() is True
 
     def test_validate_configuration_without_key(self):
         """Test configuration validation without API key."""
-        transcriber = ElevenLabsTranscriber(api_key="test_key")
+        transcriber = ElevenLabsTranscriber(api_key="test_key_valid_123")
         transcriber.api_key = None
         assert transcriber.validate_configuration() is False
 
@@ -114,12 +122,12 @@ class TestElevenLabsTranscriberMethods:
 
     def test_get_provider_name(self):
         """Test get_provider_name returns correct name."""
-        transcriber = ElevenLabsTranscriber(api_key="test_key")
+        transcriber = ElevenLabsTranscriber(api_key="test_key_valid_123")
         assert transcriber.get_provider_name() == "ElevenLabs"
 
     def test_get_supported_features(self):
         """Test get_supported_features returns expected features."""
-        transcriber = ElevenLabsTranscriber(api_key="test_key")
+        transcriber = ElevenLabsTranscriber(api_key="test_key_valid_123")
         features = transcriber.get_supported_features()
 
         expected_features = ["timestamps", "language_detection", "basic_transcription"]
@@ -190,7 +198,7 @@ class TestElevenLabsTranscriberTranscription:
         transcriber = ElevenLabsTranscriber(api_key="test_key")
 
         with patch(
-            "src.providers.elevenlabs.safe_validate_audio_file", return_value=large_audio_file
+            "src.providers.elevenlabs.validate_audio_file_or_raise", return_value=large_audio_file
         ):
             with pytest.raises(FileSizeError, match=r"exceeds.*MB limit"):
                 transcriber.transcribe(large_audio_file, "en")
@@ -206,7 +214,7 @@ class TestElevenLabsTranscriberTranscription:
         transcriber = ElevenLabsTranscriber(api_key="test_key")
 
         with patch(
-            "src.providers.elevenlabs.safe_validate_audio_file", return_value=temp_audio_file
+            "src.providers.elevenlabs.validate_audio_file_or_raise", return_value=temp_audio_file
         ):
             with pytest.raises(
                 ProviderNotAvailableError, match=r"(?i)elevenlabs SDK not available"
@@ -228,7 +236,7 @@ class TestElevenLabsTranscriberTranscription:
 
         with patch("builtins.open", mock_open(read_data=b"fake_audio_data")):
             with patch(
-                "src.providers.elevenlabs.safe_validate_audio_file", return_value=temp_audio_file
+                "src.providers.elevenlabs.validate_audio_file_or_raise", return_value=temp_audio_file
             ):
                 with patch(
                     "src.providers.elevenlabs.asyncio.wait_for", new_callable=AsyncMock
@@ -473,7 +481,7 @@ class TestElevenLabsTranscriberMemoryManagement:
     """Test ElevenLabsTranscriber memory management edge cases."""
 
     @patch("src.providers.elevenlabs.ElevenLabsClient")
-    @patch("src.providers.elevenlabs.safe_validate_audio_file")
+    @patch("src.providers.elevenlabs.validate_audio_file_or_raise")
     def test_transcribe_streaming_approach(self, mock_validate, mock_elevenlabs_class, tmp_path):
         """Test transcription uses streaming approach for large files."""
         # Note: MAX_FILE_SIZE_MB = MAX_MEMORY_SIZE = 50MB
@@ -521,14 +529,17 @@ class TestElevenLabsTranscriberMemoryManagement:
                 assert mock_read.called
 
     @patch("src.providers.elevenlabs.ElevenLabsClient")
-    @patch("src.providers.elevenlabs.safe_validate_audio_file")
+    @patch("src.providers.elevenlabs.validate_audio_file_or_raise")
     def test_transcribe_validation_failure(
         self, mock_validate, mock_elevenlabs_class, temp_audio_file
     ):
         """Test transcription when file validation fails raises ValidationError."""
         from src.exceptions import ValidationError
 
-        mock_validate.return_value = None  # Validation failed
+        mock_validate.side_effect = ValidationError(
+            f"Audio file validation failed: {temp_audio_file}",
+            context={"file_path": str(temp_audio_file), "provider": "elevenlabs"},
+        )
         transcriber = ElevenLabsTranscriber(api_key="test_key")
 
         with pytest.raises(ValidationError, match="Audio file validation failed"):
@@ -578,7 +589,7 @@ class TestElevenLabsTranscriberEdgeCases:
 
         with patch("builtins.open", mock_open(read_data=b"test_audio")):
             with patch(
-                "src.providers.elevenlabs.safe_validate_audio_file", return_value=temp_audio_file
+                "src.providers.elevenlabs.validate_audio_file_or_raise", return_value=temp_audio_file
             ):
                 with patch(
                     "src.providers.elevenlabs.asyncio.wait_for", new_callable=AsyncMock
@@ -602,7 +613,7 @@ class TestElevenLabsTranscriberEdgeCases:
 
         with patch("builtins.open", mock_open(read_data=b"test_audio")):
             with patch(
-                "src.providers.elevenlabs.safe_validate_audio_file", return_value=temp_audio_file
+                "src.providers.elevenlabs.validate_audio_file_or_raise", return_value=temp_audio_file
             ):
                 with patch(
                     "src.providers.elevenlabs.asyncio.wait_for", new_callable=AsyncMock
@@ -626,7 +637,7 @@ class TestElevenLabsTranscriberEdgeCases:
 
         with patch("builtins.open", mock_open(read_data=b"test_audio")):
             with patch(
-                "src.providers.elevenlabs.safe_validate_audio_file", return_value=temp_audio_file
+                "src.providers.elevenlabs.validate_audio_file_or_raise", return_value=temp_audio_file
             ):
                 with patch.object(
                     transcriber,
@@ -657,7 +668,7 @@ class TestElevenLabsTranscriberEdgeCases:
 
         with patch("builtins.open", mock_open(read_data=b"test_audio")):
             with patch(
-                "src.providers.elevenlabs.safe_validate_audio_file", return_value=temp_audio_file
+                "src.providers.elevenlabs.validate_audio_file_or_raise", return_value=temp_audio_file
             ):
                 with patch(
                     "src.providers.elevenlabs.asyncio.wait_for", new_callable=AsyncMock
@@ -693,7 +704,7 @@ class TestElevenLabsTranscriberEdgeCases:
         with patch("src.providers.elevenlabs.get_config", return_value=mock_config):
             with patch("builtins.open", mock_open(read_data=b"test_audio")):
                 with patch(
-                    "src.providers.elevenlabs.safe_validate_audio_file",
+                    "src.providers.elevenlabs.validate_audio_file_or_raise",
                     return_value=temp_audio_file,
                 ):
                     with pytest.raises(asyncio.TimeoutError):

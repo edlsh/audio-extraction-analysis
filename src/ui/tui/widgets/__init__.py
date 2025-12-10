@@ -10,10 +10,13 @@ from __future__ import annotations
 from typing import Any
 
 __all__ = [
+    "Card",
     "CompletedSummary",
     "FilteredDirectoryTree",
     "FocusCard",
     "HealthPanel",
+    "HeroCard",
+    "InfoCard",
     "LogPanel",
     "PipelineTimeline",
     "ProgressBoard",
@@ -36,6 +39,14 @@ def _placeholder(name: str) -> type:
     _Widget.__name__ = name
     return _Widget
 
+
+try:  # pragma: no cover
+    from .card import Card, HeroCard, InfoCard
+except ImportError:
+    # type: ignore[misc] - Placeholder for optional dependency
+    Card = _placeholder("Card")  # type: ignore[misc]
+    HeroCard = _placeholder("HeroCard")  # type: ignore[misc]
+    InfoCard = _placeholder("InfoCard")  # type: ignore[misc]
 
 try:  # pragma: no cover
     from .completed_summary import CompletedSummary

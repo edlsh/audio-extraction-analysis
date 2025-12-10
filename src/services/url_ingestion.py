@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 from urllib.parse import ParseResult, urlparse
 
 from yt_dlp import YoutubeDL
@@ -18,6 +19,9 @@ from ..exceptions import (
 from ..utils.paths import ensure_subpath
 from ..utils.sanitization import PathSanitizer
 from .audio_extraction import AudioExtractor, AudioQuality
+
+if TYPE_CHECKING:
+    from ..models.events import EventSink
 
 logger = get_logger(__name__)
 
@@ -41,11 +45,33 @@ class UrlIngestionService:
         *,
         prefer_audio_only: bool = True,
         keep_video: bool = False,
+        event_sink: EventSink | None = None,
     ) -> None:
         self._download_dir = download_dir
         self._prefer_audio_only = prefer_audio_only
         self._keep_video = keep_video
         self._extractor = AudioExtractor()
+        self._event_sink = event_sink
+
+    def _emit_event(
+        self,
+        event_type: str,
+        *,
+        stage: str | None = None,
+        data: dict | None = None,
+    ) -> None:
+        """Emit an event via the injected sink (thread-safe for use with asyncio.to_thread)."""
+        if self._event_sink is None:
+            return
+
+        from ..models.events import Event
+
+        event = Event(
+            type=event_type,  # type: ignore[arg-type]
+            stage=stage,
+            data=data or {},
+        )
+        self._event_sink.emit(event)
 
     def ingest(
         self, url: str, *, quality: AudioQuality = AudioQuality.SPEECH
@@ -95,13 +121,42 @@ class UrlIngestionService:
         """Download media and return path to downloaded file."""
         ydl_opts = self._build_ydl_opts(safe_dir)
         downloaded_path: Path | None = None
+        last_percent: float = 0.0
 
         def _hook(d: dict[str, object]) -> None:  # pragma: no cover
-            if d.get("status") == "finished":
+            nonlocal downloaded_path, last_percent
+            status = d.get("status")
+
+            if status == "downloading":
+                # Emit progress events for TUI feedback
+                total = d.get("total_bytes") or d.get("total_bytes_estimate") or 0
+                downloaded = d.get("downloaded_bytes", 0)
+                is_valid_total = total and isinstance(total, (int, float))
+                is_valid_downloaded = isinstance(downloaded, (int, float))
+                if is_valid_total and is_valid_downloaded:
+                    percent = (downloaded / total) * 100
+                    # Only emit if progress changed by at least 1%
+                    if percent - last_percent >= 1.0:
+                        last_percent = percent
+                        self._emit_event(
+                            "stage_progress",
+                            stage="url_download",
+                            data={
+                                "completed": int(percent),
+                                "total": 100,
+                                "message": f"Downloading... {percent:.0f}%",
+                            },
+                        )
+
+            elif status == "finished":
                 filename = d.get("filename")
                 if filename and isinstance(filename, str):
-                    nonlocal downloaded_path
                     downloaded_path = Path(filename)
+                    self._emit_event(
+                        "stage_progress",
+                        stage="url_download",
+                        data={"completed": 100, "total": 100, "message": "Download complete"},
+                    )
 
         ydl_opts["progress_hooks"] = [_hook]
 
@@ -151,11 +206,42 @@ class UrlIngestionService:
         self, downloaded_path: Path, url: str, quality: AudioQuality
     ) -> UrlIngestionResult:
         """Extract audio from video file."""
+        import time
+
+        # Emit stage start for url_prepare
+        self._emit_event(
+            "stage_start",
+            stage="url_prepare",
+            data={"description": "Extracting audio from video", "total": 100},
+        )
+        start_time = time.time()
+
         try:
+            # Emit initial progress
+            self._emit_event(
+                "stage_progress",
+                stage="url_prepare",
+                data={"completed": 10, "total": 100, "message": "Starting audio extraction..."},
+            )
+
             audio_path = self._extractor.extract_audio(
                 input_path=downloaded_path, output_path=None, quality=quality
             )
+
+            # Emit completion progress
+            self._emit_event(
+                "stage_progress",
+                stage="url_prepare",
+                data={"completed": 100, "total": 100, "message": "Audio extraction complete"},
+            )
+
         except AudioAnalysisError as exc:
+            duration = time.time() - start_time
+            self._emit_event(
+                "stage_end",
+                stage="url_prepare",
+                data={"duration": duration, "status": "error"},
+            )
             logger.exception("Audio extraction from downloaded video failed: %s", downloaded_path)
             raise UrlIngestionError(
                 "Failed to extract audio from downloaded video",
@@ -163,6 +249,12 @@ class UrlIngestionService:
                 original_error=exc,
             ) from exc
         except Exception as exc:
+            duration = time.time() - start_time
+            self._emit_event(
+                "stage_end",
+                stage="url_prepare",
+                data={"duration": duration, "status": "error"},
+            )
             logger.exception("Unexpected error during audio extraction: %s", downloaded_path)
             raise AudioExtractionError(
                 "Unexpected error during audio extraction",
@@ -171,7 +263,21 @@ class UrlIngestionService:
             ) from exc
 
         if audio_path is None:
+            duration = time.time() - start_time
+            self._emit_event(
+                "stage_end",
+                stage="url_prepare",
+                data={"duration": duration, "status": "error"},
+            )
             raise UrlIngestionError("Audio extraction returned no path.")
+
+        # Emit stage end on success
+        duration = time.time() - start_time
+        self._emit_event(
+            "stage_end",
+            stage="url_prepare",
+            data={"duration": duration, "status": "complete"},
+        )
 
         source_video_path = self._cleanup_video_if_needed(downloaded_path)
         return UrlIngestionResult(audio_path=Path(audio_path), source_video_path=source_video_path)

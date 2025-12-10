@@ -20,6 +20,13 @@ from src.utils.logger import get_logger
 if TYPE_CHECKING:
     pass
 
+from ..exceptions import (
+    AudioExtractionError,
+    FFmpegNotFoundError,
+)
+from ..utils.constants import MediaLimits, Timeouts
+from ..utils.file_validation import safe_validate_media_file, validate_media_file_or_raise
+
 logger = get_logger(__name__)
 
 
@@ -176,6 +183,113 @@ async def probe_media_async(path: Path, timeout: float = 30.0) -> MediaProbeResu
         size_bytes=file_size,
         size_mb=file_size / (1024 * 1024),
     )
+
+
+# =============================================================================
+# FFmpeg Availability Check
+# =============================================================================
+
+
+def check_ffmpeg_available(timeout: float | None = None) -> None:
+    """Check if FFmpeg is available in PATH.
+
+    Args:
+        timeout: Timeout in seconds for the version check (default: from constants)
+
+    Raises:
+        FFmpegNotFoundError: If FFmpeg is not installed or not accessible
+    """
+    check_timeout = timeout if timeout is not None else Timeouts.FFMPEG_VERSION_CHECK
+    try:
+        subprocess.run(
+            ["ffmpeg", "-version"],
+            capture_output=True,
+            check=True,
+            timeout=check_timeout,
+        )
+    except subprocess.CalledProcessError as e:
+        logger.error("FFmpeg check failed")
+        raise FFmpegNotFoundError(
+            "FFmpeg is required but not installed or not accessible",
+            context={"check_type": "version"},
+        ) from e
+    except FileNotFoundError as e:
+        logger.error("FFmpeg is not installed or not in PATH")
+        raise FFmpegNotFoundError(
+            "FFmpeg not found in PATH", context={"error": "not_in_path"}
+        ) from e
+    except subprocess.TimeoutExpired as e:
+        logger.error(f"FFmpeg version check timed out after {check_timeout}s")
+        raise FFmpegNotFoundError(
+            "FFmpeg version check timed out",
+            context={"timeout": check_timeout},
+        ) from e
+
+
+# =============================================================================
+# Path Preparation & Output Verification
+# =============================================================================
+
+
+def prepare_extraction_paths(
+    input_path: Path,
+    output_path: Path | None,
+    max_file_size: int = MediaLimits.MAX_FILE_SIZE_BYTES,
+    default_suffix: str = ".mp3",
+) -> tuple[Path, Path]:
+    """Validate input file and prepare output path for extraction.
+
+    Args:
+        input_path: Path to the input media file
+        output_path: Optional path for output file (auto-generated if None)
+        max_file_size: Maximum allowed file size in bytes
+        default_suffix: Default suffix for auto-generated output path
+
+    Returns:
+        Tuple of (validated_input_path, output_path)
+
+    Raises:
+        ValidationError: If input file validation fails
+    """
+    validated_path = validate_media_file_or_raise(input_path, max_file_size=max_file_size)
+
+    if output_path is None:
+        output_path = validated_path.with_suffix(default_suffix)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    return validated_path, output_path
+
+
+def verify_extraction_output(
+    input_path: Path,
+    output_path: Path,
+    log_success: bool = True,
+) -> Path:
+    """Verify extraction output file exists and log success.
+
+    Args:
+        input_path: Original input path (for error context)
+        output_path: Expected output file path
+        log_success: Whether to log successful extraction with file size
+
+    Returns:
+        The output_path if file exists
+
+    Raises:
+        AudioExtractionError: If output file was not created
+    """
+    if not output_path.exists():
+        logger.error("Audio extraction completed but output file not found")
+        raise AudioExtractionError(
+            f"FFmpeg completed but output file not found: {output_path.name}",
+            context={"input_path": str(input_path), "expected_output": str(output_path)},
+        )
+
+    if log_success:
+        final_size = output_path.stat().st_size / (1024 * 1024)
+        logger.info(f"Successfully extracted audio: {final_size:.2f} MB")
+
+    return output_path
 
 
 # =============================================================================

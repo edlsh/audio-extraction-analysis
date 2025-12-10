@@ -25,8 +25,8 @@ from src.utils.logger import get_logger
 
 from ..config import get_config
 from ..utils.retry import RetryConfig
-from .base import BaseTranscriptionProvider, CircuitBreakerConfig
-from .provider_utils import get_default_configs
+from .base import BaseTranscriptionProvider, CircuitBreakerConfig, ProviderMeta
+from .provider_utils import check_sdk_available, get_default_configs
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -148,13 +148,8 @@ class TranscriptionProviderFactory:
         """Get list of providers that have valid API keys or dependencies configured.
 
         This method checks both API-based providers (requiring API keys) and
-        local providers (requiring Python packages). Local provider checks are
-        performed lazily to avoid importing heavyweight dependencies.
-
-        - Deepgram: Requires DEEPGRAM_API_KEY environment variable
-        - ElevenLabs: Requires ELEVENLABS_API_KEY environment variable
-        - Whisper: Requires torch and whisper packages (no API key needed)
-        - Parakeet: Requires nemo.collections.asr package (no API key needed)
+        local providers (requiring Python packages). Uses provider META for
+        configuration requirements.
 
         Returns:
             List of provider names that are properly configured and ready to use
@@ -166,32 +161,27 @@ class TranscriptionProviderFactory:
         configured = []
         config = get_config()
 
-        # Check API-based providers (require authentication keys)
-        if config.DEEPGRAM_API_KEY:
-            configured.append("deepgram")
-
-        if config.ELEVENLABS_API_KEY:
-            configured.append("elevenlabs")
-
-        # Check local providers lazily - only import if checking availability
-        # Whisper: OpenAI's local speech recognition model
-        try:
-            import torch
-            import whisper
-
-            del torch, whisper  # Only checking availability
-            configured.append("whisper")
-        except ImportError:
-            pass  # Expected when whisper not installed
-
-        # Parakeet: NVIDIA NeMo's local speech recognition model
-        try:
-            import nemo.collections.asr as nemo_asr
-
-            del nemo_asr  # Only checking availability
-            configured.append("parakeet")
-        except ImportError:
-            pass  # Expected when nemo not installed
+        for provider_name in _PROVIDER_IMPORTS:
+            try:
+                provider_class = cls._get_provider_class(provider_name)
+                meta: ProviderMeta | None = getattr(provider_class, "META", None)
+                
+                if meta is None:
+                    continue
+                    
+                if meta.is_local:
+                    # Local provider - check SDK imports are available via unified helper
+                    if check_sdk_available(meta):
+                        configured.append(provider_name)
+                else:
+                    # Cloud provider - check API key is configured
+                    if meta.api_key_env:
+                        api_key = getattr(config, meta.api_key_env, None)
+                        if api_key and len(api_key) >= meta.api_key_min_length:
+                            configured.append(provider_name)
+            except ImportError:
+                # Provider dependencies not installed - skip silently
+                pass
 
         return configured
 
