@@ -208,6 +208,22 @@ class Config:
     WHISPER_COMPUTE_TYPE: str = field(
         default_factory=lambda: _getenv("WHISPER_COMPUTE_TYPE", "int8")
     )
+    PARAKEET_MODEL: str = field(
+        default_factory=lambda: _getenv("PARAKEET_MODEL", "stt_en_conformer_ctc_large")
+    )
+    PARAKEET_BATCH_SIZE: int = field(default_factory=lambda: _getenv_int("PARAKEET_BATCH_SIZE", 8))
+    PARAKEET_BEAM_SIZE: int = field(default_factory=lambda: _getenv_int("PARAKEET_BEAM_SIZE", 10))
+    PARAKEET_USE_FP16: bool = field(
+        default_factory=lambda: _parse_bool(_getenv("PARAKEET_USE_FP16", "true"))
+    )
+    PARAKEET_CHUNK_LENGTH: int = field(
+        default_factory=lambda: _getenv_int("PARAKEET_CHUNK_LENGTH", 30)
+    )
+    PARAKEET_MODEL_CACHE_DIR: Path = field(
+        default_factory=lambda: Path(
+            _getenv("PARAKEET_MODEL_CACHE_DIR", "~/.cache/parakeet")
+        ).expanduser()
+    )
 
     def __post_init__(self) -> None:
         """Validate configuration and ensure required directories exist."""
@@ -342,6 +358,26 @@ class Config:
 # Singleton instance with thread-safe initialization
 _config_instance: Config | None = None
 _config_lock = threading.Lock()
+_dotenv_loaded = False
+
+
+def _load_dotenv_once() -> None:
+    """Load .env into environment, if present, once per process."""
+    global _dotenv_loaded
+    if _dotenv_loaded:
+        return
+    try:
+        from dotenv import find_dotenv, load_dotenv
+
+        dotenv_path = find_dotenv(usecwd=True)
+        if dotenv_path:
+            load_dotenv(dotenv_path, override=False)
+        else:
+            load_dotenv(override=False)
+    except Exception:
+        # python-dotenv is optional at runtime; ignore any load errors.
+        pass
+    _dotenv_loaded = True
 
 
 def get_config() -> Config:
@@ -351,6 +387,7 @@ def get_config() -> Config:
         with _config_lock:
             # Double-check pattern to prevent race conditions
             if _config_instance is None:
+                _load_dotenv_once()
                 _config_instance = Config()
     return _config_instance
 

@@ -16,9 +16,10 @@ if TYPE_CHECKING:
 
     from ..models.transcription import TranscriptionResult
     from .cache import TranscriptionCache
-from ..config import Config
+from ..config import get_config
 from ..exceptions import ProviderTimeoutError, TranscriptionError
 from ..providers.factory import TranscriptionProviderFactory
+from ..utils.constants import Timeouts
 from ..utils.file_validation import validate_audio_file_or_raise
 
 logger = get_logger(__name__)
@@ -35,7 +36,7 @@ class TranscriptionService:
                    If None, caching is disabled.
         """
         self.factory = TranscriptionProviderFactory
-        self._config = Config()
+        self._config = get_config()
         self._provider_timeout = float(self._config.transcription_timeout_seconds)
         self._cache = cache
 
@@ -351,7 +352,7 @@ class TranscriptionService:
         **kwargs: Any,
     ) -> TranscriptionResult | None:
         """Transcribe with progress estimation based on file characteristics."""
-        path = Path(audio_file_path)
+        path = validate_audio_file_or_raise(Path(audio_file_path))
 
         # Calculate estimated processing time based on file characteristics
         file_size_mb = path.stat().st_size / (1024 * 1024)
@@ -472,7 +473,15 @@ class TranscriptionService:
                 *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
             )
 
-            stdout, stderr = await proc.communicate()
+            try:
+                stdout, stderr = await asyncio.wait_for(
+                    proc.communicate(), timeout=Timeouts.FFMPEG_PROBE
+                )
+            except TimeoutError:
+                proc.kill()
+                await proc.wait()
+                logger.debug("ffprobe timed out getting audio duration")
+                return None
 
             if proc.returncode != 0:
                 logger.debug(f"ffprobe failed with code {proc.returncode}: {stderr.decode()}")

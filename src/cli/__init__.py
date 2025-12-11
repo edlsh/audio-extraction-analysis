@@ -3,6 +3,10 @@
 import argparse
 import asyncio
 import sys
+import tomllib
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as package_version
+from pathlib import Path
 
 from src.utils.logger import get_logger
 
@@ -14,7 +18,22 @@ from .commands.process import create_process_subparser, process_command
 from .commands.transcribe import create_transcribe_subparser, transcribe_command
 from .commands.tui import create_tui_subparser, tui_command
 
-__version__ = "2.2.0"
+
+def _read_pyproject_version() -> str:
+    """Best-effort fallback when package metadata isn't available."""
+    try:
+        pyproject_path = Path(__file__).resolve().parents[2] / "pyproject.toml"
+        with pyproject_path.open("rb") as f:
+            data = tomllib.load(f)
+        return str(data.get("project", {}).get("version", "0.0.0"))
+    except Exception:
+        return "0.0.0"
+
+
+try:
+    __version__ = package_version("audio-extraction-analysis")
+except PackageNotFoundError:
+    __version__ = _read_pyproject_version()
 
 logger = get_logger(__name__)
 

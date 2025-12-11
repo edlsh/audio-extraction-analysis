@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from ..config import Config
+from ..config import Config, get_config
 from ..utils.formatting import format_timestamp
 
 if TYPE_CHECKING:
@@ -30,7 +30,7 @@ class MarkdownFormatter:
     """Formats transcription results as markdown documents."""
 
     def __init__(self, config: Config | None = None) -> None:
-        self.config = config if config is not None else Config()
+        self.config = config if config is not None else get_config()
 
     def format_transcript(
         self,

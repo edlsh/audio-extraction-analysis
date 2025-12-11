@@ -16,6 +16,9 @@ from pathlib import Path
 class TestDataManager:
     """Manages test media files and data for E2E testing."""
 
+    # Helper class; prevent pytest from collecting as a test case.
+    __test__ = False
+
     def __init__(self, test_data_dir: Path | None = None):
         """Initialize test data manager."""
         self.test_data_dir = test_data_dir or Path(__file__).parent / "test_data"

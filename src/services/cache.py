@@ -15,7 +15,7 @@ from src.utils.logger import get_logger
 if TYPE_CHECKING:
     from ..models.transcription import TranscriptionResult
 
-from ..config import Config
+from ..config import Config, get_config
 from ..exceptions import CacheCorruptionError, CacheReadError, CacheWriteError
 
 logger = get_logger(__name__)
@@ -79,7 +79,7 @@ class TranscriptionCache:
         Args:
             config: Configuration object. If None, uses default Config().
         """
-        self._config = config or Config()
+        self._config = config or get_config()
         self._cache_dir = self._config.cache_dir
         self._data_dir = self._cache_dir / self.CACHE_DATA_DIR
         self._index_path = self._cache_dir / self.CACHE_INDEX_FILE

@@ -365,4 +365,13 @@ def inject_api_keys_to_env() -> int:
             logger.debug(f"Injected {env_var} from stored settings")
             injected += 1
 
+    # If config singleton was already created, reset so new env keys are read.
+    if injected:
+        try:
+            from src.config import _reset_config
+
+            _reset_config()
+        except Exception:
+            pass
+
     return injected

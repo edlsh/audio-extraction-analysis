@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 
 from src.utils.logger import get_logger
 
+from ..config import get_config
 from ..exceptions import ParakeetAudioError, ParakeetError, ParakeetGPUError, ParakeetModelError
 from ..models.transcription import TranscriptionResult, TranscriptionUtterance
 from ..utils.file_validation import validate_audio_file_or_raise
@@ -685,13 +686,14 @@ class ParakeetTranscriber(BaseTranscriptionProvider):
         self.audio_preprocessor = AudioPreprocessor()
         self.metrics = ParakeetMetrics()
 
-        # Configuration from environment
-        self.model_name = os.getenv("PARAKEET_MODEL", "stt_en_conformer_ctc_large")
-        self.batch_size = int(os.getenv("PARAKEET_BATCH_SIZE", "8"))
-        self.beam_size = int(os.getenv("PARAKEET_BEAM_SIZE", "10"))
-        self.use_fp16 = os.getenv("PARAKEET_USE_FP16", "true").lower() == "true"
-        self.chunk_length = int(os.getenv("PARAKEET_CHUNK_LENGTH", "30"))
-        self.model_cache_dir = os.getenv("PARAKEET_MODEL_CACHE_DIR", "~/.cache/parakeet")
+        # Configuration from centralized config (env + .env)
+        config = get_config()
+        self.model_name = config.PARAKEET_MODEL
+        self.batch_size = config.PARAKEET_BATCH_SIZE
+        self.beam_size = config.PARAKEET_BEAM_SIZE
+        self.use_fp16 = config.PARAKEET_USE_FP16
+        self.chunk_length = config.PARAKEET_CHUNK_LENGTH
+        self.model_cache_dir = str(config.PARAKEET_MODEL_CACHE_DIR)
 
     def _validate_dependencies(self) -> bool:
         """Check required dependencies are available."""

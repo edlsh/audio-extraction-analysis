@@ -31,6 +31,9 @@ from .test_data_manager import TestDataManager
 class TestSuiteResult:
     """Results from a test suite execution."""
 
+    # Helper dataclass; prevent pytest from collecting as a test case.
+    __test__ = False
+
     suite_name: str
     success: bool
     duration: float
