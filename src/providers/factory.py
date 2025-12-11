@@ -132,8 +132,11 @@ class TranscriptionProviderFactory:
             )
 
         # Lazy import the provider module
+        # module_path comes from _PROVIDER_IMPORTS, a static whitelist in this module.
+        # provider_name is validated against that dict before this import.
         module_path, class_name = _PROVIDER_IMPORTS[provider_name]
         try:
+            # nosemgrep: python.lang.security.audit.non-literal-import.non-literal-import
             module = importlib.import_module(module_path, package="src.providers")
             provider_class = getattr(module, class_name)
             cls._providers[provider_name] = provider_class

@@ -97,7 +97,9 @@ class HtmlDashboardRenderer:
             template_dir = Path(__file__).parent / "templates"
 
         self._template_dir = template_dir
-        self._env = Environment(
+        # CLI-only HTML rendering with local templates and autoescape enabled.
+        # Context data originates from internal pipeline results, not web requests.
+        self._env = Environment(  # nosemgrep: python.flask.security.xss.audit.direct-use-of-jinja2.direct-use-of-jinja2
             loader=FileSystemLoader(str(template_dir)),
             autoescape=select_autoescape(["html", "xml"]),
         )
@@ -114,6 +116,7 @@ class HtmlDashboardRenderer:
         template = self._env.get_template("dashboard.html")
 
         try:
+            # nosemgrep: python.flask.security.xss.audit.direct-use-of-jinja2.direct-use-of-jinja2
             html = template.render(**context)
         except TemplateError as exc:
             raise RuntimeError(f"Failed to render HTML dashboard: {exc}") from exc

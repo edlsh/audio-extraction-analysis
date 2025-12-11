@@ -39,13 +39,14 @@ Exit Codes:
 import json
 import logging
 import os
+import shlex
 import subprocess
 import sys
 import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Optional
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -160,20 +161,23 @@ class PipelineTestRunner:
     def run_test(
         self,
         name: str,
-        command: str,
+        command: str | list[str],
         expected_exit_code: int = 0,
         timeout: int = 60,
-        env_vars: Optional[Dict] = None,
-    ) -> Dict:
+        env_vars: dict | None = None,
+    ) -> dict:
         """Execute a single test case with comprehensive result tracking.
 
         Runs the specified command in a subprocess with the given environment and timeout,
         capturing stdout/stderr and recording execution metrics. Tests are executed from the
         test_data_dir working directory to ensure relative paths work correctly.
 
+        Security: Commands are executed with shell=False to prevent shell injection.
+        String commands are parsed via shlex.split() into argument lists.
+
         Args:
             name: Human-readable test name for reporting and logging
-            command: Shell command to execute (executed with shell=True)
+            command: Command to execute as string or argument list (shell=False)
             expected_exit_code: Expected exit code (0 for success, 1+ for expected failures)
             timeout: Maximum execution time in seconds (default: 60)
             env_vars: Additional environment variables to merge with current environment
@@ -204,6 +208,14 @@ class PipelineTestRunner:
         """
         logger.info(f"Running test: {name}")
 
+        # Normalize command to argument list for shell=False execution
+        if isinstance(command, str):
+            cmd_args = shlex.split(command)
+            cmd_str = command
+        else:
+            cmd_args = list(command)
+            cmd_str = shlex.join(command)
+
         # Prepare environment
         env = os.environ.copy()
         if env_vars:
@@ -213,8 +225,8 @@ class PipelineTestRunner:
 
         try:
             result = subprocess.run(
-                command,
-                shell=True,
+                cmd_args,
+                shell=False,
                 capture_output=True,
                 text=True,
                 timeout=timeout,
@@ -229,7 +241,7 @@ class PipelineTestRunner:
             # Last 4000 chars typically contain the most relevant error/success info
             test_result = {
                 "name": name,
-                "command": command,
+                "command": cmd_str,
                 "success": success,
                 "exit_code": result.returncode,
                 "expected_exit_code": expected_exit_code,
@@ -252,7 +264,7 @@ class PipelineTestRunner:
             logger.error(f"✗ {name} timed out after {timeout}s")
             return {
                 "name": name,
-                "command": command,
+                "command": cmd_str,
                 "success": False,
                 "error": f"Timeout exceeded ({timeout}s)",
                 "duration": timeout,
@@ -262,7 +274,7 @@ class PipelineTestRunner:
             logger.error(f"✗ {name} failed with exception: {e}")
             return {
                 "name": name,
-                "command": command,
+                "command": cmd_str,
                 "success": False,
                 "error": str(e),
                 "duration": time.time() - test_start,
