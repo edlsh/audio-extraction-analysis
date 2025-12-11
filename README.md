@@ -1,7 +1,10 @@
 # Audio Extraction Analysis
 
-[![CI](https://github.com/edlsh/audio-extraction-analysis/actions/workflows/ci.yml/badge.svg)](https://github.com/edlsh/audio-extraction-analysis/actions)
+[![Tests](https://github.com/edlsh/audio-extraction-analysis/actions/workflows/test.yml/badge.svg)](https://github.com/edlsh/audio-extraction-analysis/actions/workflows/test.yml)
+[![Quality Gates](https://github.com/edlsh/audio-extraction-analysis/actions/workflows/quality-gates.yml/badge.svg)](https://github.com/edlsh/audio-extraction-analysis/actions/workflows/quality-gates.yml)
+[![codecov](https://codecov.io/gh/edlsh/audio-extraction-analysis/graph/badge.svg)](https://codecov.io/gh/edlsh/audio-extraction-analysis)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-3776ab.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Transform video and audio recordings into structured, actionable documentation. Supports multiple transcription providers (Deepgram, ElevenLabs, Whisper, Parakeet) with speaker diarization, topic detection, and sentiment analysis.
 
