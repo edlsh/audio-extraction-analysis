@@ -11,15 +11,17 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from src.utils.logger import get_logger
 
 from ..models import events as event_models
-from ..models.events import Event, EventSink, get_current_run_id
+from ..models.events import Event, EventSink, EventType, get_current_run_id
 from .events import (
     PipelineEvent,
+    PipelineEventType,
     StageEndEvent,
+    StageEndStatus,
     StageProgressEvent,
     StageStartEvent,
 )
@@ -141,10 +143,14 @@ class StageContext:
         duration = time.time() - self.start_time
 
         # Create typed event
-        end_status = status if status in ("complete", "error", "skipped") else "complete"
+        end_status: StageEndStatus = (
+            cast(StageEndStatus, status)
+            if status in ("complete", "error", "skipped")
+            else "complete"
+        )
         end_event = StageEndEvent(
             stage=self.name,
-            status=end_status,  # type: ignore[arg-type]
+            status=end_status,
             duration_seconds=duration,
             output=None,
             error=None if status != "error" else None,
@@ -248,7 +254,7 @@ class StageReporter:
 
     def _emit_typed_event(
         self,
-        event_type: str,
+        event_type: PipelineEventType,
         event_data: StageStartEvent | StageProgressEvent | StageEndEvent,
     ) -> None:
         """Emit a typed pipeline event.
@@ -258,7 +264,7 @@ class StageReporter:
             event_data: The typed event data
         """
         pipeline_event = PipelineEvent(
-            event_type=event_type,  # type: ignore[arg-type]
+            event_type=event_type,
             data=event_data,
             run_id=self.run_id,
         )
@@ -275,7 +281,7 @@ class StageReporter:
 
     def _emit(
         self,
-        event_type: str,
+        event_type: EventType,
         stage: str | None,
         data: dict[str, Any],
     ) -> None:
@@ -290,7 +296,7 @@ class StageReporter:
 
         if self.event_sink is not None:
             event = Event(
-                type=event_type,  # type: ignore[arg-type]
+                type=event_type,
                 stage=stage,
                 data=data,
                 run_id=resolved_run_id or "",  # Event will generate if empty
@@ -298,7 +304,7 @@ class StageReporter:
             self.event_sink.emit(event)
         else:
             event_models.emit_event(
-                event_type,  # type: ignore[arg-type]
+                event_type,
                 stage=stage,
                 data=data,
                 run_id=resolved_run_id,

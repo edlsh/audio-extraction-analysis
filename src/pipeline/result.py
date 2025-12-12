@@ -112,9 +112,9 @@ class PipelineError:
         if exc_context is not None:
             context = exc_context
         if hasattr(exc, "status_code"):
-            context["status_code"] = exc.status_code  # type: ignore[union-attr]
+            context["status_code"] = getattr(exc, "status_code")
         if hasattr(exc, "response_body"):
-            context["response_body"] = exc.response_body  # type: ignore[union-attr]
+            context["response_body"] = getattr(exc, "response_body")
 
         return cls(
             message=str(exc),

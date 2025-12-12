@@ -66,7 +66,12 @@ class UrlIngestionService:
         if self._event_sink is None:
             return
 
-        from ..models.events import Event
+        from ..models.events import Event, EventType
+
+        # Validate event_type is a valid EventType before creating Event
+        valid_types = ("stage_start", "stage_progress", "stage_end", "artifact", "log", "warning", "error", "summary", "cancelled")
+        if event_type not in valid_types:
+            return
 
         event = Event(
             type=event_type,  # type: ignore[arg-type]

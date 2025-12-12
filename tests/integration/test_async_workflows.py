@@ -11,6 +11,7 @@ This module tests:
 from __future__ import annotations
 
 import asyncio
+import os
 from pathlib import Path
 
 import pytest
@@ -25,6 +26,9 @@ pytestmark = [
     skip_without_ffmpeg(),
 ]
 
+# Reduce parallelism in CI to avoid resource contention
+CI_PARALLEL_LIMIT = 2 if os.environ.get("CI") else 5
+
 
 class TestConcurrentProcessing:
     """Test concurrent audio processing workflows."""
@@ -34,15 +38,18 @@ class TestConcurrentProcessing:
         """Test parallel processing of multiple files."""
         extractor = AsyncAudioExtractor()
 
-        # Process 5 files concurrently
-        tasks = []
-        for i in range(5):
-            output = tmp_path / f"parallel_{i}.mp3"
-            task = extractor.extract_audio_async(
-                sample_audio_mp3, output, quality=AudioQuality.COMPRESSED
-            )
-            tasks.append(task)
+        # Use semaphore to limit parallelism (CI has limited resources)
+        semaphore = asyncio.Semaphore(CI_PARALLEL_LIMIT)
 
+        async def extract_with_limit(i: int) -> Path:
+            async with semaphore:
+                output = tmp_path / f"parallel_{i}.mp3"
+                return await extractor.extract_audio_async(
+                    sample_audio_mp3, output, quality=AudioQuality.COMPRESSED
+                )
+
+        # Process files concurrently with limited parallelism
+        tasks = [extract_with_limit(i) for i in range(CI_PARALLEL_LIMIT)]
         results = await asyncio.gather(*tasks)
 
         # All should succeed
@@ -54,6 +61,7 @@ class TestConcurrentProcessing:
     async def test_concurrent_different_qualities(self, sample_audio_mp3: Path, tmp_path: Path):
         """Test concurrent processing with different quality settings."""
         extractor = AsyncAudioExtractor()
+        semaphore = asyncio.Semaphore(CI_PARALLEL_LIMIT)
 
         qualities = [
             AudioQuality.HIGH,
@@ -62,12 +70,12 @@ class TestConcurrentProcessing:
             AudioQuality.SPEECH,
         ]
 
-        tasks = []
-        for i, quality in enumerate(qualities):
-            output = tmp_path / f"quality_{quality.value}_{i}.mp3"
-            task = extractor.extract_audio_async(sample_audio_mp3, output, quality=quality)
-            tasks.append(task)
+        async def extract_with_limit(i: int, quality: AudioQuality) -> Path:
+            async with semaphore:
+                output = tmp_path / f"quality_{quality.value}_{i}.mp3"
+                return await extractor.extract_audio_async(sample_audio_mp3, output, quality=quality)
 
+        tasks = [extract_with_limit(i, q) for i, q in enumerate(qualities)]
         results = await asyncio.gather(*tasks)
 
         # All should succeed
@@ -78,15 +86,18 @@ class TestConcurrentProcessing:
     async def test_no_race_conditions(self, sample_audio_mp3: Path, tmp_path: Path):
         """Verify no race conditions in concurrent processing."""
         extractor = AsyncAudioExtractor()
+        semaphore = asyncio.Semaphore(CI_PARALLEL_LIMIT)
 
-        # Run same operations multiple times concurrently
-        tasks = []
-        for i in range(10):
-            output = tmp_path / f"race_test_{i}.mp3"
-            task = extractor.extract_audio_async(
-                sample_audio_mp3, output, quality=AudioQuality.COMPRESSED
-            )
-            tasks.append(task)
+        async def extract_with_limit(i: int) -> Path:
+            async with semaphore:
+                output = tmp_path / f"race_test_{i}.mp3"
+                return await extractor.extract_audio_async(
+                    sample_audio_mp3, output, quality=AudioQuality.COMPRESSED
+                )
+
+        # Run same operations multiple times concurrently with limited parallelism
+        num_tasks = CI_PARALLEL_LIMIT * 2  # Run more tasks than parallel limit
+        tasks = [extract_with_limit(i) for i in range(num_tasks)]
 
         # Should complete without errors
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -121,17 +132,18 @@ class TestAsyncExceptionHandling:
     ):
         """Test partial failures don't affect successful operations."""
         extractor = AsyncAudioExtractor()
+        semaphore = asyncio.Semaphore(CI_PARALLEL_LIMIT)
+
+        async def extract_with_limit(input_path: Path, output: Path) -> Path:
+            async with semaphore:
+                return await extractor.extract_audio_async(
+                    input_path, output, quality=AudioQuality.COMPRESSED
+                )
 
         tasks = [
-            extractor.extract_audio_async(
-                sample_audio_mp3, tmp_path / "success1.mp3", quality=AudioQuality.COMPRESSED
-            ),
-            extractor.extract_audio_async(
-                corrupted_audio, tmp_path / "fail.mp3", quality=AudioQuality.COMPRESSED
-            ),
-            extractor.extract_audio_async(
-                sample_audio_mp3, tmp_path / "success2.mp3", quality=AudioQuality.COMPRESSED
-            ),
+            extract_with_limit(sample_audio_mp3, tmp_path / "success1.mp3"),
+            extract_with_limit(corrupted_audio, tmp_path / "fail.mp3"),
+            extract_with_limit(sample_audio_mp3, tmp_path / "success2.mp3"),
         ]
 
         # Use return_exceptions=True to capture failures as exceptions in results

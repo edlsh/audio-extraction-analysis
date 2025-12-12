@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Literal, cast
 
 
 @dataclass
@@ -56,11 +56,12 @@ class StageStartEvent:
         else:
             timestamp = datetime.now(UTC)
 
+        total_raw = data.get("total", 100)
         return cls(
             stage=str(data.get("stage", "")),
             description=str(data.get("description", "")),
             timestamp=timestamp,
-            total=int(data.get("total", 100)),
+            total=int(total_raw) if isinstance(total_raw, (int, float, str)) else 100,
         )
 
 
@@ -110,11 +111,14 @@ class StageProgressEvent:
         else:
             timestamp = datetime.now(UTC)
 
+        completed_raw = data.get("completed", 0)
+        total_raw = data.get("total", 100)
+        message_raw = data.get("message")
         return cls(
             stage=str(data.get("stage", "")),
-            completed=int(data.get("completed", 0)),
-            total=int(data.get("total", 100)),
-            message=data.get("message") if data.get("message") else None,
+            completed=int(completed_raw) if isinstance(completed_raw, (int, float, str)) else 0,
+            total=int(total_raw) if isinstance(total_raw, (int, float, str)) else 100,
+            message=str(message_raw) if message_raw else None,
             timestamp=timestamp,
         )
 
@@ -173,15 +177,22 @@ class StageEndEvent:
 
         status_raw = data.get("status", "complete")
         status: StageEndStatus = (
-            status_raw if status_raw in ("complete", "error", "skipped") else "complete"
+            cast(StageEndStatus, status_raw)
+            if status_raw in ("complete", "error", "skipped")
+            else "complete"
         )
 
+        duration_raw = data.get("duration_seconds", 0.0)
+        output_raw = data.get("output")
+        error_raw = data.get("error")
         return cls(
             stage=str(data.get("stage", "")),
             status=status,
-            duration_seconds=float(data.get("duration_seconds", 0.0)),
-            output=data.get("output") if data.get("output") else None,
-            error=data.get("error") if data.get("error") else None,
+            duration_seconds=(
+                float(duration_raw) if isinstance(duration_raw, (int, float, str)) else 0.0
+            ),
+            output=str(output_raw) if output_raw else None,
+            error=str(error_raw) if error_raw else None,
             timestamp=timestamp,
         )
 
@@ -243,8 +254,12 @@ class PipelineEvent:
             raise ValueError(f"Unknown event type: {event_type}")
 
         run_id = data.get("run_id")
+        # Type narrowing: we validated event_type above by raising ValueError for unknowns
+        # Cast is safe since we only reach here for valid types
+        from typing import cast
+        validated_event_type = cast(PipelineEventType, event_type)
         return cls(
-            event_type=event_type,  # type: ignore[arg-type]
+            event_type=validated_event_type,
             data=parsed_data,
             run_id=str(run_id) if run_id else None,
         )
