@@ -73,7 +73,9 @@ class TestConcurrentProcessing:
         async def extract_with_limit(i: int, quality: AudioQuality) -> Path:
             async with semaphore:
                 output = tmp_path / f"quality_{quality.value}_{i}.mp3"
-                return await extractor.extract_audio_async(sample_audio_mp3, output, quality=quality)
+                return await extractor.extract_audio_async(
+                    sample_audio_mp3, output, quality=quality
+                )
 
         tasks = [extract_with_limit(i, q) for i, q in enumerate(qualities)]
         results = await asyncio.gather(*tasks)

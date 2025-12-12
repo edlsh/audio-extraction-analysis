@@ -257,6 +257,7 @@ class PipelineEvent:
         # Type narrowing: we validated event_type above by raising ValueError for unknowns
         # Cast is safe since we only reach here for valid types
         from typing import cast
+
         validated_event_type = cast(PipelineEventType, event_type)
         return cls(
             event_type=validated_event_type,
