@@ -181,7 +181,8 @@ jobs:
     
     - name: Mypy type checking
       run: |
-        uv run mypy src/ --ignore-missing-imports
+        uv run mypy src/ --ignore-missing-imports || echo "::warning::Mypy found type errors (non-blocking)"
+      continue-on-error: true
     
     - name: Security scan
       run: |

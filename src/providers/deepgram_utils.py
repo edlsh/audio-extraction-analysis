@@ -23,7 +23,7 @@ def detect_mimetype(path: Path) -> str:
     return mapping.get(suffix, "audio/mp3")
 
 
-def build_prerecorded_options(language: str) -> dict:
+def build_prerecorded_options(language: str) -> dict[str, object]:
     """Build transcription options dict for Deepgram Nova 3.
 
     Returns a dict of options compatible with the Deepgram SDK v5 API.

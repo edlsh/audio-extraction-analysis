@@ -207,7 +207,7 @@ def configure_loguru(
             colorize=True,
             backtrace=backtrace_enabled,
             diagnose=diagnose_enabled,
-            filter=_redaction_filter,
+            filter=_redaction_filter,  # type: ignore[arg-type]
         )
 
     # JSON file handler: structured for AI/RCA analysis
@@ -222,7 +222,7 @@ def configure_loguru(
             compression="gz",
             backtrace=backtrace_enabled,
             diagnose=diagnose_enabled,
-            filter=_redaction_filter,
+            filter=_redaction_filter,  # type: ignore[arg-type]
         )
 
     # Debug file handler: verbose text logs
@@ -238,7 +238,7 @@ def configure_loguru(
             retention="3 days",
             backtrace=backtrace_enabled,
             diagnose=diagnose_enabled,
-            filter=_redaction_filter,
+            filter=_redaction_filter,  # type: ignore[arg-type]
         )
 
     _configured = True
@@ -368,7 +368,7 @@ def set_tui_mode(
             _tui_handler_id = logger.add(
                 _tui_sink_instance,
                 level="DEBUG",
-                filter=_redaction_filter,
+                filter=_redaction_filter,  # type: ignore[arg-type]
             )
             _tui_mode = True
     else:
@@ -396,7 +396,7 @@ def set_tui_mode(
                 colorize=True,
                 backtrace=backtrace_enabled,
                 diagnose=diagnose_enabled,
-                filter=_redaction_filter,
+                filter=_redaction_filter,  # type: ignore[arg-type]
             )
 
             _tui_mode = False
