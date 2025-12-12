@@ -140,8 +140,11 @@ jobs:
         uv sync --locked --all-extras --dev
     
     - name: Run integration tests
+      env:
+        FFMPEG_TIMEOUT_SECONDS: 120
+        FFMPEG_TERMINATE_GRACE_SECONDS: 10
       run: |
-        uv run pytest -m integration --tb=short
+        uv run pytest -m integration --tb=short -x
 
   static-analysis:
     name: Static Analysis

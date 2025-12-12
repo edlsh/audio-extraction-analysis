@@ -107,9 +107,10 @@ class PipelineError:
         """
         context: dict[str, Any] = {}
 
-        # Extract context from our custom exceptions
-        if hasattr(exc, "context"):
-            context = exc.context or {}  # type: ignore[union-attr]
+        # Extract context from our custom exceptions using getattr for type safety
+        exc_context = getattr(exc, "context", None)
+        if exc_context is not None:
+            context = exc_context
         if hasattr(exc, "status_code"):
             context["status_code"] = exc.status_code  # type: ignore[union-attr]
         if hasattr(exc, "response_body"):

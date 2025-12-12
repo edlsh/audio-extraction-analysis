@@ -180,6 +180,7 @@ class AsyncAudioExtractor(AudioExtractor):
             stderr=asyncio.subprocess.PIPE,
         )
 
+        timed_out = False
         try:
             await asyncio.wait_for(
                 self._consume_ffmpeg_progress(proc, total_duration, progress_callback, stage),
@@ -189,14 +190,19 @@ class AsyncAudioExtractor(AudioExtractor):
             await self._terminate_process(proc, stage)
             raise
         except TimeoutError as exc:
+            timed_out = True
             await self._terminate_process(proc, stage)
             raise TimeoutError(
                 f"FFmpeg stage '{stage}' timed out after {self._ffmpeg_timeout} seconds"
             ) from exc
         finally:
-            # Ensure process is cleaned up on any exit path
-            if proc.returncode is None:
-                await self._terminate_process(proc, stage)
+            # Only terminate if we timed out and process is still running
+            # Don't terminate on normal completion - wait for process to finish naturally
+            if not timed_out and proc.returncode is None:
+                try:
+                    await asyncio.wait_for(proc.wait(), timeout=self._ffmpeg_terminate_grace)
+                except TimeoutError:
+                    await self._terminate_process(proc, stage)
 
         await self._ensure_process_succeeded(proc, stage)
 
