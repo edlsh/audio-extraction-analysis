@@ -37,9 +37,9 @@ class TestSrcPackage:
         docstring_lower = src.__doc__.lower()
 
         # Verify the docstring mentions namespace and package concepts
-        assert any(keyword in docstring_lower for keyword in expected_keywords), (
-            f"Docstring should mention namespace package: {src.__doc__}"
-        )
+        assert any(
+            keyword in docstring_lower for keyword in expected_keywords
+        ), f"Docstring should mention namespace package: {src.__doc__}"
 
     def test_no_unexpected_exports(self):
         """Test that module doesn't expose unexpected public attributes."""

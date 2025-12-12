@@ -142,16 +142,16 @@ class TestInputValidation(E2ETestBase, CLITestMixin, SecurityTestMixin):
                 # Exposing paths like "/etc/" or "C:\Windows" helps attackers map the system
                 sensitive_paths = ["/etc/", "/root/", "/var/", "c:\\windows", "system32"]
                 for sensitive_path in sensitive_paths:
-                    assert sensitive_path not in error_msg, (
-                        f"Error message exposes sensitive path: {error_msg}"
-                    )
+                    assert (
+                        sensitive_path not in error_msg
+                    ), f"Error message exposes sensitive path: {error_msg}"
 
                 # Error should be generic (file not found) rather than revealing the actual issue
                 # This prevents attackers from distinguishing between validation failures
                 expected_errors = ["not found", "no such file", "invalid", "access denied"]
-                assert any(expected in error_msg for expected in expected_errors), (
-                    f"Unexpected error message for path traversal: {error_msg}"
-                )
+                assert any(
+                    expected in error_msg for expected in expected_errors
+                ), f"Unexpected error message for path traversal: {error_msg}"
 
     def test_command_injection_prevention(self):
         """
@@ -193,9 +193,9 @@ class TestInputValidation(E2ETestBase, CLITestMixin, SecurityTestMixin):
                 command_indicators = ["executed", "command", "shell", "bash", "cmd"]
 
                 for indicator in command_indicators:
-                    assert indicator not in error_msg, (
-                        f"Error suggests command execution: {error_msg}"
-                    )
+                    assert (
+                        indicator not in error_msg
+                    ), f"Error suggests command execution: {error_msg}"
 
     def test_filename_sanitization(self):
         """
@@ -261,9 +261,9 @@ class TestInputValidation(E2ETestBase, CLITestMixin, SecurityTestMixin):
         error_msg = result.error.lower()
         # Should fail gracefully without system errors
         acceptable_errors = ["not found", "invalid", "too long", "name too long"]
-        assert any(error in error_msg for error in acceptable_errors), (
-            f"Unexpected error for long filename: {error_msg}"
-        )
+        assert any(
+            error in error_msg for error in acceptable_errors
+        ), f"Unexpected error for long filename: {error_msg}"
 
     def test_unicode_filename_security(self):
         """
@@ -301,9 +301,9 @@ class TestInputValidation(E2ETestBase, CLITestMixin, SecurityTestMixin):
                     encoding_errors = ["encoding", "unicode", "decode", "ascii"]
 
                     for error_type in encoding_errors:
-                        assert error_type not in error_msg, (
-                            f"Unicode filename caused encoding error: {error_msg}"
-                        )
+                        assert (
+                            error_type not in error_msg
+                        ), f"Unicode filename caused encoding error: {error_msg}"
 
     def test_file_size_limits(self):
         """Test file size validation."""
@@ -511,9 +511,9 @@ class TestOutputSanitization(E2ETestBase, CLITestMixin, SecurityTestMixin, MockP
                 ]
 
                 for sensitive in sensitive_info:
-                    assert sensitive not in error_msg, (
-                        f"Error message exposes sensitive info: {sensitive} in {error_msg}"
-                    )
+                    assert (
+                        sensitive not in error_msg
+                    ), f"Error message exposes sensitive info: {sensitive} in {error_msg}"
 
     def test_output_file_permissions(self):
         """
@@ -708,9 +708,9 @@ class TestAPIKeySecurity(E2ETestBase, CLITestMixin, SecurityTestMixin):
             # Check for partial key exposure
             key_fragments = ["secure_test", "key_12345", "test_key"]
             for fragment in key_fragments:
-                assert fragment not in output_content, (
-                    f"API key fragment '{fragment}' found in output"
-                )
+                assert (
+                    fragment not in output_content
+                ), f"API key fragment '{fragment}' found in output"
 
 
 class TestFileSystemSecurity(E2ETestBase, CLITestMixin, SecurityTestMixin):
@@ -814,16 +814,16 @@ class TestFileSystemSecurity(E2ETestBase, CLITestMixin, SecurityTestMixin):
                             for safe_parent in safe_parents
                         )
 
-                        assert is_safe or not malicious_path.exists(), (
-                            f"Malicious output path created: {resolved_path}"
-                        )
+                        assert (
+                            is_safe or not malicious_path.exists()
+                        ), f"Malicious output path created: {resolved_path}"
                 else:
                     # If failed, should be due to path validation
                     error_msg = result.error.lower()
                     path_errors = ["invalid", "path", "directory", "access", "permission"]
-                    assert any(error in error_msg for error in path_errors), (
-                        f"Unexpected error for malicious output path: {error_msg}"
-                    )
+                    assert any(
+                        error in error_msg for error in path_errors
+                    ), f"Unexpected error for malicious output path: {error_msg}"
 
     def test_file_overwrite_protection(self):
         """Test protection against overwriting important files."""
@@ -854,6 +854,6 @@ class TestFileSystemSecurity(E2ETestBase, CLITestMixin, SecurityTestMixin):
 
                     error_msg = result.error.lower()
                     protection_keywords = ["permission", "access", "denied", "protected"]
-                    assert any(keyword in error_msg for keyword in protection_keywords), (
-                        f"Unexpected error when trying to overwrite {system_file}: {error_msg}"
-                    )
+                    assert any(
+                        keyword in error_msg for keyword in protection_keywords
+                    ), f"Unexpected error when trying to overwrite {system_file}: {error_msg}"

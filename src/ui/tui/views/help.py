@@ -117,14 +117,16 @@ It features live progress monitoring, real-time log streaming, and provider heal
         )
 
     def _section_global_shortcuts(self) -> list[Text | Table]:
-        table = self._build_shortcut_table([
-            ("q", "Quit application"),
-            ("t", "Switch theme (select from list)"),
-            ("d", "Switch theme (same as 't')"),
-            ("h", "Show this help screen"),
-            ("?", "Show this help screen"),
-            ("Esc", "Go back / Close screen"),
-        ])
+        table = self._build_shortcut_table(
+            [
+                ("q", "Quit application"),
+                ("t", "Switch theme (select from list)"),
+                ("d", "Switch theme (same as 't')"),
+                ("h", "Show this help screen"),
+                ("?", "Show this help screen"),
+                ("Esc", "Go back / Close screen"),
+            ]
+        )
         return [
             Text.from_markup("[bold yellow]Global Keyboard Shortcuts[/bold yellow]"),
             table,
@@ -134,29 +136,35 @@ It features live progress monitoring, real-time log streaming, and provider heal
         renderables: list[Text | Table] = [
             Text.from_markup("[bold yellow]Screen-Specific Shortcuts[/bold yellow]"),
             Text.from_markup("[bold cyan]Home Screen[/bold cyan]"),
-            self._build_shortcut_table([
-                ("Enter", "Select file / directory"),
-                ("Tab", "Switch between file tree and recent files"),
-                ("/", "Filter / search files"),
-                ("r", "Refresh recent files list"),
-                ("c", "Continue to configuration"),
-            ]),
+            self._build_shortcut_table(
+                [
+                    ("Enter", "Select file / directory"),
+                    ("Tab", "Switch between file tree and recent files"),
+                    ("/", "Filter / search files"),
+                    ("r", "Refresh recent files list"),
+                    ("c", "Continue to configuration"),
+                ]
+            ),
             Text.from_markup("[bold cyan]Configuration Screen[/bold cyan]"),
-            self._build_shortcut_table([
-                ("s", "Start pipeline run"),
-                ("r", "Reset to defaults"),
-                ("Tab", "Navigate between fields"),
-            ]),
+            self._build_shortcut_table(
+                [
+                    ("s", "Start pipeline run"),
+                    ("r", "Reset to defaults"),
+                    ("Tab", "Navigate between fields"),
+                ]
+            ),
             Text.from_markup("[bold cyan]Run Screen[/bold cyan]"),
-            self._build_shortcut_table([
-                ("c", "Cancel running pipeline"),
-                ("o", "Open output directory"),
-                ("a", "Show all logs"),
-                ("d", "Show debug+ logs"),
-                ("i", "Show info+ logs"),
-                ("w", "Show warning+ logs"),
-                ("e", "Show error logs only"),
-            ]),
+            self._build_shortcut_table(
+                [
+                    ("c", "Cancel running pipeline"),
+                    ("o", "Open output directory"),
+                    ("a", "Show all logs"),
+                    ("d", "Show debug+ logs"),
+                    ("i", "Show info+ logs"),
+                    ("w", "Show warning+ logs"),
+                    ("e", "Show error logs only"),
+                ]
+            ),
         ]
         return renderables
 

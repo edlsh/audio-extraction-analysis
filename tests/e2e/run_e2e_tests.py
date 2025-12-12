@@ -291,11 +291,13 @@ class E2ETestRunner:
 
         # Add coverage if requested
         if self.args.coverage:
-            pytest_args.extend([
-                "--cov=src",
-                f"--cov-report=html:{self.output_dir / (suite_name + '_coverage')!s}",
-                f"--cov-report=json:{self.output_dir / (suite_name + '_coverage.json')!s}",
-            ])
+            pytest_args.extend(
+                [
+                    "--cov=src",
+                    f"--cov-report=html:{self.output_dir / (suite_name + '_coverage')!s}",
+                    f"--cov-report=json:{self.output_dir / (suite_name + '_coverage.json')!s}",
+                ]
+            )
 
         # Add parallel execution if requested
         if self.args.parallel and suite_name in ["unit", "integration"]:
@@ -303,18 +305,22 @@ class E2ETestRunner:
 
         # Set environment variables for testing
         test_env = os.environ.copy()
-        test_env.update({
-            "PYTHONPATH": str(self.project_root),
-            "TEST_MODE": "true",
-            "LOG_LEVEL": "DEBUG" if self.args.verbose else "INFO",
-        })
+        test_env.update(
+            {
+                "PYTHONPATH": str(self.project_root),
+                "TEST_MODE": "true",
+                "LOG_LEVEL": "DEBUG" if self.args.verbose else "INFO",
+            }
+        )
 
         # Add mock API keys for testing
         if not self.args.real_api_keys:
-            test_env.update({
-                "DEEPGRAM_API_KEY": "test_deepgram_key_for_mocking",
-                "ELEVENLABS_API_KEY": "test_elevenlabs_key_for_mocking",
-            })
+            test_env.update(
+                {
+                    "DEEPGRAM_API_KEY": "test_deepgram_key_for_mocking",
+                    "ELEVENLABS_API_KEY": "test_elevenlabs_key_for_mocking",
+                }
+            )
 
         try:
             # Run pytest

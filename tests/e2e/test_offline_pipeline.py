@@ -113,12 +113,14 @@ class TestOfflinePipelineExitCodes:
     def test_extract_success_returns_zero(self, stub_audio_file: Path, tmp_path: Path) -> None:
         """Successful extraction should exit 0."""
         output = tmp_path / "extracted.wav"
-        exit_code, _stdout, stderr = run_cli([
-            "extract",
-            str(stub_audio_file),
-            "--output",
-            str(output),
-        ])
+        exit_code, _stdout, stderr = run_cli(
+            [
+                "extract",
+                str(stub_audio_file),
+                "--output",
+                str(output),
+            ]
+        )
         assert exit_code == 0, f"Extract failed: {stderr}"
         assert output.exists(), "Output file not created"
 
@@ -129,12 +131,14 @@ class TestOfflinePipelineArtifacts:
     def test_extract_creates_audio_artifact(self, stub_audio_file: Path, tmp_path: Path) -> None:
         """Extract command should create audio file at specified location."""
         output = tmp_path / "output_audio.wav"
-        exit_code, _, stderr = run_cli([
-            "extract",
-            str(stub_audio_file),
-            "--output",
-            str(output),
-        ])
+        exit_code, _, stderr = run_cli(
+            [
+                "extract",
+                str(stub_audio_file),
+                "--output",
+                str(output),
+            ]
+        )
         assert exit_code == 0, f"Extract failed: {stderr}"
         assert output.exists(), "Audio artifact not created"
         assert output.stat().st_size > 0, "Audio artifact is empty"
@@ -171,14 +175,16 @@ class TestOfflinePipelineIntegration:
         output_dir = tmp_path / "process_output"
         output_dir.mkdir()
 
-        exit_code, _stdout, stderr = run_cli([
-            "process",
-            str(stub_audio_file),
-            "--output-dir",
-            str(output_dir),
-            "--provider",
-            "stub",
-        ])
+        exit_code, _stdout, stderr = run_cli(
+            [
+                "process",
+                str(stub_audio_file),
+                "--output-dir",
+                str(output_dir),
+                "--provider",
+                "stub",
+            ]
+        )
         # May fail if stub provider not wired in, but should parse args
         if exit_code != 0:
             # Check it's a provider/config issue, not argument parsing

@@ -77,13 +77,15 @@ def test_action_start_run_success(mock_save, config_screen: ConfigScreen) -> Non
 @patch("src.ui.tui.views.config.default_settings")
 def test_action_reset_defaults(mock_defaults, _mock_save, config_screen: ConfigScreen) -> None:
     defaults = default_settings()
-    defaults["defaults"].update({
-        "quality": "high",
-        "provider": "deepgram",
-        "language": "es",
-        "analysis_style": "full",
-        "keep_downloaded_videos": True,
-    })
+    defaults["defaults"].update(
+        {
+            "quality": "high",
+            "provider": "deepgram",
+            "language": "es",
+            "analysis_style": "full",
+            "keep_downloaded_videos": True,
+        }
+    )
     defaults["last_output_dir"] = "/tmp/out"
     mock_defaults.return_value = defaults
 

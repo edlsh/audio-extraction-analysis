@@ -83,9 +83,9 @@ class TestPerformanceBenchmarks(E2ETestBase, CLITestMixin, PerformanceTestMixin,
 
         # Memory assertion
         memory_usage = memory_monitor.get_memory_usage_mb()
-        assert memory_usage <= self.memory_targets["extract_short"], (
-            f"Memory usage {memory_usage:.1f}MB exceeded target {self.memory_targets['extract_short']}MB"
-        )
+        assert (
+            memory_usage <= self.memory_targets["extract_short"]
+        ), f"Memory usage {memory_usage:.1f}MB exceeded target {self.memory_targets['extract_short']}MB"
 
     def test_extract_performance_medium_file(self):
         """Test audio extraction performance with medium file."""
@@ -114,9 +114,9 @@ class TestPerformanceBenchmarks(E2ETestBase, CLITestMixin, PerformanceTestMixin,
 
         # Memory assertion
         memory_usage = memory_monitor.get_memory_usage_mb()
-        assert memory_usage <= self.memory_targets["extract_medium"], (
-            f"Memory usage {memory_usage:.1f}MB exceeded target {self.memory_targets['extract_medium']}MB"
-        )
+        assert (
+            memory_usage <= self.memory_targets["extract_medium"]
+        ), f"Memory usage {memory_usage:.1f}MB exceeded target {self.memory_targets['extract_medium']}MB"
 
     def test_transcribe_performance_short_audio(self):
         """Test transcription performance with short audio."""
@@ -193,9 +193,9 @@ class TestPerformanceBenchmarks(E2ETestBase, CLITestMixin, PerformanceTestMixin,
 
         # Memory assertion
         memory_usage = memory_monitor.get_memory_usage_mb()
-        assert memory_usage <= self.memory_targets["process_short"], (
-            f"Memory usage {memory_usage:.1f}MB exceeded target {self.memory_targets['process_short']}MB"
-        )
+        assert (
+            memory_usage <= self.memory_targets["process_short"]
+        ), f"Memory usage {memory_usage:.1f}MB exceeded target {self.memory_targets['process_short']}MB"
 
     def test_cpu_utilization_monitoring(self):
         """Test CPU utilization during processing."""
@@ -335,9 +335,9 @@ class TestLoadTesting(E2ETestBase, CLITestMixin, MockProviderMixin):
             avg_duration = sum(r["duration"] for r in successful_operations) / len(
                 successful_operations
             )
-            assert avg_duration <= 120.0, (
-                f"Average duration {avg_duration:.1f}s too high under load"
-            )
+            assert (
+                avg_duration <= 120.0
+            ), f"Average duration {avg_duration:.1f}s too high under load"
 
     def test_concurrent_transcriptions(self):
         """Test concurrent transcription operations."""
@@ -420,9 +420,9 @@ class TestLoadTesting(E2ETestBase, CLITestMixin, MockProviderMixin):
         # Memory usage should not grow significantly between operations
         if len(memory_usage) > 1:
             memory_growth = max(memory_usage) - min(memory_usage)
-            assert memory_growth <= 100.0, (
-                f"Memory growth {memory_growth:.1f}MB between operations too high"
-            )
+            assert (
+                memory_growth <= 100.0
+            ), f"Memory growth {memory_growth:.1f}MB between operations too high"
 
     def test_rapid_api_calls_simulation(self):
         """Test rapid API calls to check rate limiting handling."""
@@ -468,9 +468,9 @@ class TestLoadTesting(E2ETestBase, CLITestMixin, MockProviderMixin):
         success_rate = len(successful_calls) / total_calls
 
         # With simulated rate limiting, expect some failures
-        assert success_rate >= 0.5, (
-            f"Success rate {success_rate:.1%} too low even with rate limiting"
-        )
+        assert (
+            success_rate >= 0.5
+        ), f"Success rate {success_rate:.1%} too low even with rate limiting"
         assert len(rate_limited_calls) > 0, "Rate limiting simulation should produce some failures"
 
     def test_resource_cleanup_under_load(self):
@@ -547,9 +547,9 @@ class TestStressScenarios(E2ETestBase, CLITestMixin, MockProviderMixin):
             assert duration <= 900, f"Large file processing took {duration:.1f}s, expected <= 900s"
 
             memory_usage = memory_monitor.get_memory_usage_mb()
-            assert memory_usage <= 2000, (
-                f"Memory usage {memory_usage:.1f}MB too high for large file"
-            )
+            assert (
+                memory_usage <= 2000
+            ), f"Memory usage {memory_usage:.1f}MB too high for large file"
         else:
             # If failed, should be due to size limits, not crashes
             assert (

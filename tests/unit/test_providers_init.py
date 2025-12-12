@@ -28,9 +28,9 @@ class TestProvidersPackage:
 
         # Verify the docstring mentions transcription or providers
         expected_keywords = ["transcription", "provider", "service"]
-        assert any(keyword in docstring_lower for keyword in expected_keywords), (
-            f"Docstring should describe provider functionality: {src.providers.__doc__}"
-        )
+        assert any(
+            keyword in docstring_lower for keyword in expected_keywords
+        ), f"Docstring should describe provider functionality: {src.providers.__doc__}"
 
     def test_all_attribute_exists(self):
         """Test that __all__ attribute is defined."""
@@ -53,9 +53,9 @@ class TestProvidersPackage:
             "TranscriptionProviderFactory",
         ]
 
-        assert set(src.providers.__all__) == set(expected_exports), (
-            f"__all__ should contain {expected_exports}, got {src.providers.__all__}"
-        )
+        assert set(src.providers.__all__) == set(
+            expected_exports
+        ), f"__all__ should contain {expected_exports}, got {src.providers.__all__}"
 
     def test_base_transcription_provider_exported(self):
         """Test that BaseTranscriptionProvider is properly exported."""
@@ -187,9 +187,9 @@ class TestProvidersPackage:
             "TranscriptionProviderFactory",
         ]
 
-        assert set(imported_names) == set(expected_names), (
-            f"Wildcard import should only import {expected_names}, got {imported_names}"
-        )
+        assert set(imported_names) == set(
+            expected_names
+        ), f"Wildcard import should only import {expected_names}, got {imported_names}"
 
     def test_no_unexpected_public_exports(self):
         """Test that module exports the required items.
@@ -233,9 +233,9 @@ class TestProvidersPackage:
             "TranscriptionPolicy",
             "TranscriptionProviderFactory",
         ]
-        assert set(providers.__all__) == set(expected_all), (
-            f"__all__ should be {expected_all}, got {providers.__all__}"
-        )
+        assert set(providers.__all__) == set(
+            expected_all
+        ), f"__all__ should be {expected_all}, got {providers.__all__}"
 
     def test_export_types_are_correct(self):
         """Test that exported items are of the correct types."""
@@ -248,28 +248,28 @@ class TestProvidersPackage:
         )
 
         # BaseTranscriptionProvider should be a class
-        assert isinstance(BaseTranscriptionProvider, type), (
-            "BaseTranscriptionProvider should be a class"
-        )
+        assert isinstance(
+            BaseTranscriptionProvider, type
+        ), "BaseTranscriptionProvider should be a class"
 
         # CircuitBreakerConfig should be a dataclass
         assert isinstance(CircuitBreakerConfig, type), "CircuitBreakerConfig should be a class"
 
         # CircuitBreakerError should be an exception class
-        assert isinstance(CircuitBreakerError, type), (
-            "CircuitBreakerError should be an exception class"
-        )
-        assert issubclass(CircuitBreakerError, Exception), (
-            "CircuitBreakerError should be a subclass of Exception"
-        )
+        assert isinstance(
+            CircuitBreakerError, type
+        ), "CircuitBreakerError should be an exception class"
+        assert issubclass(
+            CircuitBreakerError, Exception
+        ), "CircuitBreakerError should be a subclass of Exception"
 
         # CircuitBreakerMixin should be a class
         assert isinstance(CircuitBreakerMixin, type), "CircuitBreakerMixin should be a class"
 
         # TranscriptionProviderFactory should be a class
-        assert isinstance(TranscriptionProviderFactory, type), (
-            "TranscriptionProviderFactory should be a class"
-        )
+        assert isinstance(
+            TranscriptionProviderFactory, type
+        ), "TranscriptionProviderFactory should be a class"
 
     def test_import_does_not_raise(self):
         """Test that importing the module does not raise any exceptions."""

@@ -436,11 +436,13 @@ def build_extract_commands(
     normalize_cmd = ["ffmpeg", "-i", str(temp_path)]
     if allow_overwrite:
         normalize_cmd.append("-y")
-    normalize_cmd.extend([
-        "-ac",
-        "1",  # Convert to mono (single audio channel)
-        "-af",
-        "loudnorm=I=-16:TP=-1.5:LRA=11",  # EBU R128 loudness normalization
-        str(output_path),
-    ])
+    normalize_cmd.extend(
+        [
+            "-ac",
+            "1",  # Convert to mono (single audio channel)
+            "-af",
+            "loudnorm=I=-16:TP=-1.5:LRA=11",  # EBU R128 loudness normalization
+            str(output_path),
+        ]
+    )
     return [extract, normalize_cmd], temp_path

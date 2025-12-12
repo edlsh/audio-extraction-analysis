@@ -157,12 +157,12 @@ class TestBuildExtractCommands:
         for invalid_quality in ["unknown", "UNKNOWN", "", "ultra", None]:
             commands, temp_path = build_extract_commands(input_path, output_path, invalid_quality)
 
-            assert len(commands) == 2, (
-                f"Quality '{invalid_quality}' should default to SPEECH (two-step)"
-            )
-            assert temp_path is not None, (
-                f"Quality '{invalid_quality}' should use temp file like SPEECH"
-            )
+            assert (
+                len(commands) == 2
+            ), f"Quality '{invalid_quality}' should default to SPEECH (two-step)"
+            assert (
+                temp_path is not None
+            ), f"Quality '{invalid_quality}' should use temp file like SPEECH"
 
     def test_speech_temp_path_naming(self):
         """Verify SPEECH preset creates correctly named temp file."""
@@ -184,9 +184,9 @@ class TestBuildExtractCommands:
             commands, _ = build_extract_commands(input_path, output_path, quality)
 
             for cmd in commands:
-                assert "-y" in cmd, (
-                    f"Missing -y flag in {quality} preset - could hang on overwrites"
-                )
+                assert (
+                    "-y" in cmd
+                ), f"Missing -y flag in {quality} preset - could hang on overwrites"
 
     def test_path_with_spaces_in_commands(self):
         """Test that paths with spaces are properly handled in commands."""
