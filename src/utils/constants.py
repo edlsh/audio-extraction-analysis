@@ -154,16 +154,14 @@ class HTTPStatusCodes:
     """HTTP status codes that trigger specific behaviors."""
 
     # Retriable status codes (temporary failures)
-    RETRIABLE: frozenset[int] = frozenset(
-        {
-            408,  # Request Timeout
-            429,  # Too Many Requests
-            500,  # Internal Server Error
-            502,  # Bad Gateway
-            503,  # Service Unavailable
-            504,  # Gateway Timeout
-        }
-    )
+    RETRIABLE: frozenset[int] = frozenset({
+        408,  # Request Timeout
+        429,  # Too Many Requests
+        500,  # Internal Server Error
+        502,  # Bad Gateway
+        503,  # Service Unavailable
+        504,  # Gateway Timeout
+    })
 
     # Authentication errors
     UNAUTHORIZED: int = 401

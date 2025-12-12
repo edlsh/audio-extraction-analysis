@@ -53,6 +53,10 @@ jobs:
       - name: Black format check
         run: uv run black --check src tests
 
+      - name: Mypy type checking
+        # Use project's pyproject.toml config instead of overriding with --ignore-missing-imports
+        run: uv run mypy src/
+
       - name: Architecture checks
         run: uv run lint-imports
 
@@ -134,10 +138,10 @@ jobs:
           fi
           uv run detect-secrets scan --baseline .secrets.baseline
 
-      - name: Bandit
+      - name: Bandit security scan
+        # Security issues should fail the build - no continue-on-error
         run: uv run bandit -r src -ll
-        continue-on-error: true
 
-      - name: pip-audit
+      - name: Dependency audit
+        # Known vulnerabilities in dependencies should fail the build
         run: uv run pip-audit --strict
-        continue-on-error: true

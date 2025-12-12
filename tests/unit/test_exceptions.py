@@ -391,12 +391,12 @@ class TestExceptionInheritance:
         ]
 
         for exc_class in exceptions:
-            assert issubclass(
-                exc_class, AudioAnalysisError
-            ), f"{exc_class.__name__} should inherit from AudioAnalysisError"
-            assert issubclass(
-                exc_class, Exception
-            ), f"{exc_class.__name__} should inherit from Exception"
+            assert issubclass(exc_class, AudioAnalysisError), (
+                f"{exc_class.__name__} should inherit from AudioAnalysisError"
+            )
+            assert issubclass(exc_class, Exception), (
+                f"{exc_class.__name__} should inherit from Exception"
+            )
 
     def test_specific_inheritance_chains(self):
         """Test specific inheritance relationships."""

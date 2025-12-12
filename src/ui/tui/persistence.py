@@ -135,7 +135,10 @@ def load_settings() -> dict[str, Any]:
 
 
 def save_settings(settings: dict[str, Any]) -> bool:
-    """Save TUI settings to disk.
+    """Save TUI settings to disk with secure file permissions.
+
+    Settings are written with restrictive permissions (owner read/write only)
+    because they may contain sensitive data like API keys.
 
     Args:
         settings: Settings dictionary to save
@@ -157,8 +160,9 @@ def save_settings(settings: dict[str, Any]) -> bool:
     settings_file = config_dir / "tui_settings.json"
 
     try:
-        with open(settings_file, "w", encoding="utf-8") as f:
-            json.dump(settings, f, indent=2, sort_keys=True)
+        from src.utils.secure_file import secure_write_json
+
+        secure_write_json(settings_file, settings)
         return True
 
     except OSError as e:
@@ -371,7 +375,9 @@ def inject_api_keys_to_env() -> int:
             from src.config import _reset_config
 
             _reset_config()
-        except Exception:
-            pass
+        except ImportError:
+            logger.debug("Could not import _reset_config, config singleton may not be reset")
+        except Exception as e:
+            logger.debug("Failed to reset config singleton: %s", e)
 
     return injected

@@ -46,16 +46,14 @@ class TestCLIParser:
         """Test extract subcommand with all options."""
         parser = create_parser()
 
-        args = parser.parse_args(
-            [
-                "extract",
-                "video.mp4",
-                "--output",
-                "audio.mp3",
-                "--quality",
-                "high",
-            ]
-        )
+        args = parser.parse_args([
+            "extract",
+            "video.mp4",
+            "--output",
+            "audio.mp3",
+            "--quality",
+            "high",
+        ])
         assert args.command == "extract"
         assert args.input_file == "video.mp4"
         assert args.output == "audio.mp3"
@@ -75,18 +73,16 @@ class TestCLIParser:
         """Test transcribe subcommand with all options."""
         parser = create_parser()
 
-        args = parser.parse_args(
-            [
-                "transcribe",
-                "audio.mp3",
-                "--output",
-                "transcript.txt",
-                "--language",
-                "es",
-                "--provider",
-                "deepgram",
-            ]
-        )
+        args = parser.parse_args([
+            "transcribe",
+            "audio.mp3",
+            "--output",
+            "transcript.txt",
+            "--language",
+            "es",
+            "--provider",
+            "deepgram",
+        ])
         assert args.command == "transcribe"
         assert args.audio_file == "audio.mp3"
         assert args.output == "transcript.txt"
@@ -138,20 +134,18 @@ class TestCLIParser:
         """Test process subcommand with all options."""
         parser = create_parser()
 
-        args = parser.parse_args(
-            [
-                "process",
-                "video.mp4",
-                "--output-dir",
-                "./results",
-                "--quality",
-                "standard",
-                "--language",
-                "fr",
-                "--provider",
-                "elevenlabs",
-            ]
-        )
+        args = parser.parse_args([
+            "process",
+            "video.mp4",
+            "--output-dir",
+            "./results",
+            "--quality",
+            "standard",
+            "--language",
+            "fr",
+            "--provider",
+            "elevenlabs",
+        ])
         assert args.command == "process"
         assert args.video_file == "video.mp4"
         assert args.output_dir == "./results"

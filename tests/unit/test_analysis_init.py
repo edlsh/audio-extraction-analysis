@@ -59,9 +59,9 @@ class TestAnalysisPackage:
 
         # Verify the docstring mentions analysis or reports
         expected_keywords = ["analysis", "report", "transcription"]
-        assert any(
-            keyword in docstring_lower for keyword in expected_keywords
-        ), f"Docstring should describe analysis functionality: {src.analysis.__doc__}"
+        assert any(keyword in docstring_lower for keyword in expected_keywords), (
+            f"Docstring should describe analysis functionality: {src.analysis.__doc__}"
+        )
 
     # === Public API Export Tests ===
 
@@ -88,9 +88,9 @@ class TestAnalysisPackage:
 
         expected_exports = ["ConciseAnalyzer", "FullAnalyzer"]
 
-        assert set(src.analysis.__all__) == set(
-            expected_exports
-        ), f"__all__ should contain {expected_exports}, got {src.analysis.__all__}"
+        assert set(src.analysis.__all__) == set(expected_exports), (
+            f"__all__ should contain {expected_exports}, got {src.analysis.__all__}"
+        )
 
     # === Analyzer Class Export Verification ===
 
@@ -180,9 +180,9 @@ class TestAnalysisPackage:
         imported_names = [name for name in namespace.keys() if not name.startswith("__")]
         expected_names = ["ConciseAnalyzer", "FullAnalyzer"]
 
-        assert set(imported_names) == set(
-            expected_names
-        ), f"Wildcard import should only import {expected_names}, got {imported_names}"
+        assert set(imported_names) == set(expected_names), (
+            f"Wildcard import should only import {expected_names}, got {imported_names}"
+        )
 
     # === API Cleanliness Tests ===
 
@@ -209,9 +209,9 @@ class TestAnalysisPackage:
             "concise_analyzer",
             "full_analyzer",
         ]
-        assert set(public_attrs) == set(
-            expected_attrs
-        ), f"Module should export {expected_attrs}, got {public_attrs}"
+        assert set(public_attrs) == set(expected_attrs), (
+            f"Module should export {expected_attrs}, got {public_attrs}"
+        )
 
     # === Type Validation Tests ===
 

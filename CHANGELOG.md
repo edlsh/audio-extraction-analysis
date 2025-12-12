@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.1.0] - 2025-12-02
 
+## [2.4.0] - 2025-12-12
+
+### ⚠️ BREAKING CHANGES
+
+- **Path Sanitization Semantics**: `PathSanitizer.ensure_safe_subpath` now raises `ValueError` on path traversal attempts instead of silently sanitizing them. This is a security improvement (fail-closed behavior). Callers that passed unsanitized user input must now catch `ValueError` or pre-validate paths.
+  - The function is deprecated in favor of `ensure_subpath` from `src.utils.paths`
+  - Existing callers in the codebase already handle this correctly
+
+### Added
+
+- **JSON CLI Output**: New `--json` and `--no-progress` global flags for machine-readable output
+- **Security Scanning**: CI now includes `detect-secrets`, `bandit`, and `pip-audit` in PR checks
+- **Log Redaction**: New `src/utils/log_redaction.py` for API key sanitization in logs
+- **Secure File Operations**: New `src/utils/secure_file.py` for atomic writes
+- **Provider Observability**: New `src/providers/observability.py` for provider metrics
+- **Stub Provider**: New `src/providers/stub.py` for testing without external APIs
+
+### Changed
+
+- **Path Traversal Validation**: `ensure_subpath` now uses `Path.relative_to()` for strict containment checks
+- **Shell Character Validation**: `validate_path_security` rejects dangerous shell metacharacters (`; & | \` $ < >`)
+- **Control Character Handling**: Path validation now rejects control characters (`\x00-\x1f`)
+- **FFmpeg Subprocess**: Audio extraction now uses `subprocess.Popen` for better timeout handling
+- **CI Workflows**: Enhanced PR checks with security scanning; main branch gets auto-formatting
+
+### Security
+
+- Path traversal attacks now rejected instead of sanitized (defense-in-depth)
+- Shell injection vectors blocked via character validation
+- API keys redacted from log output
+
 ## [2.3.0] - 2025-12-09
 
 ### Changed

@@ -116,6 +116,9 @@ class PathSanitizer:
     def ensure_safe_subpath(base_path: Path, subpath: str) -> Path:
         """Ensure a subpath doesn't escape the base directory (prevent path traversal).
 
+        DEPRECATED: Use ensure_subpath from src.utils.paths instead for consistency.
+        This method now delegates to ensure_subpath with reject-on-escape semantics.
+
         Args:
             base_path: Base directory that should contain the result
             subpath: Subpath to join with base_path
@@ -126,32 +129,13 @@ class PathSanitizer:
         Raises:
             ValueError: If the resulting path would escape base_path
         """
-        base_path = base_path.resolve()
+        # Import here to avoid circular imports
+        from .paths import ensure_subpath
 
-        # Sanitize the subpath to remove any '..' components
-        clean_subpath = Path(subpath)
-        parts = []
-        for part in clean_subpath.parts:
-            if part == "..":
-                continue  # Skip parent directory references
-            elif part == ".":
-                continue  # Skip current directory references
-            else:
-                parts.append(part)
-
-        # Construct the full path
-        full_path = base_path
-        for part in parts:
-            full_path = full_path / part
-
-        # Resolve and verify it's still within base_path
-        resolved = full_path.resolve()
-        try:
-            resolved.relative_to(base_path)
-        except ValueError:
-            raise ValueError(f"Path traversal detected: {subpath} would escape {base_path}")
-
-        return resolved
+        # Delegate to canonical implementation with reject-on-escape semantics
+        # Note: Previously this method stripped ".." components silently,
+        # which could hide security issues. Now it raises ValueError on escape attempts.
+        return ensure_subpath(base_path, subpath)
 
     @staticmethod
     def validate_path_security(path: Path) -> None:

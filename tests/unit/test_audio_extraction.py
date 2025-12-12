@@ -158,8 +158,11 @@ class TestAudioExtractor:
 
         assert "validation failed" in str(exc_info.value).lower()
 
+    @patch("subprocess.Popen")
     @patch("subprocess.run")
-    def test_extract_audio_ffmpeg_failure(self, mock_run, temp_video_file, temp_output_dir):
+    def test_extract_audio_ffmpeg_failure(
+        self, mock_run, mock_popen, temp_video_file, temp_output_dir
+    ):
         """Test audio extraction when FFmpeg command fails.
 
         Verifies that extract_audio() raises FFmpegExecutionError:
@@ -167,14 +170,14 @@ class TestAudioExtractor:
         - Raises FFmpegExecutionError with context
         - Logs the error appropriately (implicit in implementation)
         """
-        # Mock successful FFmpeg check, then failed extraction and video info call
-        mock_run.side_effect = [
-            Mock(returncode=0),  # FFmpeg version check (initialization)
-            Mock(
-                returncode=1, stderr="Error info", stdout=""
-            ),  # get_video_info call (failure is expected and acceptable)
-            subprocess.CalledProcessError(1, "ffmpeg", stderr="FFmpeg error"),  # Extraction failure
-        ]
+        # Mock successful FFmpeg check and ffprobe calls (still use subprocess.run)
+        mock_run.return_value = Mock(returncode=0, stdout="", stderr="")
+
+        # Mock Popen for FFmpeg extraction - simulate failure
+        mock_proc = Mock()
+        mock_proc.communicate.return_value = ("", "FFmpeg error")
+        mock_proc.returncode = 1
+        mock_popen.return_value = mock_proc
 
         extractor = AudioExtractor()
         output_path = temp_output_dir / "output.mp3"
@@ -182,8 +185,11 @@ class TestAudioExtractor:
         with pytest.raises(FFmpegExecutionError, match="FFmpeg failed to extract audio"):
             extractor.extract_audio(temp_video_file, output_path, AudioQuality.HIGH)
 
+    @patch("subprocess.Popen")
     @patch("subprocess.run")
-    def test_extract_audio_speech_quality(self, mock_run, temp_video_file, temp_output_dir):
+    def test_extract_audio_speech_quality(
+        self, mock_run, mock_popen, temp_video_file, temp_output_dir
+    ):
         """Test audio extraction with speech quality preset.
 
         The SPEECH quality preset requires two-pass processing:
@@ -193,8 +199,14 @@ class TestAudioExtractor:
         Verifies that both FFmpeg calls execute successfully and temporary
         files are properly cleaned up after processing.
         """
-        # Mock successful FFmpeg calls
+        # Mock successful FFmpeg check and ffprobe calls (subprocess.run)
         mock_run.return_value = Mock(returncode=0, stderr="", stdout="")
+
+        # Mock Popen for FFmpeg extraction commands
+        mock_proc = Mock()
+        mock_proc.communicate.return_value = ("", "")
+        mock_proc.returncode = 0
+        mock_popen.return_value = mock_proc
 
         extractor = AudioExtractor()
         output_path = temp_output_dir / "output.mp3"
@@ -214,8 +226,10 @@ class TestAudioExtractor:
                         )
 
         assert result == output_path
-        # Should have multiple FFmpeg calls for two-pass speech processing
-        assert mock_run.call_count >= 3  # FFmpeg check + initial extract + normalization pass
+        # Should have FFmpeg check + ffprobe via subprocess.run
+        assert mock_run.call_count >= 1  # FFmpeg check
+        # Should have two Popen calls for two-pass speech processing
+        assert mock_popen.call_count >= 2  # initial extract + normalization pass
 
     @patch("subprocess.run")
     def test_all_quality_presets(self, mock_run, temp_video_file, temp_output_dir):

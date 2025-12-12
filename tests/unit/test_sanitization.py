@@ -343,28 +343,25 @@ class TestEnsureSafeSubpath:
         assert result == base / "subdir" / "file.txt"
 
     def test_ensure_safe_subpath_prevents_traversal(self, tmp_path):
-        """Test that path traversal attempts with .. are sanitized."""
+        """Test that path traversal attempts with .. raise ValueError."""
         base = tmp_path / "base"
         base.mkdir()
 
-        # The function removes .. components, so this becomes "outside/file.txt"
-        # which is valid within base
-        result = PathSanitizer.ensure_safe_subpath(base, "../outside/file.txt")
-
-        # Should still be within base (.. is stripped)
-        assert str(result).startswith(str(base.resolve()))
-        assert result == base / "outside" / "file.txt"
+        # The function now raises ValueError on path escape (reject semantics)
+        with pytest.raises(ValueError, match="Path escapes root"):
+            PathSanitizer.ensure_safe_subpath(base, "../outside/file.txt")
 
     def test_ensure_safe_subpath_removes_parent_refs(self, tmp_path):
-        """Test that parent directory references are removed."""
+        """Test that parent directory references within base are allowed."""
         base = tmp_path / "base"
         base.mkdir()
 
-        # Should skip .. components
+        # dir/../other/file.txt resolves to other/file.txt which is still within base
         result = PathSanitizer.ensure_safe_subpath(base, "dir/../other/file.txt")
 
-        # Should be within base and not escape
+        # Should be within base and resolve correctly
         assert str(result).startswith(str(base.resolve()))
+        assert result == base / "other" / "file.txt"
 
     def test_ensure_safe_subpath_removes_current_refs(self, tmp_path):
         """Test that current directory references are removed."""
@@ -382,20 +379,17 @@ class TestEnsureSafeSubpath:
         base.mkdir()
 
         # Absolute paths that would escape base should raise ValueError
-        with pytest.raises(ValueError, match="Path traversal detected"):
+        with pytest.raises(ValueError, match="Path escapes root"):
             PathSanitizer.ensure_safe_subpath(base, "/some/absolute/path.txt")
 
-    def test_ensure_safe_subpath_complex_traversal_sanitized(self, tmp_path):
-        """Test that complex path traversal attempts are sanitized."""
+    def test_ensure_safe_subpath_complex_traversal_raises_error(self, tmp_path):
+        """Test that complex path traversal attempts raise error."""
         base = tmp_path / "base"
         base.mkdir()
 
-        # The function removes all .. components, so this becomes "good/bad/file.txt"
-        result = PathSanitizer.ensure_safe_subpath(base, "good/../../bad/file.txt")
-
-        # Should still be within base (all .. are stripped)
-        assert str(result).startswith(str(base.resolve()))
-        assert result == base / "good" / "bad" / "file.txt"
+        # good/../../bad/file.txt resolves outside base (goes up 2, only 1 level to go)
+        with pytest.raises(ValueError, match="Path escapes root"):
+            PathSanitizer.ensure_safe_subpath(base, "good/../../bad/file.txt")
 
     def test_ensure_safe_subpath_empty_path(self, tmp_path):
         """Test empty subpath returns base directory."""
@@ -439,14 +433,13 @@ class TestEnsureSafeSubpath:
         assert result == base.resolve()
 
     def test_ensure_safe_subpath_only_parent_refs(self, tmp_path):
-        """Test subpath with only parent directory references."""
+        """Test subpath with only parent directory references raises error."""
         base = tmp_path / "base"
         base.mkdir()
 
-        result = PathSanitizer.ensure_safe_subpath(base, "../..")
-
-        # All .. should be stripped, returning base
-        assert result == base.resolve()
+        # Pure parent refs escape the base, so should raise ValueError
+        with pytest.raises(ValueError, match="Path escapes root"):
+            PathSanitizer.ensure_safe_subpath(base, "../..")
 
 
 class TestValidatePathSecurity:

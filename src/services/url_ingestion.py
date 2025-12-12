@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ipaddress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -7,6 +8,7 @@ from urllib.parse import ParseResult, urlparse
 
 from yt_dlp import YoutubeDL
 
+from src.utils.log_redaction import sanitize_url
 from src.utils.logger import get_logger
 
 from ..exceptions import (
@@ -164,7 +166,7 @@ class UrlIngestionService:
             with YoutubeDL(ydl_opts) as ydl:
                 result = ydl.extract_info(url, download=True)
         except Exception as exc:
-            logger.exception("URL ingestion failed for %s", url)
+            logger.exception("URL ingestion failed for %s", sanitize_url(url))
             raise UrlDownloadError(
                 "Failed to download URL", context={"url": url}, original_error=exc
             ) from exc
@@ -314,18 +316,96 @@ class UrlIngestionService:
                 context={"url": raw_url, "reason": "localhost"},
             )
 
-        try:
-            import ipaddress
+        # Check if hostname is an IP literal
+        UrlIngestionService._validate_ip_address(hostname, raw_url)
 
+        # DNS rebinding protection: resolve hostname and validate all resolved IPs
+        UrlIngestionService._validate_resolved_ips(hostname, raw_url)
+
+    @staticmethod
+    def _validate_ip_address(hostname: str, raw_url: str) -> None:
+        """Validate IP address is not private, loopback, or reserved."""
+        import ipaddress
+
+        try:
             host_ip = ipaddress.ip_address(hostname)
-            if host_ip.is_private or host_ip.is_loopback or host_ip.is_link_local:
-                raise UnsupportedUrlError(
-                    "Private or loopback hosts are not allowed for ingestion.",
-                    context={"url": raw_url, "reason": "private_ip"},
-                )
         except ValueError:
-            # Hostname is not an IP literal; skip IP-only checks
+            # Not an IP literal; will be validated via DNS resolution
+            return
+
+        UrlIngestionService._check_ip_is_safe(host_ip, raw_url, "ip_literal")
+
+    @staticmethod
+    def _validate_resolved_ips(hostname: str, raw_url: str) -> None:
+        """Resolve hostname and validate all resolved IPs against SSRF."""
+        import ipaddress
+        import socket
+
+        # Skip if hostname is already an IP literal
+        try:
+            ipaddress.ip_address(hostname)
+            return  # Already validated in _validate_ip_address
+        except ValueError:
             pass
+
+        try:
+            # Resolve both IPv4 and IPv6 addresses
+            addr_info = socket.getaddrinfo(hostname, None, socket.AF_UNSPEC, socket.SOCK_STREAM)
+        except socket.gaierror:
+            # DNS resolution failed - allow yt-dlp to handle this later
+            logger.debug("DNS resolution failed for %s, deferring to yt-dlp", hostname)
+            return
+
+        for _family, _type, _proto, _canonname, sockaddr in addr_info:
+            ip_str = sockaddr[0]
+            try:
+                resolved_ip = ipaddress.ip_address(ip_str)
+                UrlIngestionService._check_ip_is_safe(resolved_ip, raw_url, "dns_resolved")
+            except ValueError:
+                continue
+
+    @staticmethod
+    def _check_ip_is_safe(
+        ip: ipaddress.IPv4Address | ipaddress.IPv6Address, raw_url: str, reason_prefix: str
+    ) -> None:
+        """Check if an IP address is safe (not private, loopback, reserved, etc.)."""
+        import ipaddress
+
+        # Handle IPv4-mapped IPv6 addresses (::ffff:127.0.0.1)
+        if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped:
+            ip = ip.ipv4_mapped
+
+        # Check all unsafe categories (order matters - check more specific first)
+        if ip.is_loopback:
+            raise UnsupportedUrlError(
+                "Loopback addresses are not allowed for ingestion.",
+                context={"url": raw_url, "reason": f"{reason_prefix}_loopback"},
+            )
+        if ip.is_unspecified:
+            raise UnsupportedUrlError(
+                "Unspecified addresses (0.0.0.0, ::) are not allowed for ingestion.",
+                context={"url": raw_url, "reason": f"{reason_prefix}_unspecified"},
+            )
+        if ip.is_multicast:
+            raise UnsupportedUrlError(
+                "Multicast addresses are not allowed for ingestion.",
+                context={"url": raw_url, "reason": f"{reason_prefix}_multicast"},
+            )
+        if ip.is_link_local:
+            raise UnsupportedUrlError(
+                "Link-local addresses are not allowed for ingestion.",
+                context={"url": raw_url, "reason": f"{reason_prefix}_link_local"},
+            )
+        if ip.is_reserved:
+            raise UnsupportedUrlError(
+                "Reserved addresses are not allowed for ingestion.",
+                context={"url": raw_url, "reason": f"{reason_prefix}_reserved"},
+            )
+        if ip.is_private:
+            raise UnsupportedUrlError(
+                "Private network hosts are not allowed for ingestion.",
+                context={"url": raw_url, "reason": f"{reason_prefix}_private"},
+            )
 
     @staticmethod
     def _sanitize_download_path(downloaded_path: Path, download_root: Path, url: str) -> Path:

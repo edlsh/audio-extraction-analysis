@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import signal
 import subprocess
 from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from src.config import get_config
 from src.utils.logger import get_logger
 
 from ..exceptions import (
@@ -48,6 +50,23 @@ class AudioExtractor:
 
     def __init__(self) -> None:
         check_ffmpeg_available()
+        self._config = get_config()
+
+    def _get_timeout_seconds(self) -> int:
+        """Get FFmpeg extraction timeout from config.
+
+        Returns:
+            Timeout in seconds, from config or fallback to constants.
+        """
+        return self._config.ffmpeg_timeout_seconds
+
+    def _get_terminate_grace_seconds(self) -> int:
+        """Get FFmpeg terminate grace period from config.
+
+        Returns:
+            Grace period in seconds before SIGKILL.
+        """
+        return self._config.ffmpeg_terminate_grace_seconds
 
     def _validate_path(self, file_path: Path) -> None:
         """Validate file path for security.
@@ -129,7 +148,7 @@ class AudioExtractor:
 
         Raises:
             ValidationError: If input file validation fails (missing, invalid, too large)
-            AudioExtractionTimeoutError: If extraction exceeds timeout (600s)
+            AudioExtractionTimeoutError: If extraction exceeds configured timeout
             FFmpegExecutionError: If FFmpeg execution fails
             AudioFileCorruptedError: If input file is corrupted
             AudioExtractionError: For other extraction failures
@@ -172,21 +191,46 @@ class AudioExtractor:
             logger.warning(f"Could not log info for {input_path}")
 
     def _run_ffmpeg_commands(self, cmds: list[list[str]]) -> None:
-        """Run FFmpeg commands sequentially."""
+        """Run FFmpeg commands sequentially with configurable timeout and termination handling.
+
+        Uses config-based timeout and implements graceful termination:
+        1. Send SIGTERM and wait for grace period
+        2. Send SIGKILL if process doesn't terminate
+        """
+        timeout = self._get_timeout_seconds()
+        grace_period = self._get_terminate_grace_seconds()
+
         for cmd in cmds:
-            subprocess.run(
+            proc = subprocess.Popen(
                 cmd,
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
-                check=True,
-                timeout=Timeouts.FFMPEG_EXTRACTION,
             )
+            try:
+                stdout, stderr = proc.communicate(timeout=timeout)
+                if proc.returncode != 0:
+                    raise subprocess.CalledProcessError(proc.returncode, cmd, stdout, stderr)
+            except subprocess.TimeoutExpired:
+                # Graceful termination: SIGTERM first
+                logger.warning(f"FFmpeg timed out after {timeout}s, sending SIGTERM")
+                proc.terminate()
+                try:
+                    proc.wait(timeout=grace_period)
+                except subprocess.TimeoutExpired:
+                    # Force kill if still running
+                    logger.warning(
+                        f"FFmpeg didn't respond to SIGTERM after {grace_period}s, sending SIGKILL"
+                    )
+                    proc.kill()
+                    proc.wait()
+                raise
 
     def _timeout_error(
         self, input_path: Path, quality: AudioQuality
     ) -> AudioExtractionTimeoutError:
         """Create timeout error."""
-        timeout = Timeouts.FFMPEG_EXTRACTION
+        timeout = self._get_timeout_seconds()
         logger.error(f"Audio extraction timed out after {timeout}s")
         return AudioExtractionTimeoutError(
             f"Audio extraction timed out after {timeout}s for {input_path.name}",

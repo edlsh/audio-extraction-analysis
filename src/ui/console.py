@@ -34,9 +34,12 @@ from rich.table import Table
 class ConsoleManager:
     """Console output with Rich formatting."""
 
-    def __init__(self, verbose: bool = False, json_output: bool = False) -> None:
+    def __init__(
+        self, verbose: bool = False, json_output: bool = False, no_progress: bool = False
+    ) -> None:
         self.verbose = verbose
         self.json_output = json_output
+        self.no_progress = no_progress
         self._json_max_field_length = 200
         self._json_max_nesting_depth = 10
         self.is_tty = sys.stderr.isatty()
@@ -89,6 +92,12 @@ class ConsoleManager:
         progress = None
 
         try:
+            # Suppress progress bars in no-progress mode
+            if self.no_progress:
+                tracker = SilentProgressTracker(description)
+                yield tracker
+                return
+
             if self.json_output:
                 tracker = JsonProgressTracker(description)
                 yield tracker
@@ -129,13 +138,11 @@ class ConsoleManager:
             sanitized_stage = self._sanitize_json_field(stage)
             sanitized_status = self._sanitize_json_field(status)
             print(
-                json.dumps(
-                    {
-                        "timestamp": self._get_timestamp(),
-                        "stage": sanitized_stage,
-                        "status": sanitized_status,
-                    }
-                ),
+                json.dumps({
+                    "timestamp": self._get_timestamp(),
+                    "stage": sanitized_stage,
+                    "status": sanitized_status,
+                }),
                 file=sys.stderr,
             )
         elif self.console:
@@ -172,13 +179,11 @@ class ConsoleManager:
                 "provider": result.provider_name,
             }
             print(
-                json.dumps(
-                    {
-                        "timestamp": self._get_timestamp(),
-                        "type": "result_summary",
-                        "summary": summary,
-                    }
-                ),
+                json.dumps({
+                    "timestamp": self._get_timestamp(),
+                    "type": "result_summary",
+                    "summary": summary,
+                }),
                 file=sys.stderr,
             )
         elif self.console:
@@ -201,13 +206,11 @@ class ConsoleManager:
         """Log a standard JSON message."""
         sanitized_message = self._sanitize_json_field(message)
         print(
-            json.dumps(
-                {
-                    "timestamp": self._get_timestamp(),
-                    "type": type_str,
-                    "message": sanitized_message,
-                }
-            ),
+            json.dumps({
+                "timestamp": self._get_timestamp(),
+                "type": type_str,
+                "message": sanitized_message,
+            }),
             file=sys.stderr,
         )
 
@@ -216,13 +219,11 @@ class ConsoleManager:
         if self.json_output:
             sanitized_results = self._sanitize_json_value(results)
             print(
-                json.dumps(
-                    {
-                        "timestamp": self._get_timestamp(),
-                        "type": "summary",
-                        "results": sanitized_results,
-                    }
-                )
+                json.dumps({
+                    "timestamp": self._get_timestamp(),
+                    "type": "summary",
+                    "results": sanitized_results,
+                })
             )
         elif self.console:
             table = Table(title="Processing Summary")
@@ -254,13 +255,11 @@ class ConsoleManager:
         """Log error message to stderr."""
         if self.json_output:
             print(
-                json.dumps(
-                    {
-                        "timestamp": self._get_timestamp(),
-                        "type": "error",
-                        "message": message,
-                    }
-                ),
+                json.dumps({
+                    "timestamp": self._get_timestamp(),
+                    "type": "error",
+                    "message": message,
+                }),
                 file=sys.stderr,
             )
         elif self.console:
@@ -428,3 +427,16 @@ class FallbackProgressTracker:
                     desc = description or self.description
                     print(f"{desc}: {percentage:.0f}% complete", file=sys.stderr)
                     self.last_reported = percentage
+
+
+class SilentProgressTracker:
+    """Silent progress tracker that suppresses all progress output."""
+
+    def __init__(self, description: str) -> None:
+        self.description = description
+
+    def update(
+        self, completed: int, total: int | None = None, description: str | None = None
+    ) -> None:
+        """No-op update - suppresses all progress output."""
+        pass

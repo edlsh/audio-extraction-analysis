@@ -28,9 +28,9 @@ class TestFormattersPackage:
 
         # Verify the docstring mentions formatting or markdown
         expected_keywords = ["format", "export", "transcript", "markdown"]
-        assert any(
-            keyword in docstring_lower for keyword in expected_keywords
-        ), f"Docstring should describe formatting functionality: {src.formatters.__doc__}"
+        assert any(keyword in docstring_lower for keyword in expected_keywords), (
+            f"Docstring should describe formatting functionality: {src.formatters.__doc__}"
+        )
 
     def test_all_attribute_exists(self):
         """Test that __all__ attribute is defined."""
@@ -49,9 +49,9 @@ class TestFormattersPackage:
             "TemplateNotFoundError",
         ]
 
-        assert set(src.formatters.__all__) == set(
-            expected_exports
-        ), f"__all__ should contain {expected_exports}, got {src.formatters.__all__}"
+        assert set(src.formatters.__all__) == set(expected_exports), (
+            f"__all__ should contain {expected_exports}, got {src.formatters.__all__}"
+        )
 
     def test_markdown_formatter_exported(self):
         """Test that MarkdownFormatter is properly exported."""
@@ -124,9 +124,9 @@ class TestFormattersPackage:
             "TemplateNotFoundError",
         ]
 
-        assert set(imported_names) == set(
-            expected_names
-        ), f"Wildcard import should only import {expected_names}, got {imported_names}"
+        assert set(imported_names) == set(expected_names), (
+            f"Wildcard import should only import {expected_names}, got {imported_names}"
+        )
 
     def test_no_unexpected_public_exports(self):
         """Test that module doesn't expose unexpected public attributes."""
@@ -143,9 +143,9 @@ class TestFormattersPackage:
             "markdown_formatter",
             "templates",
         ]
-        assert set(public_attrs) == set(
-            expected_attrs
-        ), f"Module should export {expected_attrs}, got {public_attrs}"
+        assert set(public_attrs) == set(expected_attrs), (
+            f"Module should export {expected_attrs}, got {public_attrs}"
+        )
 
     def test_markdown_formatter_is_class(self):
         """Test that MarkdownFormatter is actually a class."""
@@ -157,21 +157,21 @@ class TestFormattersPackage:
         """Test that MarkdownFormattingError is actually an exception class."""
         from src.formatters import MarkdownFormattingError
 
-        assert isinstance(
-            MarkdownFormattingError, type
-        ), "MarkdownFormattingError should be a class"
-        assert issubclass(
-            MarkdownFormattingError, Exception
-        ), "MarkdownFormattingError should be an Exception subclass"
+        assert isinstance(MarkdownFormattingError, type), (
+            "MarkdownFormattingError should be a class"
+        )
+        assert issubclass(MarkdownFormattingError, Exception), (
+            "MarkdownFormattingError should be an Exception subclass"
+        )
 
     def test_template_not_found_error_is_exception(self):
         """Test that TemplateNotFoundError is actually an exception class."""
         from src.formatters import TemplateNotFoundError
 
         assert isinstance(TemplateNotFoundError, type), "TemplateNotFoundError should be a class"
-        assert issubclass(
-            TemplateNotFoundError, Exception
-        ), "TemplateNotFoundError should be an Exception subclass"
+        assert issubclass(TemplateNotFoundError, Exception), (
+            "TemplateNotFoundError should be an Exception subclass"
+        )
 
     def test_exception_inheritance_chain(self):
         """Test that formatter exceptions have proper exception inheritance."""
@@ -274,9 +274,9 @@ class TestFormattersPackage:
         import src.formatters
 
         for export_name in src.formatters.__all__:
-            assert hasattr(
-                src.formatters, export_name
-            ), f"Export '{export_name}' in __all__ should be defined in module"
+            assert hasattr(src.formatters, export_name), (
+                f"Export '{export_name}' in __all__ should be defined in module"
+            )
 
     def test_exports_match_source_module(self):
         """Test that exported items match their source module counterparts."""

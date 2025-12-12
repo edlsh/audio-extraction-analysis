@@ -10,6 +10,7 @@ from ...error_handlers import handle_cli_error
 from ...services.audio_extraction import AudioExtractor, AudioQuality
 from ...ui.console import ConsoleManager
 from ...utils.sanitization import PathSanitizer
+from ..json_output import CommandTiming, JsonCommandResult, log_json_message
 from ..utils import parse_quality_preset
 
 if TYPE_CHECKING:
@@ -93,38 +94,110 @@ def _execute_audio_extraction(
 
 def extract_command(args: argparse.Namespace, console_manager: ConsoleManager | None = None) -> int:
     """Handle the extract subcommand."""
+    timing = CommandTiming()
+    json_mode = console_manager is not None and console_manager.json_output
+    input_str = getattr(args, "input_file", "")
+
     try:
         input_path = Path(args.input_file)
+
+        timing.start_stage("validate")
         _validate_extract_input(input_path)
+        timing.end_stage("validate")
 
         output_path = _determine_extract_output_path(input_path, args.output)
         PathSanitizer.validate_path_security(output_path)
 
         if output_path.exists() and not args.force:
-            logger.error(f"Output file already exists: {output_path}")
+            error_msg = f"Output file already exists: {output_path}"
+            if json_mode:
+                json_result = JsonCommandResult(
+                    success=False,
+                    command="extract",
+                    input=str(input_path),
+                    exit_code=1,
+                    errors=[error_msg],
+                    timing={
+                        "total_seconds": timing.total_seconds,
+                        "stages": timing.stages,
+                    },
+                )
+                json_result.print_json()
+            else:
+                logger.error(error_msg)
             return 1
 
         quality = parse_quality_preset(args.quality)
 
         extractor = AudioExtractor()
 
-        if console_manager:
+        if console_manager and not json_mode:
             console_manager.print_stage("Audio Extraction", "starting")
 
-        logger.info(f"Extracting audio from {input_path} (quality: {quality.value})")
+        if json_mode:
+            log_json_message(
+                "info", f"Extracting audio from {input_path} (quality: {quality.value})"
+            )
+        else:
+            logger.info(f"Extracting audio from {input_path} (quality: {quality.value})")
 
+        timing.start_stage("extract")
         result = _execute_audio_extraction(
             extractor, input_path, output_path, quality, console_manager
         )
+        timing.end_stage("extract")
 
         if result:
-            logger.info(f"Audio extracted to: {result}")
-            if console_manager:
-                console_manager.print_success(f"Audio extracted to: {result}")
+            if json_mode:
+                json_result = JsonCommandResult(
+                    success=True,
+                    command="extract",
+                    input=str(input_path),
+                    exit_code=0,
+                    outputs={"audio": str(result)},
+                    timing={
+                        "total_seconds": timing.total_seconds,
+                        "stages": timing.stages,
+                    },
+                    metadata={"quality": args.quality},
+                )
+                json_result.print_json()
+            else:
+                logger.info(f"Audio extracted to: {result}")
+                if console_manager:
+                    console_manager.print_success(f"Audio extracted to: {result}")
             return 0
         else:
-            logger.error("Audio extraction failed")
+            if json_mode:
+                json_result = JsonCommandResult(
+                    success=False,
+                    command="extract",
+                    input=str(input_path),
+                    exit_code=1,
+                    errors=["Audio extraction failed"],
+                    timing={
+                        "total_seconds": timing.total_seconds,
+                        "stages": timing.stages,
+                    },
+                )
+                json_result.print_json()
+            else:
+                logger.error("Audio extraction failed")
             return 1
 
     except Exception as e:
+        if json_mode:
+            json_result = JsonCommandResult(
+                success=False,
+                command="extract",
+                input=input_str,
+                exit_code=1,
+                errors=[str(e)],
+                timing={
+                    "total_seconds": timing.total_seconds,
+                    "stages": timing.stages,
+                },
+            )
+            json_result.print_json()
+            return 1
         return handle_cli_error(e, "extract")

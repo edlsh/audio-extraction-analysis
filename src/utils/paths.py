@@ -31,10 +31,18 @@ def ensure_subpath(root: Path, sub: Path | str) -> Path:
 
 
 def safe_write_json(path: Path, data: Any, *, encoding: str = "utf-8", indent: int = 2) -> None:
-    """Safely write JSON to file with parent creation.
+    """Safely write JSON to file with atomic write for crash safety.
 
+    Uses atomic write (temp file + rename) to prevent partial writes.
     Propagates OSError/PermissionError to caller for handling.
+
+    Args:
+        path: Target file path
+        data: JSON-serializable data
+        encoding: Encoding for the file (default: utf-8)
+        indent: JSON indentation (default: 2)
     """
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", encoding=encoding) as f:
-        json.dump(data, f, indent=indent)
+    from .secure_file import atomic_write_json
+
+    # Delegate to atomic implementation for crash safety
+    atomic_write_json(path, data, indent=indent, encoding=encoding)

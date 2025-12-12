@@ -159,6 +159,10 @@ async def probe_media_async(path: Path, timeout: float = 30.0) -> MediaProbeResu
 
         try:
             stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+        except asyncio.CancelledError:
+            proc.kill()
+            await proc.wait()
+            raise
         except TimeoutError:
             proc.kill()
             await proc.wait()
@@ -300,6 +304,9 @@ def verify_extraction_output(
 def validate_path_security(file_path: Path) -> None:
     """Validate file path for security concerns.
 
+    DEPRECATED: Use PathSanitizer.validate_path_security from src.utils.sanitization
+    for consistency across the codebase.
+
     Checks for dangerous shell characters that could enable command injection.
     Note: Square brackets [], parentheses (), and spaces are common in media
     filenames and are safe when properly quoted with shlex.quote().
@@ -310,16 +317,17 @@ def validate_path_security(file_path: Path) -> None:
     Raises:
         ValueError: If path contains dangerous shell characters
     """
-    resolved_path = file_path.resolve()
-    path_str = str(resolved_path)
+    # Delegate to canonical implementation for consistency
+    from ..utils.sanitization import PathSanitizer
 
-    # Check for dangerous shell metacharacters
-    if re.search(r"[;&|`$<>]", path_str):
-        raise ValueError(f"Invalid characters in file path: {file_path}")
+    PathSanitizer.validate_path_security(file_path)
 
 
 def sanitize_path(file_path: Path) -> str:
     """Sanitize file path for safe subprocess usage.
+
+    DEPRECATED: Use PathSanitizer.sanitize_for_subprocess from src.utils.sanitization
+    for consistency across the codebase.
 
     Args:
         file_path: Path to sanitize
@@ -327,7 +335,10 @@ def sanitize_path(file_path: Path) -> str:
     Returns:
         Safely quoted path string for shell usage
     """
-    return shlex.quote(str(file_path.resolve()))
+    # Delegate to canonical implementation
+    from ..utils.sanitization import PathSanitizer
+
+    return PathSanitizer.sanitize_for_subprocess(file_path)
 
 
 # =============================================================================
@@ -425,13 +436,11 @@ def build_extract_commands(
     normalize_cmd = ["ffmpeg", "-i", str(temp_path)]
     if allow_overwrite:
         normalize_cmd.append("-y")
-    normalize_cmd.extend(
-        [
-            "-ac",
-            "1",  # Convert to mono (single audio channel)
-            "-af",
-            "loudnorm=I=-16:TP=-1.5:LRA=11",  # EBU R128 loudness normalization
-            str(output_path),
-        ]
-    )
+    normalize_cmd.extend([
+        "-ac",
+        "1",  # Convert to mono (single audio channel)
+        "-af",
+        "loudnorm=I=-16:TP=-1.5:LRA=11",  # EBU R128 loudness normalization
+        str(output_path),
+    ])
     return [extract, normalize_cmd], temp_path

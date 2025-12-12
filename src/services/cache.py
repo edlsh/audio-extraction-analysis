@@ -86,9 +86,11 @@ class TranscriptionCache:
         self._ttl = self._config.cache_ttl
         self._max_size = self._config.cache_max_size
 
-        # Ensure directories exist
-        self._cache_dir.mkdir(parents=True, exist_ok=True)
-        self._data_dir.mkdir(parents=True, exist_ok=True)
+        # Ensure directories exist with secure permissions
+        from src.utils.secure_file import ensure_secure_directory
+
+        ensure_secure_directory(self._cache_dir)
+        ensure_secure_directory(self._data_dir)
 
         # Load or initialize index
         self._index: dict[str, CacheEntry] = {}
@@ -121,17 +123,15 @@ class TranscriptionCache:
             self._access_order = []
 
     def _save_index(self) -> None:
-        """Persist cache index to disk."""
+        """Persist cache index to disk with secure permissions."""
         try:
+            from src.utils.secure_file import secure_write_json
+
             data = {
                 "entries": {key: entry.to_dict() for key, entry in self._index.items()},
                 "access_order": self._access_order,
             }
-            # Write atomically using temp file
-            temp_path = self._index_path.with_suffix(".tmp")
-            with open(temp_path, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2)
-            temp_path.replace(self._index_path)
+            secure_write_json(self._index_path, data)
         except (OSError, PermissionError) as e:
             raise CacheWriteError(
                 f"Failed to save cache index: {e}",
@@ -349,13 +349,12 @@ class TranscriptionCache:
         # Evict if needed before adding
         self._evict_if_needed()
 
-        # Write data file
+        # Write data file with secure permissions
         try:
+            from src.utils.secure_file import secure_write_json
+
             data = result.to_dict()
-            temp_path = cache_file.with_suffix(".tmp")
-            with open(temp_path, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2)
-            temp_path.replace(cache_file)
+            secure_write_json(cache_file, data)
         except (OSError, PermissionError) as e:
             raise CacheWriteError(
                 f"Failed to write cache data: {e}",

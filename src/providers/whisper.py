@@ -40,12 +40,14 @@ from typing import TYPE_CHECKING, Any
 from src.utils.logger import get_logger
 
 from ..config import get_config
+from ..exceptions import TranscriptionError
 from ..models.transcription import TranscriptionResult, TranscriptionUtterance
 from ..utils.constants import UIConstants
 from ..utils.file_validation import validate_audio_file_or_raise
 
 if TYPE_CHECKING:
     from ..utils.retry import RetryConfig
+
 from .base import BaseTranscriptionProvider, CircuitBreakerConfig, ProviderMeta
 from .provider_utils import provider_error_handler
 
@@ -125,9 +127,12 @@ class WhisperTranscriber(BaseTranscriptionProvider):
         except TimeoutError as exc:
             logger.error("Whisper transcription timed out: %s", exc)
             raise
-        except Exception as exc:
+        except (ImportError, OSError, RuntimeError) as exc:
             logger.error("Whisper transcription failed: %s", exc)
-            return None
+            raise TranscriptionError(f"Whisper transcription failed: {exc}") from exc
+        except Exception as exc:
+            logger.error("Whisper transcription failed with unexpected error: %s", exc)
+            raise TranscriptionError(f"Whisper transcription failed: {exc}") from exc
 
     def validate_configuration(self) -> bool:
         """Validate Whisper dependencies are available."""

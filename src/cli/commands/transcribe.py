@@ -12,6 +12,7 @@ from ...models.transcription import TranscriptionResult
 from ...services.transcription import TranscriptionService
 from ...ui.console import ConsoleManager
 from ...utils.file_validation import validate_audio_file
+from ..json_output import CommandTiming, JsonCommandResult, log_json_message
 from ..utils import add_markdown_export_options, add_transcription_options
 
 if TYPE_CHECKING:
@@ -110,7 +111,8 @@ def _handle_transcribe_success(
     service.save_transcription_result(result, output_path, args.provider)
     logger.info(f"Transcription saved to: {output_path}")
 
-    if console_manager:
+    # Only print Rich output if not in JSON mode
+    if console_manager and not console_manager.json_output:
         console_manager.print_success(f"Transcription saved to: {output_path}")
         console_manager.print_result_summary(result)
 
@@ -122,33 +124,102 @@ def transcribe_command(
     args: argparse.Namespace, console_manager: ConsoleManager | None = None
 ) -> int:
     """Handle the transcribe subcommand."""
+    timing = CommandTiming()
+    json_mode = console_manager is not None and console_manager.json_output
+    input_str = getattr(args, "audio_file", "")
+
     try:
         input_path = Path(args.audio_file)
+
+        timing.start_stage("validate")
         _validate_transcribe_input(input_path)
+        timing.end_stage("validate")
 
         output_path = _determine_transcribe_output_path(input_path, args.output)
 
         # Setup logging and display
-        if console_manager:
+        if console_manager and not json_mode:
             console_manager.setup_logging(logger)
             console_manager.print_stage("Transcription", "starting")
-        logger.info(f"Transcribing {input_path} in {args.language} using {args.provider}")
+
+        if json_mode:
+            log_json_message("info", f"Transcribing {input_path} using {args.provider}")
+        else:
+            logger.info(f"Transcribing {input_path} in {args.language} using {args.provider}")
 
         # Create transcription service and execute transcription
+        timing.start_stage("transcribe")
         transcription_service = TranscriptionService()
         result = _execute_transcription(
             transcription_service, input_path, args.provider, args.language
         )
+        timing.end_stage("transcribe")
 
         # Handle result
         if result:
             _handle_transcribe_success(
                 result, transcription_service, output_path, console_manager, args, input_path
             )
+
+            if json_mode:
+                outputs: dict[str, object] = {"transcript": str(output_path)}
+
+                # Check for markdown export
+                if getattr(args, "export_markdown", False):
+                    md_path = input_path.parent / f"{input_path.stem}_transcript.md"
+                    outputs["markdown"] = str(md_path)
+
+                json_result = JsonCommandResult(
+                    success=True,
+                    command="transcribe",
+                    input=str(input_path),
+                    exit_code=0,
+                    outputs=outputs,
+                    timing={
+                        "total_seconds": timing.total_seconds,
+                        "stages": timing.stages,
+                    },
+                    metadata={
+                        "provider": result.provider_name,
+                        "language": args.language,
+                        "duration": result.duration,
+                        "transcript_length": len(result.transcript),
+                    },
+                )
+                json_result.print_json()
+
             return 0
         else:
-            logger.error("Transcription failed")
+            if json_mode:
+                json_result = JsonCommandResult(
+                    success=False,
+                    command="transcribe",
+                    input=str(input_path),
+                    exit_code=1,
+                    errors=["Transcription failed"],
+                    timing={
+                        "total_seconds": timing.total_seconds,
+                        "stages": timing.stages,
+                    },
+                )
+                json_result.print_json()
+            else:
+                logger.error("Transcription failed")
             return 1
 
     except Exception as e:
+        if json_mode:
+            json_result = JsonCommandResult(
+                success=False,
+                command="transcribe",
+                input=input_str,
+                exit_code=1,
+                errors=[str(e)],
+                timing={
+                    "total_seconds": timing.total_seconds,
+                    "stages": timing.stages,
+                },
+            )
+            json_result.print_json()
+            return 1
         return handle_cli_error(e, "transcribe")

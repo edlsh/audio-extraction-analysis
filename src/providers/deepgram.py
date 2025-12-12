@@ -89,14 +89,15 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
         try:
             file_size_mb = audio_file_path.stat().st_size / (1024 * 1024)
             logger.info(f"File size: {file_size_mb:.2f} MB")
-        except Exception:
-            logger.debug("Could not determine file size for logging.")
+        except OSError as e:
+            logger.debug("Could not determine file size for logging: %s", e)
 
     def _get_file_size(self, audio_file_path: Path) -> int:
         """Get file size in bytes."""
         try:
             return audio_file_path.stat().st_size
-        except Exception:
+        except OSError as e:
+            logger.debug("Could not determine file size: %s", e)
             return 0
 
     def _submit_transcription_job_streaming(

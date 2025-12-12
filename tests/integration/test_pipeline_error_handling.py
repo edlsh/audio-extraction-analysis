@@ -97,9 +97,9 @@ class TestPipelineErrorHandling:
         # Wait a bit for cleanup to complete
         await asyncio.sleep(0.1)
         current_temp_count = len(list(Path(tempfile.gettempdir()).glob("audio_pipeline_*")))
-        assert (
-            current_temp_count == original_temp_count
-        ), f"Temp directories leaked: {current_temp_count} > {original_temp_count}"
+        assert current_temp_count == original_temp_count, (
+            f"Temp directories leaked: {current_temp_count} > {original_temp_count}"
+        )
 
         # Verify no partial files in output directory
         output_files = list(output_dir.glob("*"))
@@ -189,9 +189,9 @@ class TestPipelineErrorHandling:
         assert len(result["errors"]) > 0, "Should have error messages"
         error_msg = " ".join(result["errors"]).lower()
         # Error should mention extraction or format issue
-        assert any(
-            word in error_msg for word in ["extraction", "format", "invalid", "failed"]
-        ), f"Error message unclear: {result['errors']}"
+        assert any(word in error_msg for word in ["extraction", "format", "invalid", "failed"]), (
+            f"Error message unclear: {result['errors']}"
+        )
 
         # Verify no partial processing
         assert "audio_path" not in result or not Path(result.get("audio_path", "")).exists()
@@ -230,9 +230,9 @@ class TestPipelineErrorHandling:
 
         # Error should be clear about the issue
         error_msg = " ".join(result["errors"]).lower()
-        assert any(
-            phrase in error_msg for phrase in ["extraction", "failed", "error"]
-        ), f"Error message unclear: {result['errors']}"
+        assert any(phrase in error_msg for phrase in ["extraction", "failed", "error"]), (
+            f"Error message unclear: {result['errors']}"
+        )
 
         # Verify cleanup attempt (even if disk is full)
         assert len(result["stages_completed"]) == 0
@@ -344,9 +344,9 @@ class TestPipelineErrorHandling:
         final_temp_dirs = set(Path(tempfile.gettempdir()).glob("audio_pipeline_*"))
         leaked_dirs = final_temp_dirs - initial_temp_dirs
 
-        assert (
-            len(leaked_dirs) == 0
-        ), f"Concurrent failures leaked {len(leaked_dirs)} temp directories: {leaked_dirs}"
+        assert len(leaked_dirs) == 0, (
+            f"Concurrent failures leaked {len(leaked_dirs)} temp directories: {leaked_dirs}"
+        )
 
     # ========================================================================
     # Test 7: Error Message Clarity
@@ -391,9 +391,9 @@ class TestPipelineErrorHandling:
             )
 
             # Verify error is actionable (not just a stack trace)
-            assert not error_msg.startswith(
-                "traceback"
-            ), f"{test_case['name']}: Error should be user-friendly, not raw traceback"
+            assert not error_msg.startswith("traceback"), (
+                f"{test_case['name']}: Error should be user-friendly, not raw traceback"
+            )
 
     # ========================================================================
     # Test 8: Cleanup on Keyboard Interrupt

@@ -21,6 +21,7 @@ from src.exceptions import (
     UrlIngestionError,
     ValidationError,
 )
+from src.utils.log_redaction import sanitize_url_for_display
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -137,12 +138,18 @@ def handle_url_ingestion_error(error: UrlIngestionError) -> None:
     """Handle URL ingestion errors."""
     print(f"✗ URL Error: {error.message}", file=sys.stderr)
     if error.context and "url" in error.context:
-        print(f"  URL: {error.context['url']}", file=sys.stderr)
+        # Sanitize URL to prevent leaking tokens/signatures
+        safe_url = sanitize_url_for_display(str(error.context["url"]))
+        print(f"  URL: {safe_url}", file=sys.stderr)
     print(
         "\n💡 Common issues: invalid URL, network issues, or private/deleted content",
         file=sys.stderr,
     )
-    logger.error("URL ingestion error: %s", error.message, extra={"context": error.context})
+    # Log with sanitized URL as well
+    safe_context = dict(error.context) if error.context else {}
+    if "url" in safe_context:
+        safe_context["url"] = sanitize_url_for_display(str(safe_context["url"]))
+    logger.error("URL ingestion error: %s", error.message, extra={"context": safe_context})
 
 
 def handle_configuration_error(error: ConfigurationError) -> None:

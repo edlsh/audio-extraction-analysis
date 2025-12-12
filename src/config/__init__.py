@@ -7,6 +7,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
+from src.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 def _parse_bool(value: str | bool | None) -> bool:
     """Parse boolean value from various formats."""
@@ -374,9 +378,12 @@ def _load_dotenv_once() -> None:
             load_dotenv(dotenv_path, override=False)
         else:
             load_dotenv(override=False)
-    except Exception:
-        # python-dotenv is optional at runtime; ignore any load errors.
-        pass
+    except ImportError:
+        # python-dotenv is optional at runtime
+        logger.debug("python-dotenv not installed, skipping .env loading")
+    except Exception as e:
+        # Log any other dotenv load errors
+        logger.debug("Failed to load .env file: %s", e)
     _dotenv_loaded = True
 
 

@@ -14,6 +14,7 @@ from ...models.transcription import TranscriptionResult
 from ...pipeline.simple_pipeline import process_pipeline
 from ...services.url_ingestion import UrlIngestionError, UrlIngestionService
 from ...ui.console import ConsoleManager
+from ..json_output import CommandTiming, JsonCommandResult, log_json_message
 from ..utils import (
     DEFAULT_OUTPUT_DIR,
     add_markdown_export_options,
@@ -136,30 +137,111 @@ async def process_command(
     args: argparse.Namespace, console_manager: ConsoleManager | None = None
 ) -> int:
     """Handle the process subcommand (extract + transcribe)."""
+    timing = CommandTiming()
+    json_mode = console_manager is not None and console_manager.json_output
+    input_str = getattr(args, "video_file", None) or getattr(args, "url", "") or ""
+
     try:
+        timing.start_stage("resolve_input")
         input_path = _resolve_input_source(args)
+        timing.end_stage("resolve_input")
+
         if input_path is None:
+            if json_mode:
+                result = JsonCommandResult(
+                    success=False,
+                    command="process",
+                    input=input_str,
+                    exit_code=1,
+                    errors=["Failed to resolve input source"],
+                )
+                result.print_json()
             return 1
 
         output_dir = _setup_process_output_dir(args)
         quality = parse_quality_preset(args.quality)
 
-        logger.info(
-            f"Processing video {input_path} (quality: {quality.value}, provider: {args.provider})"
-        )
+        if json_mode:
+            log_json_message("info", f"Processing {input_path} (quality: {quality.value})")
+        else:
+            logger.info(
+                f"Processing video {input_path} (quality: {quality.value}, provider: {args.provider})"
+            )
 
-        _pipeline_result, result = await _execute_processing_pipeline(
+        timing.start_stage("pipeline")
+        pipeline_result, result = await _execute_processing_pipeline(
             input_path, output_dir, quality, args, console_manager
         )
+        timing.end_stage("pipeline")
 
         if result:
             _handle_process_success(result, output_dir, args, input_path)
+
+            if json_mode:
+                # Build JSON output
+                outputs: dict[str, object] = {}
+                if pipeline_result.get("audio_path"):
+                    outputs["audio"] = str(pipeline_result.get("audio_path"))
+                if pipeline_result.get("transcript_path"):
+                    outputs["transcript"] = str(pipeline_result.get("transcript_path"))
+                files_created = pipeline_result.get("files_created", [])
+                if files_created:
+                    outputs["analysis"] = [str(f) for f in files_created]
+
+                json_result = JsonCommandResult(
+                    success=True,
+                    command="process",
+                    input=str(input_path),
+                    exit_code=0,
+                    outputs=outputs,
+                    timing={
+                        "total_seconds": timing.total_seconds,
+                        "stages": timing.stages,
+                    },
+                    metadata={
+                        "provider": args.provider,
+                        "language": args.language,
+                        "quality": args.quality,
+                    },
+                )
+                json_result.print_json()
+
             return 0
 
-        logger.error("Processing failed")
+        if json_mode:
+            errors = pipeline_result.get("errors", ["Processing failed"])
+            json_result = JsonCommandResult(
+                success=False,
+                command="process",
+                input=str(input_path),
+                exit_code=1,
+                errors=[str(e) for e in errors] if isinstance(errors, list) else [str(errors)],
+                timing={
+                    "total_seconds": timing.total_seconds,
+                    "stages": timing.stages,
+                },
+            )
+            json_result.print_json()
+        else:
+            logger.error("Processing failed")
+
         return 1
 
     except Exception as e:
+        if json_mode:
+            json_result = JsonCommandResult(
+                success=False,
+                command="process",
+                input=input_str,
+                exit_code=1,
+                errors=[str(e)],
+                timing={
+                    "total_seconds": timing.total_seconds,
+                    "stages": timing.stages,
+                },
+            )
+            json_result.print_json()
+            return 1
         return handle_cli_error(e, "process")
 
 

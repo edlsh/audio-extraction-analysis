@@ -733,7 +733,9 @@ class ReportGenerator:
             status_class = (
                 "success"
                 if latest["success_rate"] > 90
-                else "warning" if latest["success_rate"] > 70 else "danger"
+                else "warning"
+                if latest["success_rate"] > 70
+                else "danger"
             )
 
             suites_html += f"""
@@ -801,7 +803,9 @@ class ReportGenerator:
             direction_emoji = (
                 "📈"
                 if trend_data["trend_direction"] == "improving"
-                else "📉" if trend_data["trend_direction"] == "degrading" else "📊"
+                else "📉"
+                if trend_data["trend_direction"] == "degrading"
+                else "📊"
             )
             trends_md += f"- **{trend_name.replace('_', ' ').title()}**: {direction_emoji} {trend_data['trend_direction'].title()} ({trend_data['change_percent']:+.1f}%)\n"
 
@@ -842,7 +846,9 @@ class ReportGenerator:
             status_emoji = (
                 "✅"
                 if latest["success_rate"] > 90
-                else "⚠️" if latest["success_rate"] > 70 else "❌"
+                else "⚠️"
+                if latest["success_rate"] > 70
+                else "❌"
             )
 
             suites_table += f"| {suite_name} | {status_emoji} {latest['success_rate']:.1f}% | {latest['total_tests']} | {latest['avg_execution_time']:.2f}s | {latest['timestamp'][:10]} |\n"
@@ -1025,19 +1031,15 @@ class AlertSystem:
 
         # Success rate threshold checks
         if latest_metrics.success_rate < 80:
-            alerts.append(
-                {
-                    "level": "critical",
-                    "message": f"Success rate dropped to {latest_metrics.success_rate:.1f}% in {suite_name}",
-                }
-            )
+            alerts.append({
+                "level": "critical",
+                "message": f"Success rate dropped to {latest_metrics.success_rate:.1f}% in {suite_name}",
+            })
         elif latest_metrics.success_rate < 95:
-            alerts.append(
-                {
-                    "level": "warning",
-                    "message": f"Success rate is {latest_metrics.success_rate:.1f}% in {suite_name}",
-                }
-            )
+            alerts.append({
+                "level": "warning",
+                "message": f"Success rate is {latest_metrics.success_rate:.1f}% in {suite_name}",
+            })
 
         # Performance degradation check (7-day trend)
         trends = self.metrics_collector.get_performance_trends(suite_name, days=7)
@@ -1048,12 +1050,10 @@ class AlertSystem:
             and execution_trend.trend_direction == "degrading"
             and execution_trend.change_percent > 20
         ):
-            alerts.append(
-                {
-                    "level": "warning",
-                    "message": f"Execution time increased by {execution_trend.change_percent:.1f}% in {suite_name}",
-                }
-            )
+            alerts.append({
+                "level": "warning",
+                "message": f"Execution time increased by {execution_trend.change_percent:.1f}% in {suite_name}",
+            })
 
         # Send all triggered alerts
         for alert in alerts:

@@ -240,7 +240,8 @@ class TestSafeWriteJson:
         def boom(*args, **kwargs):
             raise OSError("disk full")
 
-        monkeypatch.setattr(builtins, "open", boom)
+        # atomic_write_json uses tempfile.mkstemp + os.write, not builtins.open
+        monkeypatch.setattr("tempfile.mkstemp", boom)
         with pytest.raises(OSError, match="disk full"):
             safe_write_json(out, {"x": 1})
 
@@ -401,7 +402,8 @@ class TestSafeWriteJson:
         def raise_permission_error(*args, **kwargs):
             raise PermissionError("access denied")
 
-        monkeypatch.setattr(builtins, "open", raise_permission_error)
+        # atomic_write_json uses tempfile.mkstemp + os.write, not builtins.open
+        monkeypatch.setattr("tempfile.mkstemp", raise_permission_error)
         with pytest.raises(PermissionError, match="access denied"):
             safe_write_json(out, {"x": 1})
 

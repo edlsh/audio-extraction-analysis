@@ -185,11 +185,18 @@ class AsyncAudioExtractor(AudioExtractor):
                 self._consume_ffmpeg_progress(proc, total_duration, progress_callback, stage),
                 timeout=self._ffmpeg_timeout,
             )
+        except asyncio.CancelledError:
+            await self._terminate_process(proc, stage)
+            raise
         except TimeoutError as exc:
             await self._terminate_process(proc, stage)
             raise TimeoutError(
                 f"FFmpeg stage '{stage}' timed out after {self._ffmpeg_timeout} seconds"
             ) from exc
+        finally:
+            # Ensure process is cleaned up on any exit path
+            if proc.returncode is None:
+                await self._terminate_process(proc, stage)
 
         await self._ensure_process_succeeded(proc, stage)
 

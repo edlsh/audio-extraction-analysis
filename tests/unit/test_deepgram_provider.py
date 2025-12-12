@@ -81,9 +81,9 @@ class TestDeepgramTranscriber:
             "summarization",
             "language_detection",
         }
-        assert expected_features.issubset(
-            features
-        ), f"Missing features: {expected_features - set(features)}"
+        assert expected_features.issubset(features), (
+            f"Missing features: {expected_features - set(features)}"
+        )
 
     @pytest.mark.asyncio
     async def test_transcription_reads_audio_bytes(

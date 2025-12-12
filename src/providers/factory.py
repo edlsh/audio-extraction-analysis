@@ -42,6 +42,7 @@ _PROVIDER_IMPORTS: dict[str, tuple[str, str]] = {
     "elevenlabs": (".elevenlabs", "ElevenLabsTranscriber"),
     "whisper": (".whisper", "WhisperTranscriber"),
     "parakeet": (".parakeet", "ParakeetTranscriber"),
+    "stub": (".stub", "StubTranscriptionProvider"),
 }
 
 

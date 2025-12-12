@@ -44,12 +44,10 @@ def _build_files_list(files_created: list[Any], output_dir: Path) -> list[dict[s
             rel_path = path.relative_to(output_dir)
         except ValueError:
             rel_path = path
-        files.append(
-            {
-                "label": path.name,
-                "path": rel_path.as_posix() if isinstance(rel_path, Path) else str(rel_path),
-            }
-        )
+        files.append({
+            "label": path.name,
+            "path": rel_path.as_posix() if isinstance(rel_path, Path) else str(rel_path),
+        })
     return files
 
 

@@ -18,6 +18,8 @@ from .commands.process import create_process_subparser, process_command
 from .commands.transcribe import create_transcribe_subparser, transcribe_command
 from .commands.tui import create_tui_subparser, tui_command
 
+logger = get_logger(__name__)
+
 
 def _read_pyproject_version() -> str:
     """Best-effort fallback when package metadata isn't available."""
@@ -26,7 +28,8 @@ def _read_pyproject_version() -> str:
         with pyproject_path.open("rb") as f:
             data = tomllib.load(f)
         return str(data.get("project", {}).get("version", "0.0.0"))
-    except Exception:
+    except Exception as e:
+        logger.debug("Failed to read version from pyproject.toml: %s", e)
         return "0.0.0"
 
 
@@ -34,8 +37,6 @@ try:
     __version__ = package_version("audio-extraction-analysis")
 except PackageNotFoundError:
     __version__ = _read_pyproject_version()
-
-logger = get_logger(__name__)
 
 
 def setup_logging(verbose: bool = False) -> None:
@@ -68,6 +69,9 @@ def create_parser() -> argparse.ArgumentParser:
   # With specific provider and verbose logging
   audio-extraction-analysis process video.mp4 --provider deepgram --verbose
 
+  # Machine-readable JSON output for CI/scripts
+  audio-extraction-analysis process video.mp4 --json --no-progress
+
 Quality presets:
   high       - 320k bitrate, best for archival
   standard   - Variable bitrate, good balance
@@ -87,6 +91,16 @@ For more information, see: https://github.com/lucchesi-sec/audio-extraction-anal
     # Add global arguments
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose logging")
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output results as JSON to stdout (human messages go to stderr)",
+    )
+    parser.add_argument(
+        "--no-progress",
+        action="store_true",
+        help="Suppress progress indicators (useful for CI/scripts)",
+    )
 
     # Create subparsers
     subparsers = parser.add_subparsers(dest="command", help="Available commands", required=True)
@@ -110,8 +124,12 @@ def main() -> int:
     # Setup logging
     setup_logging(args.verbose)
 
-    # Setup console manager
-    console_manager = ConsoleManager(verbose=args.verbose)
+    # Setup console manager with JSON and no-progress flags
+    console_manager = ConsoleManager(
+        verbose=args.verbose,
+        json_output=args.json,
+        no_progress=args.no_progress,
+    )
 
     try:
         # Route to appropriate command handler

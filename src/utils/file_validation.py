@@ -7,15 +7,11 @@ from typing import Any
 
 from src.utils.logger import get_logger
 
+# Import ValidationError from the canonical location
+from ..exceptions import ValidationError
 from .sanitization import PathSanitizer
 
 logger = get_logger(__name__)
-
-
-class ValidationError(Exception):
-    """Raised when file validation fails."""
-
-    pass
 
 
 class FileValidator:
@@ -417,18 +413,36 @@ def _handle_validation_exception(
         ValidationError: Always raised, wrapping the original exception.
                         The original exception is accessible via exception chaining.
     """
+    file_path_str = str(file_path)
+
     if isinstance(e, FileNotFoundError):
         logger.error(f"{file_type.capitalize()} file not found: {file_path}")
-        raise ValidationError(f"{file_type.capitalize()} file not found: {file_path}") from e
+        raise ValidationError(
+            f"{file_type.capitalize()} file not found: {file_path}",
+            context={"file_path": file_path_str, "error_type": "not_found"},
+            original_error=e,
+        ) from e
     elif isinstance(e, PermissionError):
         logger.error(f"Permission denied accessing file: {file_path}")
-        raise ValidationError(f"Cannot access file: {file_path}") from e
+        raise ValidationError(
+            f"Cannot access file: {file_path}",
+            context={"file_path": file_path_str, "error_type": "permission_denied"},
+            original_error=e,
+        ) from e
     elif isinstance(e, ValueError):
         logger.error(f"Invalid {file_type} file: {e}")
-        raise ValidationError(str(e)) from e
+        raise ValidationError(
+            str(e),
+            context={"file_path": file_path_str, "error_type": "invalid_file"},
+            original_error=e,
+        ) from e
     else:
         logger.error(f"Unexpected validation error: {e}")
-        raise ValidationError(f"Validation failed: {e}") from e
+        raise ValidationError(
+            f"Validation failed: {e}",
+            context={"file_path": file_path_str, "error_type": "unexpected"},
+            original_error=e,
+        ) from e
 
 
 def validate_audio_file(

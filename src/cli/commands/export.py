@@ -14,7 +14,7 @@ from ...services.transcription import TranscriptionService
 from ...ui.console import ConsoleManager
 from ...utils.file_validation import validate_audio_file
 from ...utils.paths import ensure_subpath, safe_write_json, sanitize_dirname
-from ..utils import DEFAULT_OUTPUT_DIR
+from ..utils import DEFAULT_OUTPUT_DIR, TRANSCRIPTION_PROVIDERS
 
 if TYPE_CHECKING:
     from argparse import _SubParsersAction
@@ -44,7 +44,7 @@ def create_export_markdown_subparser(
     export_md_parser.add_argument(
         "--provider",
         "-p",
-        choices=["deepgram", "elevenlabs", "whisper", "auto"],
+        choices=TRANSCRIPTION_PROVIDERS,
         default="auto",
         help="Transcription provider to use (default: auto)",
     )
@@ -205,7 +205,8 @@ def export_markdown_command(
         # Validate input and setup paths
         try:
             audio_path, output_dir = _validate_and_setup_paths(args)
-        except Exception:  # ValidationError might need import
+        except Exception as e:
+            logger.error("Validation failed for export-markdown: %s", e)
             return 1
 
         # Perform transcription

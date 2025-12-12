@@ -7,6 +7,7 @@ Key improvements:
 - Uses StageReporter for cleaner event emission
 - Uses PipelineResult with typed errors for better error handling
 - Uses ArtifactTier for smarter cleanup on partial failures
+- Generates single run_id at pipeline start for event correlation
 """
 
 from __future__ import annotations
@@ -20,11 +21,17 @@ from src.utils.logger import get_logger
 
 from ..analysis.concise_analyzer import ConciseAnalyzer
 from ..analysis.full_analyzer import FullAnalyzer
-from ..models.events import EventSink
+from ..models.events import (
+    EventSink,
+    generate_run_id,
+    reset_current_run_id,
+    set_current_run_id,
+)
 from ..services.audio_extraction import AudioQuality
 from ..services.audio_extraction_async import AsyncAudioExtractor
 from ..services.transcription import TranscriptionService
 from ..ui.console import ConsoleManager
+from ..utils.sanitization import PathSanitizer
 from .reporter import StageReporter, create_reporter
 from .result import ArtifactTier, PipelineError, StageResult
 from .result import PipelineResult as PipelineResultDataclass
@@ -74,6 +81,7 @@ async def _extract_audio(
     cm: ConsoleManager,
     quality: AudioQuality,
     reporter: StageReporter,
+    input_stem: str,
 ) -> tuple[Path, float]:
     """Extract audio from input file directly to output directory.
 
@@ -96,7 +104,7 @@ async def _extract_audio(
 
     with reporter.stage_context("extract", "Extracting audio", 100) as stage:
         start: float = time.time()
-        audio_path: Path = output_dir / f"{input_path.stem}.mp3"
+        audio_path: Path = output_dir / f"{input_stem}.mp3"
 
         with cm.progress_context("Extracting audio...", total=100) as progress:
             extractor = AsyncAudioExtractor()
@@ -321,7 +329,7 @@ async def process_pipeline(
         provider: Transcription provider ('deepgram', 'elevenlabs', 'auto')
         analysis_style: Analysis style ('concise' or 'full')
         console_manager: Optional console manager for progress display
-        run_id: Optional run identifier for TUI event emission
+        run_id: Optional run identifier for event correlation (auto-generated if not provided)
         event_sink: Optional event sink for direct event emission (bypasses thread-local)
 
     Returns:
@@ -339,11 +347,27 @@ async def process_pipeline(
     input_path = Path(input_path)
     output_dir = Path(output_dir)
 
+    # Generate run_id if not provided - this ensures all events in this pipeline
+    # share the same run identifier for correlation
+    if run_id is None:
+        run_id = generate_run_id()
+
+    # Set run_id in context for automatic event correlation
+    run_id_token = set_current_run_id(run_id)
+
+    # Update TUI log sink with run_id if in TUI mode
+    try:
+        from ..utils.loguru_config import set_tui_run_id
+
+        set_tui_run_id(run_id)
+    except Exception:
+        pass  # TUI mode not active or not available
+
     # Create console manager if not provided
     cm = console_manager or ConsoleManager()
     cm.setup_logging(logger)
 
-    # Create stage reporter for event emission
+    # Create stage reporter for event emission with the run_id
     reporter = create_reporter(run_id=run_id, event_sink=event_sink)
 
     # Create shared service instance (reused across stages)
@@ -355,11 +379,14 @@ async def process_pipeline(
     try:
         output_dir.mkdir(parents=True, exist_ok=True)
 
+        # Sanitize input stem for output filenames
+        safe_stem = PathSanitizer.sanitize_filename(input_path.stem)
+
         # Stage 1: Audio Extraction
         try:
             extract_start = time.time()
             audio_path, extraction_duration = await _extract_audio(
-                input_path, output_dir, cm, quality, reporter
+                input_path, output_dir, cm, quality, reporter, safe_stem
             )
             result.audio_path = str(audio_path)
             result.add_artifact(audio_path, "extract", ArtifactTier.INTERMEDIATE, "audio")
@@ -403,7 +430,7 @@ async def process_pipeline(
             )
 
             # Save transcript file (valuable artifact - keep on partial failure)
-            transcript_path = output_dir / f"{input_path.stem}_transcript.txt"
+            transcript_path = output_dir / f"{safe_stem}_transcript.txt"
             service.save_transcription_result(
                 transcript, transcript_path, provider_name=transcript.provider_name
             )
@@ -431,7 +458,7 @@ async def process_pipeline(
         try:
             analyze_start = time.time()
             analysis_files, analysis_duration = await _analyze_transcript(
-                transcript, output_dir, input_path.stem, analysis_style, cm, reporter
+                transcript, output_dir, safe_stem, analysis_style, cm, reporter
             )
             result.analysis_files = analysis_files
             for af in analysis_files:
@@ -479,6 +506,9 @@ async def process_pipeline(
         reporter.error(str(e), None)
         _cleanup_artifacts(result, None)
         return _result_to_dict(result)
+    finally:
+        # Always reset the run_id context
+        reset_current_run_id(run_id_token)
 
 
 # Also export the new dataclass version for advanced usage

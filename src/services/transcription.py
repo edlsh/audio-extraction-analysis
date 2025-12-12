@@ -407,14 +407,14 @@ class TranscriptionService:
             5.0,  # Minimum 5 seconds
         )
 
-        # Create progress update task if callback provided
+        # Create progress update task inside try block to ensure cleanup on exception
         progress_task = None
-        if progress_callback:
-            progress_task = asyncio.create_task(
-                self._simulate_progress(estimated_time, progress_callback)
-            )
-
         try:
+            if progress_callback:
+                progress_task = asyncio.create_task(
+                    self._simulate_progress(estimated_time, progress_callback)
+                )
+
             # Run actual transcription
             result = await self.transcribe_async(
                 path, provider_name=provider_name, language=language
@@ -423,6 +423,10 @@ class TranscriptionService:
             # Complete progress
             if progress_task:
                 progress_task.cancel()
+                try:
+                    await progress_task
+                except asyncio.CancelledError:
+                    pass
                 if progress_callback:
                     try:
                         progress_callback(100, 100)
@@ -434,6 +438,10 @@ class TranscriptionService:
         except Exception:
             if progress_task:
                 progress_task.cancel()
+                try:
+                    await progress_task
+                except asyncio.CancelledError:
+                    pass
             raise
 
     async def _simulate_progress(
@@ -488,6 +496,7 @@ class TranscriptionService:
         Returns:
             Duration in seconds, or None if unable to determine
         """
+        proc = None
         try:
             cmd = [
                 "ffprobe",
@@ -508,6 +517,10 @@ class TranscriptionService:
                 stdout, stderr = await asyncio.wait_for(
                     proc.communicate(), timeout=Timeouts.FFMPEG_PROBE
                 )
+            except asyncio.CancelledError:
+                proc.kill()
+                await proc.wait()
+                raise
             except TimeoutError:
                 proc.kill()
                 await proc.wait()
@@ -522,6 +535,11 @@ class TranscriptionService:
             duration = float(data.get("format", {}).get("duration", 0))
             return duration if duration > 0 else None
 
+        except asyncio.CancelledError:
+            if proc is not None and proc.returncode is None:
+                proc.kill()
+                await proc.wait()
+            raise
         except (json.JSONDecodeError, ValueError, KeyError) as e:
             logger.debug(f"Failed to parse audio duration: {e}")
             return None
