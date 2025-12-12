@@ -15,8 +15,12 @@ import threading
 import time
 from unittest.mock import patch
 
-import psutil
 import pytest
+
+try:
+    import psutil
+except ModuleNotFoundError:  # pragma: no cover
+    pytest.skip("psutil not installed (optional dependency)", allow_module_level=True)
 
 from .base import CLITestMixin, E2ETestBase, MockProviderMixin, PerformanceTestMixin
 from .test_data_manager import TestDataManager

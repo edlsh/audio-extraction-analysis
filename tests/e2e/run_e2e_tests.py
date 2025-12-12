@@ -179,12 +179,17 @@ class E2ETestRunner:
             if not path.exists():
                 validation_errors.append(f"Required path not found: {path}")
 
-        # Check test dependencies
+        # Check required test dependencies
         try:
-            import psutil
             import pytest
         except ImportError as e:
             validation_errors.append(f"Required Python package not found: {e}")
+
+        # Optional dependencies (some suites may skip without them)
+        try:
+            import psutil
+        except ImportError:
+            self.logger.warning("Optional Python package not found: psutil")
 
         # Store environment info
         self.environment_info = {

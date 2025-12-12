@@ -3,6 +3,7 @@
 This module implements the Factory Pattern for transcription providers, providing:
 - Lazy provider registration and discovery (imports deferred until first use)
 - Configuration validation and optional health checking
+- Policy-based provider selection (delegated to ProviderSelectionPolicy)
 
 Providers are loaded lazily on first access to avoid importing heavyweight
 dependencies (torch, nemo) at module import time. This significantly improves
@@ -26,6 +27,7 @@ from src.utils.logger import get_logger
 from ..config import get_config
 from ..utils.retry import RetryConfig
 from .base import BaseTranscriptionProvider, CircuitBreakerConfig, ProviderMeta
+from .policy import ProviderSelectionPolicy, TranscriptionPolicy
 from .provider_utils import check_sdk_available, get_default_configs
 
 if TYPE_CHECKING:
@@ -188,21 +190,48 @@ class TranscriptionProviderFactory:
 
         return configured
 
+    # Default selection policy instance
+    _selection_policy: ProviderSelectionPolicy | None = None
+
+    @classmethod
+    def get_selection_policy(cls) -> ProviderSelectionPolicy:
+        """Get or create the default selection policy."""
+        if cls._selection_policy is None:
+            cls._selection_policy = ProviderSelectionPolicy.default()
+        return cls._selection_policy
+
+    @classmethod
+    def set_selection_policy(cls, policy: ProviderSelectionPolicy) -> None:
+        """Set a custom selection policy.
+
+        Args:
+            policy: Custom ProviderSelectionPolicy instance
+        """
+        cls._selection_policy = policy
+
     @classmethod
     def auto_select_provider(
-        cls, audio_file_path: Path | None = None, preferred_features: list[str] | None = None
+        cls,
+        audio_file_path: Path | None = None,
+        preferred_features: list[str] | None = None,
+        test_override: str | None = None,
     ) -> str:
         """Auto-select the best available provider based on configuration and file.
 
-        Selection priority:
+        Delegates to ProviderSelectionPolicy for consistent, testable selection logic.
+
+        Selection priority (default):
         1. Deepgram (most features, fastest for API-based)
         2. ElevenLabs (good alternative API)
         3. Whisper (local, no API key needed)
         4. Parakeet (local, specialized)
 
+        For large files (>100MB), local providers are preferred.
+
         Args:
             audio_file_path: Optional path to audio file (for size-based selection)
             preferred_features: Optional list of required features
+            test_override: Optional provider override for testing
 
         Returns:
             Name of the selected provider
@@ -211,39 +240,20 @@ class TranscriptionProviderFactory:
             ValueError: If no providers are configured
         """
         configured = cls.get_configured_providers()
+        policy = cls.get_selection_policy()
 
-        if not configured:
-            raise ValueError(
-                "No transcription providers configured. "
-                "Set DEEPGRAM_API_KEY or ELEVENLABS_API_KEY, or install whisper/parakeet."
-            )
-
-        # Priority order for selection
-        priority_order = ["deepgram", "elevenlabs", "whisper", "parakeet"]
-
-        # If file is very large (>100MB), prefer local providers to avoid upload time
-        if audio_file_path is not None:
-            try:
-                file_size_mb = audio_file_path.stat().st_size / (1024 * 1024)
-                if file_size_mb > 100:
-                    # Prefer local providers for large files
-                    priority_order = ["whisper", "parakeet", "deepgram", "elevenlabs"]
-                    logger.debug(f"Large file ({file_size_mb:.1f}MB), preferring local providers")
-            except (OSError, AttributeError):
-                pass  # File doesn't exist or path is None
-
-        # Select first available provider in priority order
-        for provider_name in priority_order:
-            if provider_name in configured:
-                logger.debug(f"Auto-selected provider: {provider_name}")
-                return provider_name
-
-        # Fallback to first configured provider
-        return configured[0]
+        return policy.select_provider(
+            configured_providers=configured,
+            file_path=audio_file_path,
+            preferred_features=preferred_features,
+            test_override=test_override,
+        )
 
     @classmethod
     def validate_provider_for_file(cls, provider_name: str, file_path: Path) -> bool:
         """Validate that a provider can handle the given file.
+
+        Delegates to ProviderSelectionPolicy for consistent validation logic.
 
         Checks:
         - Provider is available and configured
@@ -257,41 +267,18 @@ class TranscriptionProviderFactory:
         Returns:
             True if provider can handle the file, False otherwise
         """
-        # Check provider is configured
+        # Preserve backward compatibility for unknown/custom providers:
+        # treat them as having no known constraints beyond file accessibility.
+        if provider_name not in _PROVIDER_IMPORTS:
+            try:
+                file_path.stat()
+            except (OSError, AttributeError):
+                return False
+            return True
+
         configured = cls.get_configured_providers()
-        if provider_name not in configured:
-            logger.warning(f"Provider '{provider_name}' is not configured")
-            return False
-
-        # Check file exists and get size
-        try:
-            file_size_mb = file_path.stat().st_size / (1024 * 1024)
-        except (OSError, AttributeError) as e:
-            logger.warning(f"Cannot access file '{file_path}': {e}")
-            return False
-
-        # Provider-specific size limits (in MB)
-        size_limits = {
-            "deepgram": 2000,  # 2GB limit
-            "elevenlabs": 500,  # 500MB limit
-            "whisper": float("inf"),  # Local, no limit
-            "parakeet": float("inf"),  # Local, no limit
-        }
-
-        max_size = size_limits.get(provider_name, 100)  # Default 100MB
-        if file_size_mb > max_size:
-            logger.warning(
-                f"File size ({file_size_mb:.1f}MB) exceeds {provider_name} limit ({max_size}MB)"
-            )
-            return False
-
-        # Check file extension is audio
-        audio_extensions = {".mp3", ".wav", ".m4a", ".flac", ".ogg", ".opus", ".webm", ".mp4"}
-        if file_path.suffix.lower() not in audio_extensions:
-            logger.warning(f"File extension '{file_path.suffix}' may not be supported")
-            # Don't fail, just warn - provider might still handle it
-
-        return True
+        policy = cls.get_selection_policy()
+        return policy.validate_provider_for_file(provider_name, file_path, configured)
 
     @classmethod
     def _run_health_check(cls, provider: BaseTranscriptionProvider, provider_name: str) -> None:
@@ -337,6 +324,7 @@ class TranscriptionProviderFactory:
         circuit_config: CircuitBreakerConfig | None = None,
         retry_config: RetryConfig | None = None,
         run_health_check: bool = False,
+        policy: TranscriptionPolicy | None = None,
     ) -> BaseTranscriptionProvider:
         """Create provider with validation and optional health check.
 
@@ -346,6 +334,7 @@ class TranscriptionProviderFactory:
             circuit_config: Override circuit breaker config
             retry_config: Override retry config
             run_health_check: Run health check after creation (default: False)
+            policy: Optional TranscriptionPolicy for unified timeout/retry settings
 
         Raises:
             ValueError: If provider unknown or config invalid
@@ -359,13 +348,21 @@ class TranscriptionProviderFactory:
             raise ValueError(f"Provider '{provider_name}' module not available") from e
 
         try:
-            # Get default configurations if not provided (from shared utility)
-            retry_config, circuit_config = get_default_configs(retry_config, circuit_config)
+            # Use policy if provided, otherwise get default configs
+            if policy is not None:
+                retry_config = policy.retry_config
+                circuit_config = policy.circuit_config
+            else:
+                retry_config, circuit_config = get_default_configs(retry_config, circuit_config)
 
             # Create and validate provider instance
             provider = cls._create_provider_instance(
                 provider_class, provider_name, api_key, circuit_config, retry_config
             )
+
+            # Apply policy timeout if provided
+            if policy is not None and hasattr(provider, "update_transcription_timeout"):
+                provider.update_transcription_timeout(policy.transcription_timeout)
 
             # Run health check if requested (opt-in)
             if run_health_check:

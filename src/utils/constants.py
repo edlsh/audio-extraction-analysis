@@ -43,8 +43,8 @@ class Timeouts:
 class AnalysisConstants:
     """Constants for analysis heuristics."""
 
-    # Action item detection
-    ACTION_KEYWORDS: list[str] = [
+    # Action item detection (tuple for immutability)
+    ACTION_KEYWORDS: tuple[str, ...] = (
         "should",
         "need to",
         "must",
@@ -57,7 +57,7 @@ class AnalysisConstants:
         "action",
         "ensure",
         "verify",
-    ]
+    )
 
     # Summary generation
     SUMMARY_SENTENCE_COUNT: int = 3

@@ -36,12 +36,8 @@ class ConciseAnalyzer(BaseAnalyzer):
         output_dir.mkdir(parents=True, exist_ok=True)
         analysis_path = output_dir / f"{filename_base}_analysis.md"
 
-        # Generate the analysis content
-        content = self._generate_analysis(result)
-
-        # Write to file
-        with open(analysis_path, "w", encoding="utf-8") as f:
-            f.write(content)
+        # Generate and write the analysis content
+        analysis_path.write_text(self._generate_analysis(result), encoding="utf-8")
 
         logger.info(f"Concise analysis saved to: {analysis_path}")
         return analysis_path

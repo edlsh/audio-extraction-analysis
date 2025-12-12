@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from collections.abc import Callable
 from typing import NoReturn
 
 from src.exceptions import (
@@ -171,7 +172,7 @@ def handle_keyboard_interrupt() -> NoReturn:
 
 
 # Exception type to handler dispatch table
-_ERROR_HANDLERS: dict[type[Exception], callable] = {
+_ERROR_HANDLERS: dict[type[Exception], Callable[[Exception], None]] = {
     ValidationError: handle_validation_error,
     FFmpegNotFoundError: handle_ffmpeg_error,
     FFmpegExecutionError: handle_ffmpeg_error,

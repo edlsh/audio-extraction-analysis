@@ -48,6 +48,8 @@ class TestProvidersPackage:
             "CircuitBreakerConfig",
             "CircuitBreakerError",
             "CircuitBreakerMixin",
+            "ProviderSelectionPolicy",
+            "TranscriptionPolicy",
             "TranscriptionProviderFactory",
         ]
 
@@ -180,6 +182,8 @@ class TestProvidersPackage:
             "CircuitBreakerConfig",
             "CircuitBreakerError",
             "CircuitBreakerMixin",
+            "ProviderSelectionPolicy",
+            "TranscriptionPolicy",
             "TranscriptionProviderFactory",
         ]
 
@@ -207,9 +211,12 @@ class TestProvidersPackage:
             "CircuitBreakerConfig",
             "CircuitBreakerError",
             "CircuitBreakerMixin",
+            "ProviderSelectionPolicy",
+            "TranscriptionPolicy",
             "TranscriptionProviderFactory",
             "base",
             "factory",
+            "policy",
         }
 
         # Verify all required exports are present
@@ -222,6 +229,8 @@ class TestProvidersPackage:
             "CircuitBreakerConfig",
             "CircuitBreakerError",
             "CircuitBreakerMixin",
+            "ProviderSelectionPolicy",
+            "TranscriptionPolicy",
             "TranscriptionProviderFactory",
         ]
         assert set(providers.__all__) == set(

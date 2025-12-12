@@ -1,4 +1,12 @@
-"""Core transcription orchestration service."""
+"""Core transcription orchestration service.
+
+This module provides the TranscriptionService which coordinates transcription
+operations across providers. Key features:
+- Policy-based timeout/retry configuration (TranscriptionPolicy)
+- Unified async transcription with thin sync wrapper
+- Automatic provider selection via ProviderSelectionPolicy
+- Caching support
+"""
 
 from __future__ import annotations
 
@@ -19,6 +27,7 @@ if TYPE_CHECKING:
 from ..config import get_config
 from ..exceptions import ProviderTimeoutError, TranscriptionError
 from ..providers.factory import TranscriptionProviderFactory
+from ..providers.policy import TranscriptionPolicy
 from ..utils.constants import Timeouts
 from ..utils.file_validation import validate_audio_file_or_raise
 
@@ -26,19 +35,35 @@ logger = get_logger(__name__)
 
 
 class TranscriptionService:
-    """Coordinates transcription operations across providers."""
+    """Coordinates transcription operations across providers.
 
-    def __init__(self, cache: TranscriptionCache | None = None) -> None:
+    Uses TranscriptionPolicy for unified timeout/retry configuration.
+    Provider layer implements only _transcribe_impl (async), this service
+    layer exposes transcribe_async + thin sync wrapper.
+    """
+
+    def __init__(
+        self,
+        cache: TranscriptionCache | None = None,
+        policy: TranscriptionPolicy | None = None,
+    ) -> None:
         """Initialize transcription service.
 
         Args:
             cache: Optional TranscriptionCache instance for caching results.
                    If None, caching is disabled.
+            policy: Optional TranscriptionPolicy for timeout/retry settings.
+                    If None, creates from global config.
         """
         self.factory = TranscriptionProviderFactory
         self._config = get_config()
-        self._provider_timeout = float(self._config.transcription_timeout_seconds)
+        self._policy = policy or TranscriptionPolicy.from_config()
         self._cache = cache
+
+    @property
+    def _provider_timeout(self) -> float:
+        """Get transcription timeout from policy."""
+        return self._policy.transcription_timeout
 
     def get_available_providers(self) -> list[str]:
         """List all registered providers."""
@@ -72,11 +97,12 @@ class TranscriptionService:
             ProviderValidationError: If provider cannot handle the file
             ProviderNotAvailableError: If no providers configured (test environments)
         """
+        import os
+
         from ..exceptions import (
             ProviderNotAvailableError,
             ProviderSelectionError,
             ProviderValidationError,
-            ValidationError,
         )
 
         # Validate audio file
@@ -85,16 +111,13 @@ class TranscriptionService:
         # Auto-select provider if not specified
         if not provider_name:
             try:
-                # Check if we're in test mode first
-                import os
-
-                test_provider = os.getenv("AUDIO_TEST_PROVIDER")
-                if test_provider:
-                    provider_name = test_provider
-                    logger.info(f"Using test provider: {provider_name}")
-                else:
-                    provider_name = self.auto_select_provider(validated_path)
-                    logger.info(f"Auto-selected provider: {provider_name}")
+                # Get test override from environment (used by ProviderSelectionPolicy)
+                test_override = os.getenv("AUDIO_TEST_PROVIDER")
+                provider_name = self.factory.auto_select_provider(
+                    audio_file_path=validated_path,
+                    test_override=test_override,
+                )
+                logger.info(f"Auto-selected provider: {provider_name}")
             except ValueError as e:
                 # In CI/testing, provide clear error
                 if os.getenv("CI") or os.getenv("PYTEST_CURRENT_TEST"):
@@ -121,12 +144,16 @@ class TranscriptionService:
         return validated_path, provider_name
 
     def _configure_provider_timeout(self, provider: Any) -> None:
-        """Apply configured timeouts to provider instances when supported."""
+        """Apply policy timeouts to provider instances when supported."""
         if hasattr(provider, "update_transcription_timeout"):
             try:
-                provider.update_transcription_timeout(self._provider_timeout)
+                provider.update_transcription_timeout(self._policy.transcription_timeout)
             except Exception as exc:  # pragma: no cover - defensive
                 logger.debug("Failed to update provider timeout: %s", exc)
+
+    def _create_provider(self, provider_name: str) -> Any:
+        """Create provider instance with policy-based configuration."""
+        return self.factory.create_provider(provider_name, policy=self._policy)
 
     def transcribe(
         self,
@@ -171,9 +198,8 @@ class TranscriptionService:
                 # Log but don't fail on cache errors
                 logger.warning(f"Cache lookup failed, proceeding with transcription: {e}")
 
-        # Create provider instance
-        provider = self.factory.create_provider(provider_name)
-        self._configure_provider_timeout(provider)
+        # Create provider instance with policy-based configuration
+        provider = self._create_provider(provider_name)
 
         # Perform transcription (let provider exceptions propagate)
         logger.info(f"Starting transcription with {provider.get_provider_name()}")
@@ -303,10 +329,9 @@ class TranscriptionService:
                 # Log but don't fail on cache errors
                 logger.warning(f"Cache lookup failed, proceeding with transcription: {e}")
 
-        # Create provider instance
-        provider = self.factory.create_provider(provider_name)
-        self._configure_provider_timeout(provider)
-        timeout_seconds = self._provider_timeout
+        # Create provider instance with policy-based configuration
+        provider = self._create_provider(provider_name)
+        timeout_seconds = self._policy.transcription_timeout
 
         logger.info(f"Starting async transcription with {provider.get_provider_name()}")
 
@@ -361,7 +386,13 @@ class TranscriptionService:
         # Auto-select provider if not specified or if "auto" is specified
         if not provider_name or provider_name == "auto":
             try:
-                provider_name = self.auto_select_provider(path)
+                import os
+
+                test_override = os.getenv("AUDIO_TEST_PROVIDER")
+                provider_name = self.factory.auto_select_provider(
+                    audio_file_path=path,
+                    test_override=test_override,
+                )
                 logger.info(f"Auto-selected provider: {provider_name}")
             except ValueError as e:
                 logger.error(f"Failed to auto-select provider: {e}")

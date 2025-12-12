@@ -148,12 +148,9 @@ async def process_command(
             f"Processing video {input_path} (quality: {quality.value}, provider: {args.provider})"
         )
 
-        try:
-            _pipeline_result, result = await _execute_processing_pipeline(
-                input_path, output_dir, quality, args, console_manager
-            )
-        except Exception as e:
-            return handle_cli_error(e, "process")
+        _pipeline_result, result = await _execute_processing_pipeline(
+            input_path, output_dir, quality, args, console_manager
+        )
 
         if result:
             _handle_process_success(result, output_dir, args, input_path)
