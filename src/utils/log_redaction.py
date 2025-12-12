@@ -106,7 +106,7 @@ def redact_secrets_from_dict(data: Mapping[str, Any], *, copy: bool = True) -> d
     Returns:
         Dictionary with secret values replaced by [REDACTED]
     """
-    result = dict(data) if copy else data
+    result: dict[str, Any] = dict(data) if copy else dict(data)
     for key in list(result.keys()):
         if is_secret_key(key):
             result[key] = REDACTED

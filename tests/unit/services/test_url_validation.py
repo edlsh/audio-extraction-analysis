@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
 from urllib.parse import urlparse
 
 import pytest
@@ -206,7 +207,8 @@ class TestDnsResolutionValidation:
 class TestPlaylistRejection:
     """Test playlist URL rejection."""
 
-    def test_rejects_playlist_url(self, tmp_path: Path) -> None:
+    @patch("src.services.url_ingestion.AudioExtractor")
+    def test_rejects_playlist_url(self, mock_extractor, tmp_path: Path) -> None:
         """Playlist URLs should be rejected."""
         service = UrlIngestionService(tmp_path)
         with pytest.raises(UnsupportedUrlError) as exc_info:
