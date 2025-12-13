@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING
 from urllib.parse import ParseResult, urlparse
 
 from cachetools import TTLCache
-
 from yt_dlp import YoutubeDL
 
 from src.utils.log_redaction import sanitize_url

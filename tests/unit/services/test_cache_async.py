@@ -76,9 +76,7 @@ async def test_invalidate_async_nonblocking(
         result = await cache.invalidate_async(sample_audio_file, "test_provider", "en")
 
         assert result is True
-        mock_invalidate.assert_called_once_with(
-            sample_audio_file, "test_provider", "en"
-        )
+        mock_invalidate.assert_called_once_with(sample_audio_file, "test_provider", "en")
 
     assert not cache.has(sample_audio_file, "test_provider", "en")
 

@@ -98,8 +98,7 @@ class TestDnsCacheThreadSafe:
                 errors.append(e)
 
         threads = [
-            threading.Thread(target=write_entries, args=(tid,))
-            for tid in range(thread_count)
+            threading.Thread(target=write_entries, args=(tid,)) for tid in range(thread_count)
         ]
 
         for t in threads:

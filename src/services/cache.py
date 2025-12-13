@@ -425,9 +425,7 @@ class TranscriptionCache:
         logger.debug(f"Invalidated cache entry: {cache_key[:8]}...")
         return True
 
-    async def invalidate_async(
-        self, audio_file: Path, provider: str, language: str = "en"
-    ) -> bool:
+    async def invalidate_async(self, audio_file: Path, provider: str, language: str = "en") -> bool:
         """Invalidate a specific cache entry asynchronously.
 
         Non-blocking variant of invalidate() that offloads file I/O to a thread.

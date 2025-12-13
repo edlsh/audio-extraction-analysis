@@ -199,9 +199,7 @@ class ParakeetTranscriber(BaseTranscriptionProvider):
 
         audio_file_path = validate_audio_file_or_raise(audio_file_path, provider_name="parakeet")
 
-        preprocess_result = await asyncio.to_thread(
-            self._validate_and_preprocess, audio_file_path
-        )
+        preprocess_result = await asyncio.to_thread(self._validate_and_preprocess, audio_file_path)
         if preprocess_result is None:
             raise ParakeetAudioError("Audio preprocessing failed")
 
