@@ -265,47 +265,12 @@ def _cleanup_artifacts(result: PipelineResultDataclass, failed_stage: str | None
             logger.warning(f"Failed to cleanup {path}: {e}")
 
 
-def _result_to_dict(result: PipelineResultDataclass) -> PipelineResult:
-    """Convert PipelineResultDataclass to legacy PipelineResult TypedDict.
-
-    Maintains backward compatibility with existing consumers.
-    """
-    legacy: PipelineResult = {
-        "success": result.success,
-        "stages_completed": result.stages_completed,
-        "files_created": result.files_created,
-        "errors": result.error_messages,
-        "stage_results": {},
-    }
-
-    if result.audio_path:
-        legacy["audio_path"] = result.audio_path
-    if result.transcript:
-        legacy["transcript"] = result.transcript
-    if result.analysis_files:
-        legacy["analysis_files"] = result.analysis_files
-
-    for name, stage_result in result.stage_results.items():
-        legacy["stage_results"][name] = {
-            "status": stage_result.status,
-            "duration": stage_result.duration,
-        }
-        if stage_result.output:
-            legacy["stage_results"][name]["output"] = stage_result.output
-        if stage_result.files:
-            legacy["stage_results"][name]["files"] = stage_result.files
-        if stage_result.error:
-            legacy["stage_results"][name]["error"] = stage_result.error.message
-
-    return legacy
-
-
 # =============================================================================
 # Main Pipeline Function
 # =============================================================================
 
 
-async def process_pipeline(
+async def _process_pipeline_internal(
     input_path: str | Path,
     output_dir: str | Path,
     quality: AudioQuality = AudioQuality.SPEECH,
@@ -315,33 +280,10 @@ async def process_pipeline(
     console_manager: ConsoleManager | None = None,
     run_id: str | None = None,
     event_sink: EventSink | None = None,
-) -> PipelineResult:
-    """Process audio/video file through extraction → transcription → analysis pipeline.
+) -> PipelineResultDataclass:
+    """Internal pipeline implementation returning PipelineResultDataclass.
 
-    This is a simplified linear pipeline that replaces the complex workflow orchestration
-    system. All steps execute sequentially with proper error handling.
-
-    Args:
-        input_path: Path to input audio or video file
-        output_dir: Directory to save results
-        quality: Audio extraction quality preset
-        language: Language code for transcription (e.g., 'en', 'es')
-        provider: Transcription provider ('deepgram', 'elevenlabs', 'auto')
-        analysis_style: Analysis style ('concise' or 'full')
-        console_manager: Optional console manager for progress display
-        run_id: Optional run identifier for event correlation (auto-generated if not provided)
-        event_sink: Optional event sink for direct event emission (bypasses thread-local)
-
-    Returns:
-        Dictionary containing:
-            - success: bool - Whether pipeline completed successfully
-            - audio_path: str - Path to extracted audio file
-            - transcript: TranscriptionResult - Transcription result object
-            - analysis_files: list - Paths to generated analysis files
-            - stages_completed: list - List of completed stage names
-            - files_created: list - All files created during processing
-            - errors: list - Any errors encountered
-            - stage_results: dict - Detailed timing for each stage
+    This is the canonical implementation. All pipeline entry points call this.
     """
     total_start = time.time()
     input_path = Path(input_path)
@@ -414,7 +356,7 @@ async def process_pipeline(
             cm.print_stage("Audio Extraction", "error")
             result.success = False
             _cleanup_artifacts(result, "extract")
-            return _result_to_dict(result)
+            return result
 
         # Stage 2: Transcription
         try:
@@ -452,7 +394,7 @@ async def process_pipeline(
             logger.exception("Transcription failed")
             result.success = False
             _cleanup_artifacts(result, "transcribe")
-            return _result_to_dict(result)
+            return result
 
         # Stage 3: Analysis
         try:
@@ -493,10 +435,10 @@ async def process_pipeline(
         total_duration = time.time() - total_start
         result.stage_results["total"] = StageResult(status="complete", duration=total_duration)
 
-        cm.print_summary(_result_to_dict(result)["stage_results"])
+        cm.print_summary(result.to_legacy_dict()["stage_results"])
         logger.info(f"Pipeline completed in {total_duration:.2f}s. Results: {output_dir}")
 
-        return _result_to_dict(result)
+        return result
 
     except Exception as e:
         if not result.errors:
@@ -505,13 +447,64 @@ async def process_pipeline(
         cm.print_stage("Pipeline", "error")
         reporter.error(str(e), None)
         _cleanup_artifacts(result, None)
-        return _result_to_dict(result)
+        return result
     finally:
         # Always reset the run_id context
         reset_current_run_id(run_id_token)
 
 
-# Also export the new dataclass version for advanced usage
+async def process_pipeline(
+    input_path: str | Path,
+    output_dir: str | Path,
+    quality: AudioQuality = AudioQuality.SPEECH,
+    language: str = "en",
+    provider: str = "auto",
+    analysis_style: str = "full",
+    console_manager: ConsoleManager | None = None,
+    run_id: str | None = None,
+    event_sink: EventSink | None = None,
+) -> PipelineResult:
+    """Process audio/video file through extraction -> transcription -> analysis pipeline.
+
+    This is the legacy API that returns a TypedDict for backward compatibility.
+    For typed errors and artifact tiering, use process_pipeline_v2().
+
+    Args:
+        input_path: Path to input audio or video file
+        output_dir: Directory to save results
+        quality: Audio extraction quality preset
+        language: Language code for transcription (e.g., 'en', 'es')
+        provider: Transcription provider ('deepgram', 'elevenlabs', 'auto')
+        analysis_style: Analysis style ('concise' or 'full')
+        console_manager: Optional console manager for progress display
+        run_id: Optional run identifier for event correlation (auto-generated if not provided)
+        event_sink: Optional event sink for direct event emission (bypasses thread-local)
+
+    Returns:
+        Dictionary containing:
+            - success: bool - Whether pipeline completed successfully
+            - audio_path: str - Path to extracted audio file
+            - transcript: TranscriptionResult - Transcription result object
+            - analysis_files: list - Paths to generated analysis files
+            - stages_completed: list - List of completed stage names
+            - files_created: list - All files created during processing
+            - errors: list - Any errors encountered
+            - stage_results: dict - Detailed timing for each stage
+    """
+    result = await _process_pipeline_internal(
+        input_path=input_path,
+        output_dir=output_dir,
+        quality=quality,
+        language=language,
+        provider=provider,
+        analysis_style=analysis_style,
+        console_manager=console_manager,
+        run_id=run_id,
+        event_sink=event_sink,
+    )
+    return result.to_legacy_dict()  # type: ignore[return-value]
+
+
 async def process_pipeline_v2(
     input_path: str | Path,
     output_dir: str | Path,
@@ -523,17 +516,16 @@ async def process_pipeline_v2(
     run_id: str | None = None,
     event_sink: EventSink | None = None,
 ) -> PipelineResultDataclass:
-    """Process pipeline returning new PipelineResult dataclass with typed errors.
+    """Process pipeline returning PipelineResult dataclass with typed errors.
 
-    This is the new API that returns PipelineResultDataclass with:
-    - Typed error objects (not just strings)
+    This is the new canonical API that returns PipelineResultDataclass with:
+    - Typed error objects (not just strings) with original_exception preserved
     - Artifact tiering for smart cleanup
     - Exit code suggestions
 
     See process_pipeline() for argument documentation.
     """
-    # Run pipeline with legacy result
-    legacy_result = await process_pipeline(
+    return await _process_pipeline_internal(
         input_path=input_path,
         output_dir=output_dir,
         quality=quality,
@@ -544,18 +536,3 @@ async def process_pipeline_v2(
         run_id=run_id,
         event_sink=event_sink,
     )
-
-    # Convert back to dataclass (this is a bit redundant but maintains backward compat)
-    result = PipelineResultDataclass(
-        success=legacy_result["success"],
-        audio_path=legacy_result.get("audio_path", ""),
-        transcript=legacy_result.get("transcript"),
-        analysis_files=legacy_result.get("analysis_files", []),
-        stages_completed=legacy_result.get("stages_completed", []),
-    )
-
-    # Add error messages as PipelineError objects
-    for err_msg in legacy_result.get("errors", []):
-        result.add_error_message(err_msg)
-
-    return result

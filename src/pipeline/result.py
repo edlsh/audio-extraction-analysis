@@ -344,6 +344,44 @@ class PipelineResult:
             "exit_code": self.exit_code,
         }
 
+    def to_legacy_dict(self) -> dict[str, Any]:
+        """Convert to legacy PipelineResult TypedDict format.
+
+        This method produces the exact format expected by legacy consumers,
+        including the stage_results with error messages (not full PipelineError).
+
+        Returns:
+            Dict matching the legacy PipelineResult TypedDict structure
+        """
+        legacy: dict[str, Any] = {
+            "success": self.success,
+            "stages_completed": self.stages_completed,
+            "files_created": self.files_created,
+            "errors": self.error_messages,
+            "stage_results": {},
+        }
+
+        if self.audio_path:
+            legacy["audio_path"] = self.audio_path
+        if self.transcript:
+            legacy["transcript"] = self.transcript
+        if self.analysis_files:
+            legacy["analysis_files"] = self.analysis_files
+
+        for name, stage_result in self.stage_results.items():
+            legacy["stage_results"][name] = {
+                "status": stage_result.status,
+                "duration": stage_result.duration,
+            }
+            if stage_result.output:
+                legacy["stage_results"][name]["output"] = stage_result.output
+            if stage_result.files:
+                legacy["stage_results"][name]["files"] = stage_result.files
+            if stage_result.error:
+                legacy["stage_results"][name]["error"] = stage_result.error.message
+
+        return legacy
+
 
 __all__ = [
     "ArtifactTier",

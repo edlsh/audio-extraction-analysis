@@ -457,6 +457,12 @@ class AudioExtractionApp(App):
 
 def main() -> None:
     """Main entry point for standalone TUI execution."""
+    from .persistence import inject_api_keys_to_env
+
+    # Inject stored API keys into environment before starting the app
+    # This ensures keys are available when config module reads them
+    inject_api_keys_to_env()
+
     app = AudioExtractionApp()
     app.run()
 

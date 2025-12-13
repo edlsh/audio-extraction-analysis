@@ -375,8 +375,32 @@ class TranscriptionService:
         language: str = "en",
         progress_callback: Callable[[int, int], None] | None = None,
         **kwargs: Any,
-    ) -> TranscriptionResult | None:
-        """Transcribe with progress estimation based on file characteristics."""
+    ) -> TranscriptionResult:
+        """Transcribe with progress estimation based on file characteristics.
+
+        Args:
+            audio_file_path: Path to the audio file to transcribe
+            provider_name: Optional provider name. If None or "auto", auto-selects best provider
+            language: Language code for transcription (default: 'en')
+            progress_callback: Optional callback for progress updates
+
+        Returns:
+            TranscriptionResult with available features
+
+        Raises:
+            ValidationError: If audio file validation fails
+            ProviderSelectionError: If no suitable provider found
+            ProviderNotAvailableError: If provider SDK not installed
+            ProviderAuthenticationError: If API key invalid
+            ProviderRateLimitError: If rate limit exceeded
+            ProviderTimeoutError: If request times out
+            ProviderAPIError: If provider API fails
+            TranscriptionError: If transcription produces no result or fails
+        """
+        import os
+
+        from ..exceptions import ProviderNotAvailableError, ProviderSelectionError
+
         path = validate_audio_file_or_raise(Path(audio_file_path))
 
         # Calculate estimated processing time based on file characteristics
@@ -385,18 +409,24 @@ class TranscriptionService:
 
         # Auto-select provider if not specified or if "auto" is specified
         if not provider_name or provider_name == "auto":
+            test_override = os.getenv("AUDIO_TEST_PROVIDER")
             try:
-                import os
-
-                test_override = os.getenv("AUDIO_TEST_PROVIDER")
                 provider_name = self.factory.auto_select_provider(
                     audio_file_path=path,
                     test_override=test_override,
                 )
                 logger.info(f"Auto-selected provider: {provider_name}")
             except ValueError as e:
-                logger.error(f"Failed to auto-select provider: {e}")
-                return None
+                # In CI/testing, provide clear error
+                if os.getenv("CI") or os.getenv("PYTEST_CURRENT_TEST"):
+                    raise ProviderNotAvailableError(
+                        "No providers configured in test environment",
+                        context={"environment": "test", "ci": True},
+                    ) from e
+                raise ProviderSelectionError(
+                    f"Failed to auto-select provider: {e}",
+                    context={"file_path": str(path)},
+                ) from e
 
         # Estimate transcription time (empirical formula based on provider speed)
         processing_speed = self._get_provider_speed_by_name(provider_name)  # MB per second
@@ -558,7 +588,7 @@ class TranscriptionService:
         language: str = "en",
         progress_callback: Callable[[int, int], None] | None = None,  # Ignored for now
         **_: Any,
-    ) -> TranscriptionResult | None:
+    ) -> TranscriptionResult:
         """Alias to transcribe_async that accepts a progress callback (ignored).
 
         Accepts both Path and string paths and forwards to transcribe_async.

@@ -127,11 +127,12 @@ class StageContext:
         )
         return self
 
-    def complete(self, status: str = "complete") -> float:
+    def complete(self, status: str = "complete", error_message: str | None = None) -> float:
         """Mark stage as complete and return duration.
 
         Args:
-            status: Completion status
+            status: Completion status ("complete", "error", "skipped")
+            error_message: Error message if status is "error"
 
         Returns:
             Duration in seconds
@@ -153,7 +154,7 @@ class StageContext:
             status=end_status,
             duration_seconds=duration,
             output=None,
-            error=None if status != "error" else None,
+            error=error_message if end_status == "error" else None,
         )
 
         # Emit typed event
@@ -163,7 +164,7 @@ class StageContext:
         self.reporter._emit(
             "stage_end",
             self.name,
-            {"duration": duration, "status": status},
+            {"duration": duration, "status": status, "error": error_message},
         )
         return duration
 
@@ -176,25 +177,18 @@ class StageContext:
         Returns:
             Duration in seconds
         """
+        if self._ended:
+            return time.time() - self.start_time
+
+        # Emit error event for logging/telemetry
         self.reporter._emit(
             "error",
             self.name,
             {"message": message, "stage": self.name},
         )
 
-        # Create typed end event with error
-        duration = time.time() - self.start_time
-        if not self._ended:
-            end_event = StageEndEvent(
-                stage=self.name,
-                status="error",
-                duration_seconds=duration,
-                output=None,
-                error=message,
-            )
-            self.reporter._emit_typed_event("stage_end", end_event)
-
-        return self.complete("error")
+        # Mark stage as ended with error (single end event)
+        return self.complete("error", error_message=message)
 
 
 @dataclass

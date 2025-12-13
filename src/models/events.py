@@ -133,32 +133,31 @@ class QueueEventSink:
     """Event sink that pushes events to an asyncio.Queue.
 
     Used by TUI to receive events from pipeline running in background task.
+    Requires an event loop at construction time to ensure thread-safe emission.
     """
 
-    def __init__(self, queue: asyncio.Queue[Event]) -> None:
-        """Initialize with target queue.
+    def __init__(
+        self, queue: asyncio.Queue[Event], loop: asyncio.AbstractEventLoop | None = None
+    ) -> None:
+        """Initialize with target queue and event loop.
 
         Args:
             queue: Asyncio queue to push events into
+            loop: Event loop for thread-safe emission. If None, attempts to get
+                  the running loop; raises RuntimeError if no loop is running.
+
+        Raises:
+            RuntimeError: If no loop is provided and no loop is currently running.
         """
         self.queue = queue
-        self._loop = None
-        try:
+        if loop is not None:
+            self._loop = loop
+        else:
+            # Fail fast if no loop available
             self._loop = asyncio.get_running_loop()
-        except RuntimeError:
-            pass
 
     def emit(self, event: Event) -> None:
         """Emit event to queue (thread-safe)."""
-        if self._loop is None:
-            try:
-                self._loop = asyncio.get_running_loop()
-            except RuntimeError:
-                # No event loop; create one in a thread if needed
-                get_logger(__name__).warning("QueueEventSink: No event loop found, skipping event")
-                return
-
-        # Thread-safe enqueue
         self._loop.call_soon_threadsafe(self.queue.put_nowait, event)
 
     def close(self) -> None:

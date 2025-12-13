@@ -245,11 +245,18 @@ class BaseTranscriptionProvider(ABC, CircuitBreakerMixin):
         """Validate that the provider is properly configured.
 
         Default implementation checks API key for cloud providers.
-        Local providers or those with custom validation should override.
+        Local providers MUST override this method to check dependencies.
+
+        Raises:
+            NotImplementedError: If this is a local provider that hasn't overridden validation
         """
         if self.META:
             if self.META.is_local:
-                return True  # Local providers override with dependency checks
+                # Local providers must implement their own validation to check dependencies
+                raise NotImplementedError(
+                    f"Local provider {self.META.name} must implement validate_configuration() "
+                    "to check for required dependencies (e.g., ffmpeg, model files)"
+                )
             if self.META.api_key_env:
                 key = self._resolve_api_key()
                 return bool(key and len(key) >= self.META.api_key_min_length)
