@@ -248,25 +248,36 @@ Event Stream → Queue → Event Consumer → State Reducer → UI Update
 ### Component Structure
 ```
 src/ui/tui/
-├── app.py           # Main Textual application
-├── state.py         # Application state management
-├── events.py        # Event consumer and batching
-├── persistence.py   # Configuration persistence
+├── app.py              # Main Textual application
+├── state.py            # Application state management (Redux-like)
+├── events.py           # Event consumer and batching
+├── persistence.py      # Configuration persistence
+├── themes.py           # Theme definitions and configuration
 ├── views/
-│   ├── home.py     # File selection screen
-│   ├── config.py   # Configuration screen
-│   └── run.py      # Processing screen
+│   ├── __init__.py
+│   ├── home.py         # File selection screen
+│   ├── config.py       # Configuration screen
+│   ├── run.py          # Processing screen
+│   ├── help.py         # Help overlay
+│   ├── settings.py     # Settings panel
+│   ├── theme_selector.py   # Theme selection modal
+│   └── quick_run_modal.py  # Quick run dialog
 ├── widgets/
-│   ├── file_tree.py    # File browser widget
-│   ├── progress.py     # Progress card widget
-│   └── log_panel.py    # Log display widget
-├── services/
-│   ├── run_service.py    # Pipeline execution
-│   ├── health_service.py # Provider health checks
-│   └── os_open.py        # Cross-platform file opening
-└── styles/
-    └── theme.css    # CSS styling
-
+│   ├── __init__.py
+│   ├── card.py             # Base card widget
+│   ├── filtered_tree.py    # File browser with filtering
+│   ├── progress_card.py    # Individual progress card
+│   ├── progress_board.py   # Progress cards container
+│   ├── log_panel.py        # Scrollable log display
+│   ├── health_panel.py     # Provider health status
+│   ├── pipeline_timeline.py    # Pipeline stage timeline
+│   ├── focus_card.py       # Focused task card
+│   └── completed_summary.py    # Completion summary
+└── services/
+    ├── __init__.py
+    ├── run_service.py      # Pipeline execution
+    ├── health_service.py   # Provider health checks
+    └── os_open.py          # Cross-platform file opening
 ```
 
 ### State Management
@@ -487,5 +498,5 @@ For TUI-specific issues:
 
 ---
 
-*Last Updated: November 2024*
-*TUI Version: 1.0.0*
+*Last Updated: December 2025*
+*TUI Version: 2.0.0*

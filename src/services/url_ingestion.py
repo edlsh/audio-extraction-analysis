@@ -1,10 +1,15 @@
 from __future__ import annotations
 
 import ipaddress
-from dataclasses import dataclass
+import socket
+import threading
+import time
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import ParseResult, urlparse
+
+from cachetools import TTLCache
 
 from yt_dlp import YoutubeDL
 
@@ -28,6 +33,23 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
+# DNS resolution cache TTL in seconds (short to minimize rebinding window)
+_DNS_CACHE_TTL_SECONDS = 30
+
+
+@dataclass
+class ResolvedHost:
+    """Cached DNS resolution result with TTL."""
+
+    hostname: str
+    ips: set[str]
+    resolved_at: float = field(default_factory=time.time)
+
+    def is_expired(self) -> bool:
+        """Check if the cached resolution has expired."""
+        return (time.time() - self.resolved_at) > _DNS_CACHE_TTL_SECONDS
+
+
 @dataclass
 class UrlIngestionResult:
     audio_path: Path
@@ -39,7 +61,15 @@ class UrlIngestionService:
 
     This uses yt-dlp under the hood and falls back to AudioExtractor when the
     downloaded file is video-only.
+
+    Security: Implements DNS pinning to mitigate TOCTOU race conditions where
+    an attacker could use DNS rebinding to bypass SSRF protections.
+    Validation-only; does not enforce at runtime via --source-address.
     """
+
+    # Class-level DNS cache to persist across requests (bounded with TTL)
+    _dns_cache: TTLCache[str, ResolvedHost] = TTLCache(maxsize=1000, ttl=300)
+    _dns_cache_lock = threading.Lock()
 
     def __init__(
         self,
@@ -54,6 +84,8 @@ class UrlIngestionService:
         self._keep_video = keep_video
         self._extractor = AudioExtractor()
         self._event_sink = event_sink
+        # _pinned_ips reserved for future enforcement
+        self._pinned_ips: set[str] | None = None
 
     def _emit_event(
         self,
@@ -311,6 +343,7 @@ class UrlIngestionService:
 
     @staticmethod
     def _validate_url(parsed: ParseResult, raw_url: str) -> None:
+        """Validate URL scheme and hostname (legacy static method for compatibility)."""
         allowed_schemes = {"http", "https"}
 
         if parsed.scheme.lower() not in allowed_schemes:
@@ -334,8 +367,18 @@ class UrlIngestionService:
         # Check if hostname is an IP literal
         UrlIngestionService._validate_ip_address(hostname, raw_url)
 
+        # Check cache first
+        cached_ips = UrlIngestionService._get_cached_resolution(hostname)
+        if cached_ips:
+            logger.debug("Using cached DNS resolution for %s (%d IPs)", hostname, len(cached_ips))
+            return
+
         # DNS rebinding protection: resolve hostname and validate all resolved IPs
-        UrlIngestionService._validate_resolved_ips(hostname, raw_url)
+        validated_ips = UrlIngestionService._validate_resolved_ips(hostname, raw_url)
+
+        # Cache the resolution
+        if validated_ips:
+            UrlIngestionService._cache_resolution(hostname, validated_ips)
 
     @staticmethod
     def _validate_ip_address(hostname: str, raw_url: str) -> None:
@@ -351,15 +394,19 @@ class UrlIngestionService:
         UrlIngestionService._check_ip_is_safe(host_ip, raw_url, "ip_literal")
 
     @staticmethod
-    def _validate_resolved_ips(hostname: str, raw_url: str) -> None:
-        """Resolve hostname and validate all resolved IPs against SSRF."""
-        import ipaddress
-        import socket
+    def _validate_resolved_ips(hostname: str, raw_url: str) -> set[str]:
+        """Resolve hostname and validate all resolved IPs against SSRF.
+
+        Returns set of validated IP addresses for DNS pinning.
+        """
+        validated_ips: set[str] = set()
 
         # Skip if hostname is already an IP literal
         try:
-            ipaddress.ip_address(hostname)
-            return  # Already validated in _validate_ip_address
+            ip = ipaddress.ip_address(hostname)
+            # Already validated in _validate_ip_address, but add to pinned set
+            validated_ips.add(str(ip))
+            return validated_ips
         except ValueError:
             pass
 
@@ -367,17 +414,43 @@ class UrlIngestionService:
             # Resolve both IPv4 and IPv6 addresses
             addr_info = socket.getaddrinfo(hostname, None, socket.AF_UNSPEC, socket.SOCK_STREAM)
         except socket.gaierror:
-            # DNS resolution failed - allow yt-dlp to handle this later
-            logger.debug("DNS resolution failed for %s, deferring to yt-dlp", hostname)
-            return
+            raise UnsupportedUrlError(
+                "DNS resolution failed",
+                context={"url": raw_url, "reason": "dns_resolution_failed", "hostname": hostname},
+            )
 
         for _family, _type, _proto, _canonname, sockaddr in addr_info:
             ip_str = sockaddr[0]
             try:
                 resolved_ip = ipaddress.ip_address(ip_str)
                 UrlIngestionService._check_ip_is_safe(resolved_ip, raw_url, "dns_resolved")
+                validated_ips.add(ip_str)
             except ValueError:
                 continue
+
+        if validated_ips:
+            logger.debug(
+                "DNS pinning: hostname %s resolved to %d validated IPs",
+                hostname,
+                len(validated_ips),
+            )
+
+        return validated_ips
+
+    @classmethod
+    def _get_cached_resolution(cls, hostname: str) -> set[str] | None:
+        """Get cached DNS resolution if not expired."""
+        with cls._dns_cache_lock:
+            cached = cls._dns_cache.get(hostname)
+            if cached and not cached.is_expired():
+                return cached.ips
+            return None
+
+    @classmethod
+    def _cache_resolution(cls, hostname: str, ips: set[str]) -> None:
+        """Cache validated DNS resolution."""
+        with cls._dns_cache_lock:
+            cls._dns_cache[hostname] = ResolvedHost(hostname=hostname, ips=ips)
 
     @staticmethod
     def _check_ip_is_safe(

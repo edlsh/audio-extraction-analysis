@@ -293,4 +293,13 @@ def _resolve_local_file(args: argparse.Namespace) -> Path | None:
         logger.error(f"Video file not found: {input_path}")
         return None
 
+    # Validate path security to prevent path traversal attacks
+    from ...utils.sanitization import PathSanitizer
+
+    try:
+        PathSanitizer.validate_path_security(str(input_path))
+    except ValueError as e:
+        logger.error(f"Invalid file path: {e}")
+        return None
+
     return input_path

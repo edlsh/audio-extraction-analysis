@@ -326,8 +326,9 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
                 response = self._submit_transcription_job_streaming(client, audio_file, language)
         else:
             # Small file: load into memory for simpler handling
+            # Use asyncio.to_thread to avoid blocking the event loop
             logger.info("Sending to Deepgram Nova 3...")
-            audio_bytes = audio_file_path.read_bytes()
+            audio_bytes = await asyncio.to_thread(audio_file_path.read_bytes)
             response = self._submit_transcription_job(client, audio_bytes, language)
 
         logger.info("Transcription completed successfully")

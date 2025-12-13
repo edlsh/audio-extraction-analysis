@@ -11,7 +11,9 @@ import json
 import re
 import shlex
 import subprocess
-from dataclasses import dataclass
+import threading
+import time
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -28,6 +30,99 @@ from ..utils.constants import MediaLimits, Timeouts
 from ..utils.file_validation import safe_validate_media_file, validate_media_file_or_raise
 
 logger = get_logger(__name__)
+
+
+# =============================================================================
+# Probe Cache
+# =============================================================================
+
+
+# Cache TTL - invalidate after this many seconds
+_PROBE_CACHE_TTL = 60.0
+
+
+@dataclass
+class _CachedProbe:
+    """Cached probe result with metadata for invalidation."""
+
+    result: MediaProbeResult
+    mtime: float
+    cached_at: float = field(default_factory=time.time)
+
+    def is_valid(self, current_mtime: float) -> bool:
+        """Check if cache entry is still valid."""
+        # Invalidate if file was modified or cache expired
+        if current_mtime != self.mtime:
+            return False
+        if (time.time() - self.cached_at) > _PROBE_CACHE_TTL:
+            return False
+        return True
+
+
+class _ProbeCache:
+    """Thread-safe cache for FFprobe results.
+
+    Caches results by file path and modification time to avoid
+    redundant subprocess calls within a pipeline run.
+    """
+
+    def __init__(self) -> None:
+        self._cache: dict[str, _CachedProbe] = {}
+        self._lock = threading.Lock()
+
+    def get(self, path: Path) -> MediaProbeResult | None:
+        """Get cached probe result if still valid."""
+        key = str(path.resolve())
+        with self._lock:
+            entry = self._cache.get(key)
+            if entry is None:
+                return None
+
+            try:
+                current_mtime = path.stat().st_mtime
+            except OSError:
+                # File might have been deleted
+                del self._cache[key]
+                return None
+
+            if entry.is_valid(current_mtime):
+                logger.debug(f"Probe cache hit for {path.name}")
+                return entry.result
+
+            # Cache invalid - remove it
+            del self._cache[key]
+            return None
+
+    def put(self, path: Path, result: MediaProbeResult) -> None:
+        """Store probe result in cache."""
+        key = str(path.resolve())
+        try:
+            mtime = path.stat().st_mtime
+        except OSError:
+            # Can't cache without mtime
+            return
+
+        with self._lock:
+            self._cache[key] = _CachedProbe(result=result, mtime=mtime)
+            logger.debug(f"Cached probe result for {path.name}")
+
+    def clear(self) -> None:
+        """Clear all cached entries."""
+        with self._lock:
+            self._cache.clear()
+
+
+# Module-level probe cache instance
+_probe_cache = _ProbeCache()
+
+
+def clear_probe_cache() -> None:
+    """Clear the probe cache.
+
+    Call this at the start of a new pipeline run if you want to
+    ensure fresh probe results.
+    """
+    _probe_cache.clear()
 
 
 # =============================================================================
@@ -59,6 +154,9 @@ def probe_media_sync(path: Path, timeout: float = 30.0) -> MediaProbeResult:
     Single ffprobe call to get all needed metadata. Use this instead of
     calling ffprobe multiple times for duration and info separately.
 
+    Results are cached by file path and modification time to avoid
+    redundant subprocess calls within a pipeline run.
+
     Args:
         path: Path to the media file
         timeout: Timeout in seconds for ffprobe subprocess
@@ -72,6 +170,11 @@ def probe_media_sync(path: Path, timeout: float = 30.0) -> MediaProbeResult:
     """
     if not path.exists():
         raise FileNotFoundError(f"Media file not found: {path}")
+
+    # Check cache first
+    cached = _probe_cache.get(path)
+    if cached is not None:
+        return cached
 
     file_size = path.stat().st_size
     duration = None
@@ -110,11 +213,16 @@ def probe_media_sync(path: Path, timeout: float = 30.0) -> MediaProbeResult:
     except subprocess.TimeoutExpired:
         logger.warning(f"ffprobe timed out after {timeout}s - duration may be unavailable")
 
-    return MediaProbeResult(
+    probe_result = MediaProbeResult(
         duration=duration,
         size_bytes=file_size,
         size_mb=file_size / (1024 * 1024),
     )
+
+    # Cache the result
+    _probe_cache.put(path, probe_result)
+
+    return probe_result
 
 
 async def probe_media_async(path: Path, timeout: float = 30.0) -> MediaProbeResult:
@@ -122,6 +230,9 @@ async def probe_media_async(path: Path, timeout: float = 30.0) -> MediaProbeResu
 
     Single ffprobe call to get all needed metadata. Use this instead of
     calling ffprobe multiple times for duration and info separately.
+
+    Results are cached by file path and modification time to avoid
+    redundant subprocess calls within a pipeline run.
 
     Args:
         path: Path to the media file
@@ -136,6 +247,11 @@ async def probe_media_async(path: Path, timeout: float = 30.0) -> MediaProbeResu
     """
     if not path.exists():
         raise FileNotFoundError(f"Media file not found: {path}")
+
+    # Check cache first
+    cached = _probe_cache.get(path)
+    if cached is not None:
+        return cached
 
     file_size = path.stat().st_size
     duration = None
@@ -182,11 +298,16 @@ async def probe_media_async(path: Path, timeout: float = 30.0) -> MediaProbeResu
     except FileNotFoundError:
         logger.warning("ffprobe not found in PATH - duration extraction will be unavailable")
 
-    return MediaProbeResult(
+    probe_result = MediaProbeResult(
         duration=duration,
         size_bytes=file_size,
         size_mb=file_size / (1024 * 1024),
     )
+
+    # Cache the result
+    _probe_cache.put(path, probe_result)
+
+    return probe_result
 
 
 # =============================================================================

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import os
@@ -138,8 +139,12 @@ class TranscriptionCache:
                 context={"index_path": str(self._index_path)},
             ) from e
 
+    async def _save_index_async(self) -> None:
+        """Persist cache index to disk asynchronously."""
+        await asyncio.to_thread(self._save_index)
+
     def _generate_file_hash(self, file_path: Path) -> str:
-        """Generate SHA-256 hash of file content.
+        """Generate SHA-256 hash of file content (sync version).
 
         Args:
             file_path: Path to the file to hash
@@ -153,6 +158,19 @@ class TranscriptionCache:
             for chunk in iter(lambda: f.read(65536), b""):
                 hasher.update(chunk)
         return hasher.hexdigest()
+
+    async def _generate_file_hash_async(self, file_path: Path) -> str:
+        """Generate SHA-256 hash of file content asynchronously.
+
+        Uses asyncio.to_thread to avoid blocking the event loop.
+
+        Args:
+            file_path: Path to the file to hash
+
+        Returns:
+            Hex digest of the file hash
+        """
+        return await asyncio.to_thread(self._generate_file_hash, file_path)
 
     def _generate_cache_key(self, file_hash: str, provider: str, language: str) -> str:
         """Generate unique cache key from components.
@@ -407,6 +425,23 @@ class TranscriptionCache:
         logger.debug(f"Invalidated cache entry: {cache_key[:8]}...")
         return True
 
+    async def invalidate_async(
+        self, audio_file: Path, provider: str, language: str = "en"
+    ) -> bool:
+        """Invalidate a specific cache entry asynchronously.
+
+        Non-blocking variant of invalidate() that offloads file I/O to a thread.
+
+        Args:
+            audio_file: Path to the audio file
+            provider: Transcription provider name
+            language: Language code (default: 'en')
+
+        Returns:
+            True if entry was found and removed, False otherwise
+        """
+        return await asyncio.to_thread(self.invalidate, audio_file, provider, language)
+
     def clear(self) -> int:
         """Clear all cached entries.
 
@@ -486,3 +521,144 @@ class TranscriptionCache:
 
         cache_file = self._get_cache_file_path(cache_key)
         return cache_file.exists()
+
+    async def get_async(
+        self, audio_file: Path, provider: str, language: str = "en"
+    ) -> TranscriptionResult | None:
+        """Retrieve cached transcription result asynchronously.
+
+        Non-blocking variant of get() that offloads file hashing to a thread.
+
+        Args:
+            audio_file: Path to the audio file
+            provider: Transcription provider name
+            language: Language code (default: 'en')
+
+        Returns:
+            Cached TranscriptionResult or None if not found/expired
+        """
+        from ..models.transcription import TranscriptionResult
+
+        try:
+            file_hash = await self._generate_file_hash_async(audio_file)
+        except (OSError, PermissionError) as e:
+            logger.warning(f"Cannot hash file for cache lookup: {e}")
+            return None
+
+        cache_key = self._generate_cache_key(file_hash, provider, language)
+
+        if cache_key not in self._index:
+            logger.debug(f"Cache miss: {cache_key[:8]}...")
+            return None
+
+        entry = self._index[cache_key]
+
+        if entry.is_expired():
+            logger.debug(f"Cache entry expired: {cache_key[:8]}...")
+            self._cleanup_expired()
+            return None
+
+        if entry.file_hash != file_hash:
+            logger.debug(f"File hash mismatch, invalidating cache: {cache_key[:8]}...")
+            await self.invalidate_async(audio_file, provider, language)
+            return None
+
+        cache_file = self._get_cache_file_path(cache_key)
+        if not cache_file.exists():
+            logger.warning(f"Cache file missing: {cache_file}")
+            self._index.pop(cache_key, None)
+            if cache_key in self._access_order:
+                self._access_order.remove(cache_key)
+            await self._save_index_async()
+            return None
+
+        try:
+            data = await asyncio.to_thread(self._read_cache_file, cache_file)
+            result = TranscriptionResult.from_dict(data)
+            self._update_access_order(cache_key)
+            logger.info(f"Cache hit: {cache_key[:8]}... (provider={provider})")
+            return result
+        except json.JSONDecodeError as e:
+            raise CacheCorruptionError(
+                f"Cached data is corrupted: {e}",
+                context={"cache_key": cache_key, "file": str(cache_file)},
+            ) from e
+        except (OSError, PermissionError) as e:
+            raise CacheReadError(
+                f"Failed to read cache file: {e}",
+                context={"cache_key": cache_key, "file": str(cache_file)},
+            ) from e
+        except (KeyError, TypeError, ValueError) as e:
+            raise CacheCorruptionError(
+                f"Cached data format invalid: {e}",
+                context={"cache_key": cache_key, "file": str(cache_file)},
+            ) from e
+
+    def _read_cache_file(self, cache_file: Path) -> dict:
+        """Read and parse cache file (sync helper for async variant)."""
+        with open(cache_file, encoding="utf-8") as f:
+            return json.load(f)
+
+    async def put_async(
+        self,
+        audio_file: Path,
+        provider: str,
+        language: str,
+        result: TranscriptionResult,
+    ) -> str:
+        """Store transcription result in cache asynchronously.
+
+        Non-blocking variant of put() that offloads file hashing and I/O to threads.
+
+        Args:
+            audio_file: Path to the audio file
+            provider: Transcription provider name
+            language: Language code
+            result: TranscriptionResult to cache
+
+        Returns:
+            Cache key for the stored entry
+        """
+        try:
+            file_hash = await self._generate_file_hash_async(audio_file)
+        except (OSError, PermissionError) as e:
+            raise CacheWriteError(
+                f"Cannot hash file for caching: {e}",
+                context={"file": str(audio_file)},
+            ) from e
+
+        cache_key = self._generate_cache_key(file_hash, provider, language)
+        cache_file = self._get_cache_file_path(cache_key)
+        now = time.time()
+
+        entry = CacheEntry(
+            key=cache_key,
+            created_at=now,
+            expires_at=now + self._ttl,
+            file_path=audio_file,
+            file_hash=file_hash,
+            provider=provider,
+            language=language,
+        )
+
+        self._evict_if_needed()
+
+        try:
+            from src.utils.secure_file import secure_write_json
+
+            data = result.to_dict()
+            await asyncio.to_thread(secure_write_json, cache_file, data)
+        except (OSError, PermissionError) as e:
+            raise CacheWriteError(
+                f"Failed to write cache data: {e}",
+                context={"cache_key": cache_key, "file": str(cache_file)},
+            ) from e
+
+        self._index[cache_key] = entry
+        self._update_access_order(cache_key)
+        await self._save_index_async()
+
+        logger.info(
+            f"Cached transcription: {cache_key[:8]}... (provider={provider}, ttl={self._ttl}s)"
+        )
+        return cache_key
