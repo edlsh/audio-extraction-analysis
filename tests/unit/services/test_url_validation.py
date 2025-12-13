@@ -196,12 +196,13 @@ class TestDnsResolutionValidation:
         UrlIngestionService._validate_resolved_ips("8.8.8.8", "http://8.8.8.8/")
 
     def test_validate_resolved_ips_handles_dns_failure(self) -> None:
-        """DNS resolution failure should be handled gracefully."""
-        # Non-existent domain should not raise, just log and defer
-        UrlIngestionService._validate_resolved_ips(
-            "this-domain-definitely-does-not-exist-12345.invalid",
-            "http://this-domain-definitely-does-not-exist-12345.invalid/",
-        )
+        """DNS resolution failure should raise UnsupportedUrlError for SSRF protection."""
+        with pytest.raises(UnsupportedUrlError) as exc_info:
+            UrlIngestionService._validate_resolved_ips(
+                "this-domain-definitely-does-not-exist-12345.invalid",
+                "http://this-domain-definitely-does-not-exist-12345.invalid/",
+            )
+        assert "DNS resolution failed" in str(exc_info.value)
 
 
 class TestPlaylistRejection:

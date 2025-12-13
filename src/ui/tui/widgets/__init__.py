@@ -40,59 +40,62 @@ def _placeholder(name: str) -> type:
     return _Widget
 
 
+# Placeholders for optional Textual dependencies - assigned dynamically below
+Card: Any
+HeroCard: Any
+InfoCard: Any
+CompletedSummary: Any
+FilteredDirectoryTree: Any
+FocusCard: Any
+HealthPanel: Any
+LogPanel: Any
+PipelineTimeline: Any
+ProgressBoard: Any
+ProgressCard: Any
+
 try:  # pragma: no cover
     from .card import Card, HeroCard, InfoCard
 except ImportError:
-    # type: ignore[misc] - Placeholder for optional dependency
-    Card = _placeholder("Card")  # type: ignore[misc]
-    HeroCard = _placeholder("HeroCard")  # type: ignore[misc]
-    InfoCard = _placeholder("InfoCard")  # type: ignore[misc]
+    Card = _placeholder("Card")
+    HeroCard = _placeholder("HeroCard")
+    InfoCard = _placeholder("InfoCard")
 
 try:  # pragma: no cover
     from .completed_summary import CompletedSummary
 except ImportError:
-    # type: ignore[misc] - Placeholder for optional dependency
-    CompletedSummary = _placeholder("CompletedSummary")  # type: ignore[misc]
+    CompletedSummary = _placeholder("CompletedSummary")
 
 try:  # pragma: no cover - covered via higher-level tests
     from .filtered_tree import FilteredDirectoryTree
-except ImportError:  # Textual or related deps not installed
-    # type: ignore[misc] - Placeholder doesn't match full widget interface, but that's intentional
-    # for graceful degradation when Textual is not available
-    FilteredDirectoryTree = _placeholder("FilteredDirectoryTree")  # type: ignore[misc]
+except ImportError:
+    FilteredDirectoryTree = _placeholder("FilteredDirectoryTree")
 
 try:  # pragma: no cover
     from .focus_card import FocusCard
 except ImportError:
-    # type: ignore[misc] - Placeholder for optional dependency
-    FocusCard = _placeholder("FocusCard")  # type: ignore[misc]
+    FocusCard = _placeholder("FocusCard")
 
 try:  # pragma: no cover
     from .health_panel import HealthPanel
 except ImportError:
-    # type: ignore[misc] - Same pattern as above: placeholder for optional dependency
-    HealthPanel = _placeholder("HealthPanel")  # type: ignore[misc]
+    HealthPanel = _placeholder("HealthPanel")
 
 try:  # pragma: no cover
     from .log_panel import LogPanel
 except ImportError:
-    # type: ignore[misc] - Same pattern as above: placeholder for optional dependency
-    LogPanel = _placeholder("LogPanel")  # type: ignore[misc]
+    LogPanel = _placeholder("LogPanel")
 
 try:  # pragma: no cover
     from .pipeline_timeline import PipelineTimeline
 except ImportError:
-    # type: ignore[misc] - Placeholder for optional dependency
-    PipelineTimeline = _placeholder("PipelineTimeline")  # type: ignore[misc]
+    PipelineTimeline = _placeholder("PipelineTimeline")
 
 try:  # pragma: no cover
     from .progress_board import ProgressBoard
 except ImportError:
-    # type: ignore[misc] - Same pattern as above: placeholder for optional dependency
-    ProgressBoard = _placeholder("ProgressBoard")  # type: ignore[misc]
+    ProgressBoard = _placeholder("ProgressBoard")
 
 try:  # pragma: no cover
     from .progress_card import ProgressCard
 except ImportError:
-    # type: ignore[misc] - Same pattern as above: placeholder for optional dependency
-    ProgressCard = _placeholder("ProgressCard")  # type: ignore[misc]
+    ProgressCard = _placeholder("ProgressCard")
