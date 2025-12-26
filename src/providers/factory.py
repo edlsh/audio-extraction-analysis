@@ -41,7 +41,9 @@ _providers: dict[str, str | type[BaseTranscriptionProvider]] = {
 }
 
 
-def register_provider(name: str, provider_class_or_path: type[BaseTranscriptionProvider] | str) -> None:
+def register_provider(
+    name: str, provider_class_or_path: type[BaseTranscriptionProvider] | str
+) -> None:
     """Register a provider class or import path.
 
     Args:
