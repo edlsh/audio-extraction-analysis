@@ -56,13 +56,13 @@ async def test_transcribe_async_enforces_timeout() -> None:
 def test_transcribe_uses_shared_executor_in_running_loop(monkeypatch) -> None:
     """Test that sync transcribe uses shared executor when in async context."""
     provider = _ImmediateProvider()
-    
+
     # The async_bridge module now handles executor logic
     import src.utils.async_bridge as async_bridge
-    
+
     # Simulate being inside an event loop
     monkeypatch.setattr(async_bridge, "_has_running_loop", lambda: True)
-    
+
     executor = async_bridge._get_executor()
     with patch.object(
         executor,

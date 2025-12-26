@@ -123,9 +123,7 @@ def create_test_audio_file(
     num_samples = int(duration_seconds * sample_rate)
     num_bytes = num_samples * channels * 2  # 16-bit samples
 
-    with tempfile.NamedTemporaryFile(
-        suffix=f".{format}", delete=False, prefix="test_audio_"
-    ) as f:
+    with tempfile.NamedTemporaryFile(suffix=f".{format}", delete=False, prefix="test_audio_") as f:
         with wave.open(f.name, "wb") as wav:
             wav.setnchannels(channels)
             wav.setsampwidth(2)  # 16-bit

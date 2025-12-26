@@ -197,7 +197,7 @@ class TestProvidersPackage:
     def test_import_does_not_raise(self):
         """Test that importing the module does not raise any exceptions."""
         try:
-            import src.providers  # noqa: F401
+            import src.providers
         except Exception as e:
             pytest.fail(f"Importing src.providers should not raise exceptions: {e}")
 

@@ -164,7 +164,6 @@ class ParakeetModelCache:
                 raise RuntimeError("NeMo not available")
             model = nemo_asr.models.ASRModel.from_pretrained(model_name)
             if TORCH_AVAILABLE and self._gpu_manager.device != "cpu":
-
                 model = model.to(self._gpu_manager.device)
             model.eval()
             return model

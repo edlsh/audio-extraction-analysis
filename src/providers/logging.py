@@ -118,15 +118,17 @@ class ProviderLogger:
             error: Exception that occurred
             **context: Additional context
         """
-        self._logger.error({
-            "api_call": True,
-            "provider": self.provider_name,
-            "method": method,
-            "status": "failed",
-            "error": str(error),
-            "error_type": type(error).__name__,
-            **context,
-        })
+        self._logger.error(
+            {
+                "api_call": True,
+                "provider": self.provider_name,
+                "method": method,
+                "status": "failed",
+                "error": str(error),
+                "error_type": type(error).__name__,
+                **context,
+            }
+        )
 
 
 def get_provider_logger(provider_name: str) -> ProviderLogger:

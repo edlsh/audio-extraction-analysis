@@ -129,12 +129,14 @@ def log_performance(
         duration_seconds: Duration in seconds
         **context: Additional context
     """
-    logger.info({
-        "operation": operation,
-        "duration_seconds": duration_seconds,
-        "performance": True,
-        **context,
-    })
+    logger.info(
+        {
+            "operation": operation,
+            "duration_seconds": duration_seconds,
+            "performance": True,
+            **context,
+        }
+    )
 
 
 def log_api_call(
@@ -153,13 +155,15 @@ def log_api_call(
         status: Call status (e.g., "started", "success", "failed")
         **context: Additional context
     """
-    logger.debug({
-        "api_call": True,
-        "provider": provider,
-        "method": method,
-        "status": status,
-        **context,
-    })
+    logger.debug(
+        {
+            "api_call": True,
+            "provider": provider,
+            "method": method,
+            "status": status,
+            **context,
+        }
+    )
 
 
 __all__ = [

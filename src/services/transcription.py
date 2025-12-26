@@ -128,7 +128,9 @@ class TranscriptionService:
         """Apply config timeouts to provider instances when supported."""
         if hasattr(provider, "update_transcription_timeout"):
             try:
-                provider.update_transcription_timeout(float(self._config.transcription_timeout_seconds))
+                provider.update_transcription_timeout(
+                    float(self._config.transcription_timeout_seconds)
+                )
             except Exception as exc:  # pragma: no cover - defensive
                 logger.debug("Failed to update provider timeout: %s", exc)
 

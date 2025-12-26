@@ -20,6 +20,7 @@ class TestProviderMetaBasedConfiguration:
     def clear_provider_registry(self):
         """Clear provider registry before each test and restore after."""
         import src.providers.factory as factory_module
+
         original_providers = factory_module._providers.copy()
         yield
         factory_module._providers.clear()

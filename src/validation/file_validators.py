@@ -76,9 +76,7 @@ def validate_audio_file(
         ) from e
 
 
-def validate_audio_file_or_raise(
-    file_path: Path, provider_name: str = "generic"
-) -> Path:
+def validate_audio_file_or_raise(file_path: Path, provider_name: str = "generic") -> Path:
     """Validate an audio file path and raise on failure.
 
     This function centralizes the validation pattern that was duplicated

@@ -181,14 +181,16 @@ def sanitize_url(url: str, *, redact_query: bool = True, remove_fragment: bool =
                 new_query = REDACTED
 
         # Reconstruct the URL
-        return urlunparse((
-            parsed.scheme,
-            parsed.netloc,
-            parsed.path,
-            parsed.params,  # URL params (rarely used, between path and query)
-            new_query,
-            fragment,
-        ))
+        return urlunparse(
+            (
+                parsed.scheme,
+                parsed.netloc,
+                parsed.path,
+                parsed.params,  # URL params (rarely used, between path and query)
+                new_query,
+                fragment,
+            )
+        )
     except (ValueError, TypeError):
         return "[INVALID_URL]"
 
@@ -215,14 +217,16 @@ def sanitize_url_for_display(url: str) -> str:
     try:
         parsed = urlparse(url)
         # Return just scheme://host/path
-        return urlunparse((
-            parsed.scheme,
-            parsed.netloc,
-            parsed.path,
-            "",  # no params
-            "",  # no query
-            "",  # no fragment
-        ))
+        return urlunparse(
+            (
+                parsed.scheme,
+                parsed.netloc,
+                parsed.path,
+                "",  # no params
+                "",  # no query
+                "",  # no fragment
+            )
+        )
     except Exception:
         return "[INVALID_URL]"
 

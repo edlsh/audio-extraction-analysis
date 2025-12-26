@@ -57,7 +57,9 @@ class ElevenLabsAPIClient(BaseAPIClient):
         effective_timeout = timeout if timeout is not None else self._default_timeout
 
         async def _transcribe() -> dict[str, Any]:
-            return await self._transcribe_with_client(client, audio_file, options, effective_timeout)
+            return await self._transcribe_with_client(
+                client, audio_file, options, effective_timeout
+            )
 
         return await self._execute_with_retry(_transcribe)
 

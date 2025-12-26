@@ -96,10 +96,12 @@ def log_json_message(msg_type: str, message: str) -> None:
     from datetime import datetime
 
     print(
-        json.dumps({
-            "timestamp": datetime.now().isoformat(),
-            "type": msg_type,
-            "message": message,
-        }),
+        json.dumps(
+            {
+                "timestamp": datetime.now().isoformat(),
+                "type": msg_type,
+                "message": message,
+            }
+        ),
         file=sys.stderr,
     )

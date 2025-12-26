@@ -169,9 +169,7 @@ def get_test_audio_fixture(name: str) -> dict[str, Any]:
         ValueError: If fixture name not found
     """
     if name not in TEST_AUDIO_FIXTURES:
-        raise ValueError(
-            f"Unknown fixture '{name}'. Available: {list(TEST_AUDIO_FIXTURES.keys())}"
-        )
+        raise ValueError(f"Unknown fixture '{name}'. Available: {list(TEST_AUDIO_FIXTURES.keys())}")
     return TEST_AUDIO_FIXTURES[name]
 
 
