@@ -15,10 +15,9 @@ from typing import TYPE_CHECKING
 
 from textual.app import ComposeResult
 from textual.containers import Vertical
+from textual.css.query import NoMatches
 from textual.reactive import reactive
 from textual.widgets import Digits, Label, LoadingIndicator, Sparkline, Static
-
-from ..themes import ANIM_EASING, ANIM_FAST, ANIM_MED
 
 if TYPE_CHECKING:
     from ..state import AppState
@@ -176,7 +175,7 @@ class ProgressCard(Static):
         try:
             digits = self.query_one(f"#digits-{self.stage_id}", Digits)
             digits.update(f"{percentage:.0f}%")
-        except Exception:
+        except NoMatches:
             pass
 
     def watch_message(self, message: str) -> None:
@@ -202,7 +201,7 @@ class ProgressCard(Static):
                 loading.display = False
                 digits.display = True
                 sparkline.display = self.status == "running" and len(self.rate_history) > 1
-        except Exception:
+        except NoMatches:
             pass
 
     def _update_status_line(self) -> None:
@@ -220,7 +219,7 @@ class ProgressCard(Static):
                 status_label.update(f"✓ {self.message or 'Completed'}")
             elif self.status == "error":
                 status_label.update(f"✗ {self.message or 'Error'}")
-        except Exception:
+        except NoMatches:
             pass
 
     def update_from_state(self, state: AppState) -> None:
@@ -260,7 +259,7 @@ class ProgressCard(Static):
                     sparkline = self.query_one(f"#sparkline-{self.stage_id}", Sparkline)
                     sparkline.data = self.rate_history
                     sparkline.display = len(self.rate_history) > 1
-                except Exception:
+                except NoMatches:
                     pass
 
         if state.current_stage == self.stage_id:

@@ -4,17 +4,16 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import Any
 
 from textual.app import App, ComposeResult
-from textual.containers import Container, Horizontal, Vertical
+from textual.containers import Container, Horizontal
 from textual.screen import Screen as TextualScreen
 from textual.widgets import Button, Footer, Header, Label
 
 from src.utils.logger import get_logger
 
 from ...models.events import Event, QueueEventSink
-from .persistence import load_settings, save_settings
+from .persistence import load_settings
 from .state import AppState
 from .themes import CUSTOM_THEMES, DEFAULT_CUSTOM_THEME
 from .views.config import ConfigScreen

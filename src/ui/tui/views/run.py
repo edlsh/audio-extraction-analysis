@@ -7,10 +7,9 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
-from rich.panel import Panel
 from textual._context import active_app
 from textual.binding import Binding
-from textual.containers import Container, Horizontal, Vertical
+from textual.containers import Container, Horizontal
 from textual.css.query import NoMatches
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Static

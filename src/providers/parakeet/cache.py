@@ -8,6 +8,7 @@ from threading import Lock
 from typing import Any
 
 from src.exceptions import ParakeetModelError
+from src.utils.constants import Limits
 from src.utils.logger import get_logger
 
 from .deps import TORCH_AVAILABLE, _ensure_nemo, nemo_asr
@@ -15,44 +16,64 @@ from .gpu import GPUManager
 
 logger = get_logger(__name__)
 
+# Module-level constants
+MAX_CACHE_SIZE: int = Limits.PARAKEET_MAX_CACHE_SIZE  # Maximum number of models to cache
+
 
 class ParakeetModelCache:
     """Singleton cache for Parakeet ASR models.
 
     Implements LRU caching with GPU memory management.
+    Thread-safe singleton initialization using double-checked locking pattern.
     """
 
     _instance: ParakeetModelCache | None = None
-    _lock = Lock()
+    _lock = Lock()  # Lock for singleton creation
+    _init_lock = Lock()  # Lock for instance initialization
 
     def __new__(cls) -> ParakeetModelCache:
-        """Ensure singleton pattern."""
+        """Ensure singleton pattern with thread-safe double-checked locking."""
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
-                    cls._instance = super().__new__(cls)
-                    cls._instance._initialized = False
+                    instance = super().__new__(cls)
+                    # Set _initialized early to prevent races from __init__
+                    instance._initialized = False
+                    cls._instance = instance
         return cls._instance
 
     def _initialize(self) -> None:
-        """Initialize the cache (called once)."""
+        """Initialize the cache (called once, thread-safe)."""
+        # Fast path: avoid lock acquisition if already initialized
         if self._initialized:
             return
 
-        self._models: dict[str, tuple[Any, float]] = {}
-        self._model_sizes: dict[str, int] = {}
-        self._max_cache_size = 3
-        self._cache_lock = Lock()
-        self._loading_locks: dict[str, Lock] = {}
-        self._gpu_manager = GPUManager()
-        self._initialized = True
+        # Thread-safe initialization using a separate lock
+        with self._init_lock:
+            # Double-check after acquiring lock
+            if self._initialized:
+                return
 
-        logger.info(f"ParakeetModelCache initialized with device: {self._gpu_manager.device}")
+            self._models: dict[str, tuple[Any, float]] = {}
+            self._model_sizes: dict[str, int] = {}
+            self._max_cache_size = MAX_CACHE_SIZE
+            self._cache_lock = Lock()
+            self._loading_locks: dict[str, Lock] = {}
+            self._gpu_manager = GPUManager()
+            self._initialized = True
+
+            logger.info(f"ParakeetModelCache initialized with device: {self._gpu_manager.device}")
 
     def __init__(self) -> None:
-        """Initialize cache if not already done."""
-        if not hasattr(self, "_initialized") or not self._initialized:
-            self._initialize()
+        """Initialize cache if not already done.
+
+        Note: After __new__ returns, _initialized is already set to False,
+        so we call _initialize() which handles thread-safe lazy initialization.
+        """
+        # Fast path: avoid any work if already initialized
+        if self._initialized:
+            return
+        self._initialize()
 
     def get_model(self, model_name: str, force_reload: bool = False) -> Any | None:
         """Get a model from cache or load it."""
@@ -115,7 +136,9 @@ class ParakeetModelCache:
             self._enforce_cache_limit()
             self._models[model_name] = (model, time.time())
             self._model_sizes[model_name] = model_size
-            logger.info(f"Model {model_name} added to cache")
+            logger.info(
+                f"Model {model_name} added to cache (cache size: {len(self._models)}/{MAX_CACHE_SIZE})"
+            )
 
     def _enforce_cache_limit(self) -> None:
         """Remove LRU model if cache is at capacity. Must hold _cache_lock."""
@@ -128,7 +151,7 @@ class ParakeetModelCache:
 
     async def get_model_async(self, model_name: str, force_reload: bool = False) -> Any | None:
         """Async wrapper for get_model."""
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, self.get_model, model_name, force_reload)
 
     def _load_model_sync(self, model_name: str) -> Any:
@@ -141,7 +164,6 @@ class ParakeetModelCache:
                 raise RuntimeError("NeMo not available")
             model = nemo_asr.models.ASRModel.from_pretrained(model_name)
             if TORCH_AVAILABLE and self._gpu_manager.device != "cpu":
-                from .deps import torch
 
                 model = model.to(self._gpu_manager.device)
             model.eval()

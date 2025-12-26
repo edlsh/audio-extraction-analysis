@@ -45,9 +45,6 @@ class TestProvidersPackage:
 
         expected_exports = [
             "BaseTranscriptionProvider",
-            "CircuitBreakerConfig",
-            "CircuitBreakerError",
-            "CircuitBreakerMixin",
             "ProviderSelectionPolicy",
             "TranscriptionPolicy",
             "TranscriptionProviderFactory",
@@ -68,51 +65,6 @@ class TestProvidersPackage:
 
         assert src.providers.BaseTranscriptionProvider is BaseTranscriptionProvider
 
-    def test_circuit_breaker_config_exported(self):
-        """Test that CircuitBreakerConfig is properly exported."""
-        import src.providers
-
-        assert hasattr(src.providers, "CircuitBreakerConfig")
-
-        # Verify it's the correct class
-        from src.providers.base import CircuitBreakerConfig
-
-        assert src.providers.CircuitBreakerConfig is CircuitBreakerConfig
-
-    def test_circuit_breaker_error_exported(self):
-        """Test that CircuitBreakerError is properly exported."""
-        import src.providers
-
-        assert hasattr(src.providers, "CircuitBreakerError")
-
-        # Verify it's the correct exception class
-        from src.providers.base import CircuitBreakerError
-
-        assert src.providers.CircuitBreakerError is CircuitBreakerError
-
-    def test_circuit_breaker_mixin_exported(self):
-        """Test that CircuitBreakerMixin is properly exported."""
-        import src.providers
-
-        assert hasattr(src.providers, "CircuitBreakerMixin")
-
-        # Verify it's the correct class
-        from src.providers.base import CircuitBreakerMixin
-
-        assert src.providers.CircuitBreakerMixin is CircuitBreakerMixin
-
-    @pytest.mark.skip(reason="CircuitState removed in favor of boolean _is_open flag")
-    def test_circuit_state_exported(self):
-        """Test that CircuitState is properly exported."""
-        import src.providers
-
-        assert hasattr(src.providers, "CircuitState")
-
-        # Verify it's the correct enum
-        from src.providers.base import CircuitState
-
-        assert src.providers.CircuitState is CircuitState
-
     def test_transcription_provider_factory_exported(self):
         """Test that TranscriptionProviderFactory is properly exported."""
         import src.providers
@@ -132,35 +84,6 @@ class TestProvidersPackage:
         assert hasattr(BaseTranscriptionProvider, "__name__")
         assert BaseTranscriptionProvider.__name__ == "BaseTranscriptionProvider"
 
-    def test_direct_import_circuit_breaker_config(self):
-        """Test that CircuitBreakerConfig can be imported directly."""
-        from src.providers import CircuitBreakerConfig
-
-        assert CircuitBreakerConfig is not None
-        assert hasattr(CircuitBreakerConfig, "__name__")
-        assert CircuitBreakerConfig.__name__ == "CircuitBreakerConfig"
-
-    def test_direct_import_circuit_breaker_error(self):
-        """Test that CircuitBreakerError can be imported directly."""
-        from src.providers import CircuitBreakerError
-
-        assert CircuitBreakerError is not None
-        assert hasattr(CircuitBreakerError, "__name__")
-        assert CircuitBreakerError.__name__ == "CircuitBreakerError"
-
-    def test_direct_import_circuit_breaker_mixin(self):
-        """Test that CircuitBreakerMixin can be imported directly."""
-        from src.providers import CircuitBreakerMixin
-
-        assert CircuitBreakerMixin is not None
-        assert hasattr(CircuitBreakerMixin, "__name__")
-        assert CircuitBreakerMixin.__name__ == "CircuitBreakerMixin"
-
-    @pytest.mark.skip(reason="CircuitState removed in favor of boolean _is_open flag")
-    def test_direct_import_circuit_state(self):
-        """Test that CircuitState can be imported directly."""
-        pass
-
     def test_direct_import_transcription_provider_factory(self):
         """Test that TranscriptionProviderFactory can be imported directly."""
         from src.providers import TranscriptionProviderFactory
@@ -168,6 +91,22 @@ class TestProvidersPackage:
         assert TranscriptionProviderFactory is not None
         assert hasattr(TranscriptionProviderFactory, "__name__")
         assert TranscriptionProviderFactory.__name__ == "TranscriptionProviderFactory"
+
+    def test_direct_import_transcription_policy(self):
+        """Test that TranscriptionPolicy can be imported directly."""
+        from src.providers import TranscriptionPolicy
+
+        assert TranscriptionPolicy is not None
+        assert hasattr(TranscriptionPolicy, "__name__")
+        assert TranscriptionPolicy.__name__ == "TranscriptionPolicy"
+
+    def test_direct_import_provider_selection_policy(self):
+        """Test that ProviderSelectionPolicy can be imported directly."""
+        from src.providers import ProviderSelectionPolicy
+
+        assert ProviderSelectionPolicy is not None
+        assert hasattr(ProviderSelectionPolicy, "__name__")
+        assert ProviderSelectionPolicy.__name__ == "ProviderSelectionPolicy"
 
     def test_wildcard_import(self):
         """Test that wildcard import works correctly."""
@@ -179,9 +118,6 @@ class TestProvidersPackage:
         imported_names = [name for name in namespace.keys() if not name.startswith("__")]
         expected_names = [
             "BaseTranscriptionProvider",
-            "CircuitBreakerConfig",
-            "CircuitBreakerError",
-            "CircuitBreakerMixin",
             "ProviderSelectionPolicy",
             "TranscriptionPolicy",
             "TranscriptionProviderFactory",
@@ -208,9 +144,6 @@ class TestProvidersPackage:
         # Required exports that must always be present
         required_attrs = {
             "BaseTranscriptionProvider",
-            "CircuitBreakerConfig",
-            "CircuitBreakerError",
-            "CircuitBreakerMixin",
             "ProviderSelectionPolicy",
             "TranscriptionPolicy",
             "TranscriptionProviderFactory",
@@ -226,9 +159,6 @@ class TestProvidersPackage:
         # Verify __all__ matches expected public API
         expected_all = [
             "BaseTranscriptionProvider",
-            "CircuitBreakerConfig",
-            "CircuitBreakerError",
-            "CircuitBreakerMixin",
             "ProviderSelectionPolicy",
             "TranscriptionPolicy",
             "TranscriptionProviderFactory",
@@ -241,9 +171,8 @@ class TestProvidersPackage:
         """Test that exported items are of the correct types."""
         from src.providers import (
             BaseTranscriptionProvider,
-            CircuitBreakerConfig,
-            CircuitBreakerError,
-            CircuitBreakerMixin,
+            ProviderSelectionPolicy,
+            TranscriptionPolicy,
             TranscriptionProviderFactory,
         )
 
@@ -252,65 +181,25 @@ class TestProvidersPackage:
             BaseTranscriptionProvider, type
         ), "BaseTranscriptionProvider should be a class"
 
-        # CircuitBreakerConfig should be a dataclass
-        assert isinstance(CircuitBreakerConfig, type), "CircuitBreakerConfig should be a class"
-
-        # CircuitBreakerError should be an exception class
-        assert isinstance(
-            CircuitBreakerError, type
-        ), "CircuitBreakerError should be an exception class"
-        assert issubclass(
-            CircuitBreakerError, Exception
-        ), "CircuitBreakerError should be a subclass of Exception"
-
-        # CircuitBreakerMixin should be a class
-        assert isinstance(CircuitBreakerMixin, type), "CircuitBreakerMixin should be a class"
-
         # TranscriptionProviderFactory should be a class
         assert isinstance(
             TranscriptionProviderFactory, type
         ), "TranscriptionProviderFactory should be a class"
 
+        # ProviderSelectionPolicy should be a class
+        assert isinstance(
+            ProviderSelectionPolicy, type
+        ), "ProviderSelectionPolicy should be a class"
+
+        # TranscriptionPolicy should be a class
+        assert isinstance(TranscriptionPolicy, type), "TranscriptionPolicy should be a class"
+
     def test_import_does_not_raise(self):
         """Test that importing the module does not raise any exceptions."""
         try:
-            pass
+            import src.providers  # noqa: F401
         except Exception as e:
             pytest.fail(f"Importing src.providers should not raise exceptions: {e}")
-
-    @pytest.mark.skip(reason="CircuitState removed in favor of boolean _is_open flag")
-    def test_circuit_state_enum_values(self):
-        """Test that CircuitState enum has expected values."""
-        pass
-
-    def test_circuit_breaker_error_is_exception(self):
-        """Test that CircuitBreakerError can be raised and caught."""
-        from src.providers import CircuitBreakerError
-
-        # Test that it can be raised as a simple exception
-        with pytest.raises(CircuitBreakerError):
-            raise CircuitBreakerError("Test error")
-
-        # Test that it can be caught as Exception
-        try:
-            raise CircuitBreakerError("Test error")
-        except Exception as e:
-            assert isinstance(e, CircuitBreakerError)
-
-    def test_circuit_breaker_config_dataclass(self):
-        """Test that CircuitBreakerConfig is a valid dataclass."""
-        from src.providers import CircuitBreakerConfig
-
-        # Create an instance with default values
-        config = CircuitBreakerConfig()
-        assert hasattr(config, "failure_threshold")
-        assert hasattr(config, "recovery_timeout")
-        assert hasattr(config, "enabled")
-
-        # Test that values can be overridden
-        custom_config = CircuitBreakerConfig(failure_threshold=10, recovery_timeout=120.0)
-        assert custom_config.failure_threshold == 10
-        assert custom_config.recovery_timeout == 120.0
 
 
 if __name__ == "__main__":

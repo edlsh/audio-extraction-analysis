@@ -5,8 +5,6 @@ from __future__ import annotations
 import asyncio
 import json
 import subprocess
-import time
-from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -19,8 +17,8 @@ from ..utils.file_validation import validate_audio_file_or_raise
 
 if TYPE_CHECKING:
     from ..utils.retry import RetryConfig
-from .base import BaseTranscriptionProvider, CircuitBreakerConfig, ProviderMeta
-from .provider_utils import check_sdk_available, get_default_configs, provider_error_handler
+from .base import BaseTranscriptionProvider, HealthCheckResult, ProviderMeta
+from .provider_utils import get_default_configs, provider_error_handler
 
 logger = get_logger(__name__)
 
@@ -48,6 +46,7 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
         api_key_min_length=10,
         sdk_imports=["elevenlabs"],
         install_command="uv add elevenlabs",
+        estimated_speed_mb_per_sec=1.0,
     )
 
     # File size limits - use centralized constants
@@ -55,15 +54,10 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
     CHUNK_SIZE = Limits.CHUNK_SIZE
     MAX_MEMORY_SIZE = Limits.MAX_MEMORY_BUFFER
 
-    def __init__(
-        self,
-        api_key: str | None = None,
-        circuit_config: CircuitBreakerConfig | None = None,
-        retry_config: RetryConfig | None = None,
-    ) -> None:
+    def __init__(self, api_key: str | None = None, retry_config: RetryConfig | None = None) -> None:
         """Initialize the ElevenLabs transcriber with API key and configurations."""
-        retry_config, circuit_config = get_default_configs(retry_config, circuit_config)
-        super().__init__(api_key, circuit_config, retry_config)
+        retry_config = get_default_configs(retry_config)
+        super().__init__(api_key, retry_config)
 
         self.api_key = self._resolve_api_key()
 
@@ -75,7 +69,7 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
                 "ELEVENLABS_API_KEY not found. Set it as environment variable or pass to constructor."
             )
 
-    async def health_check_async(self) -> dict[str, Any]:
+    async def health_check_async(self) -> HealthCheckResult:
         """Perform health check for ElevenLabs service."""
 
         async def _check() -> dict[str, Any]:
@@ -88,8 +82,9 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
 
             client = ElevenLabsClient(api_key=self.api_key)
             config = get_config()
+            loop = asyncio.get_running_loop()
             response = await asyncio.wait_for(
-                asyncio.get_event_loop().run_in_executor(None, lambda: client.user.get_user_info()),
+                loop.run_in_executor(None, lambda: client.user.get_user_info()),
                 timeout=float(config.connect_timeout),
             )
 
@@ -142,13 +137,10 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
         self, response: Any, transcript: str, audio_file_path: Path, duration: float
     ) -> TranscriptionResult:
         """Build TranscriptionResult from response."""
-        result = TranscriptionResult(
+        result = self._build_transcription_result(
             transcript=transcript,
+            audio_file=audio_file_path,
             duration=duration,
-            generated_at=datetime.now(),
-            audio_file=str(audio_file_path),
-            provider_name=self.get_provider_name(),
-            provider_features=self.get_supported_features(),
         )
 
         if hasattr(response, "segments") and response.segments:
@@ -199,8 +191,9 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
 
         logger.info("Sending to ElevenLabs...")
         config = get_config()
+        loop = asyncio.get_running_loop()
         return await asyncio.wait_for(
-            asyncio.get_event_loop().run_in_executor(
+            loop.run_in_executor(
                 None,
                 lambda: client.speech_to_text.convert(
                     file=audio_data,

@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any
 
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
+from textual.css.query import NoMatches
 from textual.reactive import reactive
 from textual.widget import Widget
 from textual.widgets import Label, ProgressBar, Sparkline, Static
@@ -241,7 +242,6 @@ class FocusCard(Widget):
     def _update_display_mode(self) -> None:
         """Update visibility of components based on active stage."""
         try:
-            # Get elements
             header = self.query_one(".card-header", Horizontal)
             progress_row = self.query_one(".progress-row", Horizontal)
             message_row = self.query_one(".message-row", Horizontal)
@@ -249,7 +249,6 @@ class FocusCard(Widget):
             idle_msg = self.query_one("#idle-message", Static)
 
             if self.active_stage:
-                # Show active stage UI
                 header.display = True
                 progress_row.display = True
                 message_row.display = True
@@ -257,7 +256,6 @@ class FocusCard(Widget):
                 idle_msg.display = False
                 self.remove_class("idle")
             else:
-                # Show idle state
                 header.display = False
                 progress_row.display = False
                 message_row.display = False
@@ -273,8 +271,8 @@ class FocusCard(Widget):
                 else:
                     idle_msg.update("[dim]Waiting for pipeline to start...[/dim]")
                     self.add_class("idle")
-        except Exception:
-            pass  # Widget not yet mounted
+        except NoMatches:
+            pass
 
     def _update_content(self) -> None:
         """Update stage-specific content."""
@@ -290,7 +288,7 @@ class FocusCard(Widget):
 
             icon_label.update(icon)
             title_label.update(name)
-        except Exception:
+        except NoMatches:
             pass
 
     def _update_progress(self) -> None:
@@ -299,24 +297,21 @@ class FocusCard(Widget):
             progress_bar = self.query_one("#main-progress", ProgressBar)
             pct_label = self.query_one("#stage-percentage", Label)
 
-            # Update progress bar
             if progress_bar.total is None:
                 progress_bar.update(total=100)
             progress_bar.update(progress=self.percentage)
 
-            # Update percentage label
             pct_label.update(f"{self.percentage:.0f}%")
-        except Exception:
+        except NoMatches:
             pass
 
     def _update_message(self) -> None:
         """Update the message display."""
         try:
             msg_label = self.query_one("#stage-message", Label)
-            # Truncate long messages
             display_msg = self.message[:60] + "..." if len(self.message) > 60 else self.message
             msg_label.update(display_msg or "Processing...")
-        except Exception:
+        except NoMatches:
             pass
 
     def _update_eta(self) -> None:
@@ -327,7 +322,7 @@ class FocusCard(Widget):
                 eta_label.update(f"ETA: {self.eta}")
             else:
                 eta_label.update("")
-        except Exception:
+        except NoMatches:
             pass
 
     def _update_rate(self, rate: float) -> None:
@@ -344,7 +339,7 @@ class FocusCard(Widget):
                 rate_label.update(f"{rate:.1f} units/s")
             else:
                 rate_label.update("")
-        except Exception:
+        except NoMatches:
             pass
 
     def update_from_state(self, state: AppState) -> None:

@@ -35,11 +35,12 @@ class HealthService:
         >>> cached_status = await service._check_provider("deepgram")
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize health service with cache and thread pool."""
         self._cache: dict[str, tuple[dict[str, Any], float]] = {}
-        self._cache_ttl = 60.0  # 60 second cache TTL
-        self._executor = ThreadPoolExecutor(max_workers=4)
+        self._cache_ttl = 60.0
+        self._executor: ThreadPoolExecutor | None = ThreadPoolExecutor(max_workers=4)
+        self._shutdown = False
 
     async def check_all_providers(self) -> dict[str, dict[str, Any]]:
         """Check health of all registered providers.
@@ -105,7 +106,7 @@ class HealthService:
                 return result
 
         # Run in thread pool (blocking API)
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         result = await loop.run_in_executor(self._executor, self._sync_check, name)
 
         # Update cache
@@ -138,6 +139,14 @@ class HealthService:
         """
         self._cache.clear()
 
-    def __del__(self):
-        """Clean up thread pool on deletion."""
-        self._executor.shutdown(wait=False)
+    def shutdown(self) -> None:
+        """Explicitly shutdown the executor. Call from application teardown."""
+        if self._executor is not None and not self._shutdown:
+            self._shutdown = True
+            self._executor.shutdown(wait=False)
+            self._executor = None
+
+    def __del__(self) -> None:
+        """Clean up thread pool on deletion (fallback only)."""
+        if self._executor is not None and not self._shutdown:
+            self._executor.shutdown(wait=False)

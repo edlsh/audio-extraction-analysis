@@ -54,13 +54,20 @@ async def test_transcribe_async_enforces_timeout() -> None:
 
 
 def test_transcribe_uses_shared_executor_in_running_loop(monkeypatch) -> None:
+    """Test that sync transcribe uses shared executor when in async context."""
     provider = _ImmediateProvider()
-    monkeypatch.setattr("src.providers.base.asyncio.get_running_loop", object)
-
+    
+    # The async_bridge module now handles executor logic
+    import src.utils.async_bridge as async_bridge
+    
+    # Simulate being inside an event loop
+    monkeypatch.setattr(async_bridge, "_has_running_loop", lambda: True)
+    
+    executor = async_bridge._get_executor()
     with patch.object(
-        BaseTranscriptionProvider._SYNC_EXECUTOR,
+        executor,
         "submit",
-        wraps=BaseTranscriptionProvider._SYNC_EXECUTOR.submit,
+        wraps=executor.submit,
     ) as mock_submit:
         result = provider.transcribe(Path("dummy"))
 
@@ -69,10 +76,13 @@ def test_transcribe_uses_shared_executor_in_running_loop(monkeypatch) -> None:
 
 
 def test_transcribe_defers_coroutine_creation(monkeypatch) -> None:
+    """Test that sync transcribe properly defers to async execution."""
     provider = _ImmediateProvider()
 
+    import src.utils.async_bridge as async_bridge
+
     # Simulate being inside an active event loop
-    monkeypatch.setattr("src.providers.base.asyncio.get_running_loop", object)
+    monkeypatch.setattr(async_bridge, "_has_running_loop", lambda: True)
 
     call_order: list[str] = []
 
@@ -84,20 +94,21 @@ def test_transcribe_defers_coroutine_creation(monkeypatch) -> None:
         finally:
             loop.close()
 
-    monkeypatch.setattr("src.providers.base.asyncio.run", fake_asyncio_run)
+    monkeypatch.setattr(async_bridge.asyncio, "run", fake_asyncio_run)
 
     class DummyExecutor:
-        def submit(self, fn):
+        def submit(self, fn, *args):
             call_order.append("submit")
 
             class DummyFuture:
                 def result(self, timeout=None):
                     call_order.append("result")
-                    return fn()
+                    return fn(*args)
 
             return DummyFuture()
 
-    monkeypatch.setattr(BaseTranscriptionProvider, "_SYNC_EXECUTOR", DummyExecutor())
+    # Patch the executor getter to return our dummy
+    monkeypatch.setattr(async_bridge, "_get_executor", lambda: DummyExecutor())
 
     result = provider.transcribe(Path("dummy"))
 

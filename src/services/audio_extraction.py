@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import signal
 import subprocess
 from enum import Enum
 from pathlib import Path

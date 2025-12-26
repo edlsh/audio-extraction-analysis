@@ -27,7 +27,6 @@ if TYPE_CHECKING:
 from ..config import get_config
 from ..exceptions import ProviderTimeoutError, TranscriptionError
 from ..providers.factory import TranscriptionProviderFactory
-from ..providers.policy import TranscriptionPolicy
 from ..utils.constants import Timeouts
 from ..utils.file_validation import validate_audio_file_or_raise
 
@@ -37,7 +36,7 @@ logger = get_logger(__name__)
 class TranscriptionService:
     """Coordinates transcription operations across providers.
 
-    Uses TranscriptionPolicy for unified timeout/retry configuration.
+    Uses Config directly for timeout/retry configuration.
     Provider layer implements only _transcribe_impl (async), this service
     layer exposes transcribe_async + thin sync wrapper.
     """
@@ -45,39 +44,21 @@ class TranscriptionService:
     def __init__(
         self,
         cache: TranscriptionCache | None = None,
-        policy: TranscriptionPolicy | None = None,
     ) -> None:
         """Initialize transcription service.
 
         Args:
             cache: Optional TranscriptionCache instance for caching results.
                    If None, caching is disabled.
-            policy: Optional TranscriptionPolicy for timeout/retry settings.
-                    If None, creates from global config.
         """
         self.factory = TranscriptionProviderFactory
         self._config = get_config()
-        self._policy = policy or TranscriptionPolicy.from_config()
         self._cache = cache
 
     @property
     def _provider_timeout(self) -> float:
-        """Get transcription timeout from policy."""
-        return self._policy.transcription_timeout
-
-    def get_available_providers(self) -> list[str]:
-        """List all registered providers."""
-        return self.factory.get_available_providers()
-
-    def get_configured_providers(self) -> list[str]:
-        """List providers with valid configuration."""
-        return self.factory.get_configured_providers()
-
-    def auto_select_provider(
-        self, audio_file_path: Path | None = None, preferred_features: list[str] | None = None
-    ) -> str:
-        """Select best provider for transcription."""
-        return self.factory.auto_select_provider(audio_file_path, preferred_features)
+        """Get transcription timeout from config."""
+        return float(self._config.transcription_timeout_seconds)
 
     def _prepare_transcription(
         self, audio_file_path: Path, provider_name: str | None = None
@@ -144,16 +125,16 @@ class TranscriptionService:
         return validated_path, provider_name
 
     def _configure_provider_timeout(self, provider: Any) -> None:
-        """Apply policy timeouts to provider instances when supported."""
+        """Apply config timeouts to provider instances when supported."""
         if hasattr(provider, "update_transcription_timeout"):
             try:
-                provider.update_transcription_timeout(self._policy.transcription_timeout)
+                provider.update_transcription_timeout(float(self._config.transcription_timeout_seconds))
             except Exception as exc:  # pragma: no cover - defensive
                 logger.debug("Failed to update provider timeout: %s", exc)
 
     def _create_provider(self, provider_name: str) -> Any:
-        """Create provider instance with policy-based configuration."""
-        return self.factory.create_provider(provider_name, policy=self._policy)
+        """Create provider instance with config-based configuration."""
+        return self.factory.create_provider(provider_name)
 
     def transcribe(
         self,
@@ -234,58 +215,6 @@ class TranscriptionService:
 
         return result
 
-    async def _execute_transcription_with_fallback(
-        self,
-        provider: Any,
-        audio_file_path: Path,
-        language: str,
-        timeout_seconds: float,
-    ) -> TranscriptionResult | None:
-        """Execute transcription with async-to-sync fallback.
-
-        Attempts async transcription first. If async method is unavailable or fails,
-        falls back to sync transcription in a thread executor.
-
-        Args:
-            provider: Transcription provider instance
-            audio_file_path: Path to the audio file
-            language: Language code for transcription
-            timeout_seconds: Timeout for the operation
-
-        Returns:
-            TranscriptionResult or None if transcription fails
-
-        Raises:
-            ProviderTimeoutError: If transcription times out
-            ValueError: If provider has no suitable transcription method
-        """
-        # Try async method first
-        if hasattr(provider, "transcribe_async") and callable(provider.transcribe_async):
-            try:
-                return await asyncio.wait_for(
-                    provider.transcribe_async(audio_file_path, language, timeout=timeout_seconds),
-                    timeout=timeout_seconds,
-                )
-            except TimeoutError:
-                raise  # Re-raise timeout errors
-            except Exception as e:
-                logger.warning(f"Async transcription failed, falling back to sync: {e}")
-
-        # Fallback to sync method in executor
-        if hasattr(provider, "transcribe") and callable(provider.transcribe):
-            loop = asyncio.get_running_loop()
-            return await asyncio.wait_for(
-                loop.run_in_executor(
-                    None,
-                    lambda: provider.transcribe(audio_file_path, language, timeout=timeout_seconds),
-                ),
-                timeout=timeout_seconds,
-            )
-
-        raise ValueError(
-            f"Provider {provider.__class__.__name__} has no suitable transcription method"
-        )
-
     async def transcribe_async(
         self,
         audio_file_path: Path,
@@ -331,13 +260,13 @@ class TranscriptionService:
 
         # Create provider instance with policy-based configuration
         provider = self._create_provider(provider_name)
-        timeout_seconds = self._policy.transcription_timeout
+        timeout_seconds = self._provider_timeout
 
         logger.info(f"Starting async transcription with {provider.get_provider_name()}")
 
         try:
-            result = await self._execute_transcription_with_fallback(
-                provider, audio_file_path, language, timeout_seconds
+            result = await provider.transcribe_async(
+                audio_file_path, language, timeout=timeout_seconds
             )
         except TimeoutError as exc:
             raise ProviderTimeoutError(
@@ -429,12 +358,15 @@ class TranscriptionService:
                 ) from e
 
         # Estimate transcription time (empirical formula based on provider speed)
+        from src.utils.progress_constants import ProgressConstants
+
         processing_speed = self._get_provider_speed_by_name(provider_name)  # MB per second
 
         estimated_time = max(
             file_size_mb / processing_speed,  # Based on file size
-            (audio_duration or 60) * 0.1,  # Based on duration (10% of audio length)
-            5.0,  # Minimum 5 seconds
+            (audio_duration or ProgressConstants.DEFAULT_AUDIO_DURATION)
+            * ProgressConstants.DURATION_RATIO,  # Based on duration
+            ProgressConstants.MINIMUM_SECONDS,  # Minimum
         )
 
         # Create progress update task inside try block to ensure cleanup on exception
@@ -465,7 +397,9 @@ class TranscriptionService:
 
             return result
 
-        except Exception:
+        except Exception as e:
+            # Catch all exceptions for cleanup: cancel progress task before re-raising
+            logger.debug(f"Transcription failed, cleaning up: {e}")
             if progress_task:
                 progress_task.cancel()
                 try:
@@ -487,11 +421,17 @@ class TranscriptionService:
                 # Use sigmoid function for realistic progress curve
                 # Fast start, slower middle, fast finish
                 if elapsed >= estimated_time:
-                    progress_callback(100, 100)
+                    try:
+                        progress_callback(100, 100)
+                    except Exception:
+                        pass
                     break
 
                 progress_pct = self._calculate_sigmoid_progress(elapsed, estimated_time)
-                progress_callback(int(progress_pct), 100)
+                try:
+                    progress_callback(int(progress_pct), 100)
+                except Exception:
+                    pass
 
                 await asyncio.sleep(0.5)  # Update every 500ms
 
@@ -511,14 +451,13 @@ class TranscriptionService:
 
     def _get_provider_speed_by_name(self, provider_name: str) -> float:
         """Get estimated processing speed by provider name (MB/second)."""
-        # Map both internal keys and class names to speeds
-        provider_speeds = {
-            "deepgram": 2.0,  # 2 MB/second
-            "DeepgramTranscriber": 2.0,
-            "elevenlabs": 1.0,  # 1 MB/second
-            "ElevenLabsTranscriber": 1.0,
-        }
-        return provider_speeds.get(provider_name, 1.5)  # Default 1.5 MB/s
+        try:
+            provider = self.factory.create_provider(provider_name)
+            if hasattr(provider, "META") and provider.META:
+                return provider.META.estimated_speed_mb_per_sec
+        except Exception:
+            pass
+        return 1.5  # Default fallback
 
     async def _get_audio_duration(self, audio_path: str) -> float | None:
         """Get audio duration in seconds using ffprobe.

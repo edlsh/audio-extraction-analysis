@@ -33,7 +33,6 @@ from __future__ import annotations
 
 import asyncio
 import time
-from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -48,7 +47,7 @@ from ..utils.file_validation import validate_audio_file_or_raise
 if TYPE_CHECKING:
     from ..utils.retry import RetryConfig
 
-from .base import BaseTranscriptionProvider, CircuitBreakerConfig, ProviderMeta
+from .base import BaseTranscriptionProvider, HealthCheckResult, ProviderMeta
 from .provider_utils import provider_error_handler
 
 logger = get_logger(__name__)
@@ -102,14 +101,9 @@ class WhisperTranscriber(BaseTranscriptionProvider):
         is_local=True,
     )
 
-    def __init__(
-        self,
-        api_key: str | None = None,
-        circuit_config: CircuitBreakerConfig | None = None,
-        retry_config: RetryConfig | None = None,
-    ) -> None:
+    def __init__(self, api_key: str | None = None, retry_config: RetryConfig | None = None) -> None:
         """Initialize the Whisper transcriber."""
-        super().__init__(api_key, circuit_config, retry_config)
+        super().__init__(api_key, retry_config)
         self.model = None
         config = get_config()
         self.model_name = config.WHISPER_MODEL or "base"
@@ -157,7 +151,7 @@ class WhisperTranscriber(BaseTranscriptionProvider):
         if self.model is None:
             logger.info(f"Loading Whisper model: {self.model_name} on {self.device}")
             try:
-                loop = asyncio.get_event_loop()
+                loop = asyncio.get_running_loop()
                 self.model = await loop.run_in_executor(
                     None, whisper.load_model, self.model_name, self.device
                 )
@@ -188,7 +182,7 @@ class WhisperTranscriber(BaseTranscriptionProvider):
         logger.info(f"Transcribing with Whisper: {audio_file_path.name}")
         start_time = time.time()
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         result = await loop.run_in_executor(
             None, self.model.transcribe, str(audio_file_path), **options
         )
@@ -227,14 +221,12 @@ class WhisperTranscriber(BaseTranscriptionProvider):
             "processing_time_seconds": processing_time,
         }
 
-        result = TranscriptionResult(
+        result = self._build_transcription_result(
             transcript=" ".join(
                 segment["text"].strip() for segment in whisper_result.get("segments", [])
             ),
+            audio_file=audio_file_path,
             duration=total_duration,
-            generated_at=datetime.now(),
-            audio_file=str(audio_file_path),
-            provider_name=self.get_provider_name(),
             metadata=metadata,
         )
 
@@ -257,7 +249,7 @@ class WhisperTranscriber(BaseTranscriptionProvider):
 
         return chapters
 
-    async def health_check_async(self) -> dict[str, Any]:
+    async def health_check_async(self) -> HealthCheckResult:
         """Perform health check for Whisper provider."""
 
         async def _check() -> dict[str, Any]:

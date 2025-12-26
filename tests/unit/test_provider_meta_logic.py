@@ -19,11 +19,11 @@ class TestProviderMetaBasedConfiguration:
     @pytest.fixture(autouse=True)
     def clear_provider_registry(self):
         """Clear provider registry before each test and restore after."""
-        original_providers = TranscriptionProviderFactory._providers.copy()
-        TranscriptionProviderFactory._providers.clear()
+        import src.providers.factory as factory_module
+        original_providers = factory_module._providers.copy()
         yield
-        TranscriptionProviderFactory._providers.clear()
-        TranscriptionProviderFactory._providers.update(original_providers)
+        factory_module._providers.clear()
+        factory_module._providers.update(original_providers)
 
     def test_cloud_provider_requires_api_key_min_length(self):
         """Cloud providers must have API key meeting minimum length from META."""

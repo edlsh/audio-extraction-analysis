@@ -108,15 +108,12 @@ class Limits:
     # File sizes (in bytes unless noted)
     MAX_FILE_SIZE_MB: int = 50  # ElevenLabs limit
     CHUNK_SIZE: int = 1024 * 1024  # 1MB chunks for streaming
+    FILE_HASH_CHUNK_SIZE: int = 65536  # 64KB chunks for file hashing
     MAX_MEMORY_BUFFER: int = 50 * 1024 * 1024  # 50MB max in-memory
 
     # Retry limits
     MAX_RETRY_ATTEMPTS: int = 10  # Absolute maximum
     MAX_RETRY_DELAY: int = 300  # 5 minutes max delay
-
-    # Circuit breaker
-    CIRCUIT_FAILURE_THRESHOLD: int = 5
-    CIRCUIT_RECOVERY_TIMEOUT: float = 60.0
 
     # Concurrency
     DEFAULT_THREAD_POOL_SIZE: int = 4
@@ -125,6 +122,10 @@ class Limits:
     # Content limits
     MAX_CHAPTERS: int = 300
     MAX_TOPICS: int = 100
+
+    # Cache limits
+    PARAKEET_MAX_CACHE_SIZE: int = 3  # Maximum number of models to cache
+    PROBE_CACHE_TTL: float = 60.0  # FFmpeg probe cache TTL in seconds
 
 
 class UIConstants:
@@ -135,6 +136,13 @@ class UIConstants:
 
     # Chapter generation
     CHAPTER_INTERVAL_SECONDS: int = 300  # 5 minutes between chapter markers
+
+
+class PathSanitizationConstants:
+    """Path and filename sanitization constants."""
+
+    MAX_FILENAME_LENGTH: int = 200  # Maximum length for sanitized filenames
+    MAX_DIRNAME_LENGTH: int = 100  # Maximum length for sanitized directory names
 
 
 class RetryDefaults:
@@ -178,6 +186,7 @@ __all__ = [
     "HTTPStatusCodes",
     "Limits",
     "MediaLimits",
+    "PathSanitizationConstants",
     "RetryDefaults",
     "Timeouts",
     "UIConstants",

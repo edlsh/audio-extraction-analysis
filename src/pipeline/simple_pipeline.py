@@ -463,7 +463,7 @@ async def process_pipeline(
     console_manager: ConsoleManager | None = None,
     run_id: str | None = None,
     event_sink: EventSink | None = None,
-) -> PipelineResult:
+) -> dict[str, Any]:
     """Process audio/video file through extraction -> transcription -> analysis pipeline.
 
     This is the legacy API that returns a TypedDict for backward compatibility.
@@ -502,7 +502,7 @@ async def process_pipeline(
         run_id=run_id,
         event_sink=event_sink,
     )
-    return result.to_legacy_dict()  # type: ignore[return-value]
+    return result.to_legacy_dict()
 
 
 async def process_pipeline_v2(

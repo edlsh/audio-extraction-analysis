@@ -416,7 +416,3 @@ def api_key_set(monkeypatch):
             assert client is not None
     """
     monkeypatch.setenv("DEEPGRAM_API_KEY", "test_api_key_12345")
-    monkeypatch.setattr(
-        "src.providers.deepgram.get_config",
-        lambda: SimpleNamespace(DEEPGRAM_API_KEY="test_api_key_12345"),
-    )

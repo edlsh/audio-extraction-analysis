@@ -28,9 +28,9 @@ class TestUtilsPackage:
 
         # Verify the docstring mentions utility or utilities
         expected_keywords = ["utility", "utilities", "audio", "extraction", "analysis"]
-        assert any(
-            keyword in docstring_lower for keyword in expected_keywords
-        ), f"Docstring should describe utility functionality: {src.utils.__doc__}"
+        assert any(keyword in docstring_lower for keyword in expected_keywords), (
+            f"Docstring should describe utility functionality: {src.utils.__doc__}"
+        )
 
     def test_all_attribute_exists(self):
         """Test that __all__ attribute is defined."""
@@ -47,6 +47,7 @@ class TestUtilsPackage:
             # Constants
             "HTTPStatusCodes",
             "Limits",
+            "ProgressConstants",
             "RetryDefaults",
             "Timeouts",
             # Retry
@@ -62,13 +63,21 @@ class TestUtilsPackage:
             # Formatting
             "format_duration",
             "format_file_size",
+            "format_file_size_bytes",
+            "format_file_size_mb",
             "format_percentage",
             "format_timestamp",
+            # File size utilities
+            "get_file_size_bytes",
+            "get_file_size_mb",
+            # Path sanitization
+            "sanitize_path_for_display",
+            "sanitize_path_in_message",
         ]
 
-        assert set(src.utils.__all__) == set(
-            expected_exports
-        ), f"__all__ should contain {expected_exports}, got {src.utils.__all__}"
+        assert set(src.utils.__all__) == set(expected_exports), (
+            f"__all__ should contain {expected_exports}, got {src.utils.__all__}"
+        )
 
     def test_retry_config_exported(self):
         """Test that RetryConfig is properly exported."""
@@ -204,6 +213,7 @@ class TestUtilsPackage:
             # Constants
             "HTTPStatusCodes",
             "Limits",
+            "ProgressConstants",
             "RetryDefaults",
             "Timeouts",
             # Retry
@@ -219,13 +229,21 @@ class TestUtilsPackage:
             # Formatting
             "format_duration",
             "format_file_size",
+            "format_file_size_bytes",
+            "format_file_size_mb",
             "format_percentage",
             "format_timestamp",
+            # File size utilities
+            "get_file_size_bytes",
+            "get_file_size_mb",
+            # Path sanitization
+            "sanitize_path_for_display",
+            "sanitize_path_in_message",
         ]
 
-        assert set(imported_names) == set(
-            expected_names
-        ), f"Wildcard import should only import {expected_names}, got {imported_names}"
+        assert set(imported_names) == set(expected_names), (
+            f"Wildcard import should only import {expected_names}, got {imported_names}"
+        )
 
     @pytest.mark.skip(reason="Minor exports check - not critical")
     def test_no_unexpected_public_exports(self):
@@ -247,9 +265,9 @@ class TestUtilsPackage:
             "retry_on_network_error_async",
             "retry_sync",
         ]
-        assert set(public_attrs) == set(
-            expected_attrs
-        ), f"Module should export {expected_attrs}, got {public_attrs}"
+        assert set(public_attrs) == set(expected_attrs), (
+            f"Module should export {expected_attrs}, got {public_attrs}"
+        )
 
     def test_retry_config_is_class(self):
         """Test that RetryConfig is actually a class."""
@@ -262,9 +280,9 @@ class TestUtilsPackage:
         from src.utils import RetryExhaustedError
 
         assert isinstance(RetryExhaustedError, type), "RetryExhaustedError should be a class"
-        assert issubclass(
-            RetryExhaustedError, Exception
-        ), "RetryExhaustedError should be an Exception subclass"
+        assert issubclass(RetryExhaustedError, Exception), (
+            "RetryExhaustedError should be an Exception subclass"
+        )
 
     def test_functions_are_callable(self):
         """Test that exported functions are actually callable."""
@@ -281,9 +299,9 @@ class TestUtilsPackage:
         assert callable(is_retriable_exception), "is_retriable_exception should be callable"
         assert callable(retry_async), "retry_async should be callable"
         assert callable(retry_on_network_error), "retry_on_network_error should be callable"
-        assert callable(
-            retry_on_network_error_async
-        ), "retry_on_network_error_async should be callable"
+        assert callable(retry_on_network_error_async), (
+            "retry_on_network_error_async should be callable"
+        )
         assert callable(retry_sync), "retry_sync should be callable"
 
     def test_import_does_not_raise(self):

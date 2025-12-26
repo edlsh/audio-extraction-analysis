@@ -6,6 +6,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+SCHEMA_VERSION = "1.0.0"
+
 
 @dataclass
 class CommandTiming:
@@ -48,6 +50,7 @@ class JsonCommandResult:
     def to_dict(self) -> dict[str, Any]:
         """Convert to JSON-serializable dictionary."""
         result: dict[str, Any] = {
+            "schema_version": SCHEMA_VERSION,
             "success": self.success,
             "command": self.command,
             "input": self.input,
@@ -93,12 +96,10 @@ def log_json_message(msg_type: str, message: str) -> None:
     from datetime import datetime
 
     print(
-        json.dumps(
-            {
-                "timestamp": datetime.now().isoformat(),
-                "type": msg_type,
-                "message": message,
-            }
-        ),
+        json.dumps({
+            "timestamp": datetime.now().isoformat(),
+            "type": msg_type,
+            "message": message,
+        }),
         file=sys.stderr,
     )

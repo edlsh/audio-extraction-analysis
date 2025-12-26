@@ -15,7 +15,7 @@ from src.models.transcription import TranscriptionResult, TranscriptionUtterance
 from src.utils.file_validation import validate_audio_file_or_raise
 from src.utils.logger import get_logger
 
-from ..base import BaseTranscriptionProvider, CircuitBreakerConfig, ProviderMeta
+from ..base import BaseTranscriptionProvider, HealthCheckResult, ProviderMeta
 from ..provider_utils import provider_error_handler
 from .audio import AudioPreprocessor
 from .cache import ParakeetModelCache
@@ -53,11 +53,10 @@ class ParakeetTranscriber(BaseTranscriptionProvider):
     def __init__(
         self,
         api_key: str | None = None,
-        circuit_config: CircuitBreakerConfig | None = None,
         retry_config: RetryConfig | None = None,
     ) -> None:
         """Initialize the Parakeet transcriber."""
-        super().__init__(api_key, circuit_config, retry_config)
+        super().__init__(api_key, retry_config)
         self.gpu_manager = GPUManager()
         self.model_cache = ParakeetModelCache()
         self.audio_preprocessor = AudioPreprocessor()
@@ -276,7 +275,7 @@ class ParakeetTranscriber(BaseTranscriptionProvider):
         device: str,
     ) -> list[str]:
         """Run transcription in thread pool to avoid blocking."""
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _transcribe() -> list[str]:
             try:
@@ -401,7 +400,7 @@ class ParakeetTranscriber(BaseTranscriptionProvider):
             logger.error(f"Failed to parse Parakeet result: {e}")
             return self._create_error_result(e, audio_file_path, processing_time, audio_duration)
 
-    async def health_check_async(self) -> dict[str, Any]:
+    async def health_check_async(self) -> HealthCheckResult:
         """Perform health check for Parakeet provider."""
 
         async def _check() -> dict[str, Any]:

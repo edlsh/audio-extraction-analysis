@@ -1,9 +1,6 @@
 """Mock transcription provider for testing."""
 
 import asyncio
-import time
-from collections.abc import Callable
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -11,7 +8,7 @@ from src.utils.logger import get_logger
 
 from ..models.transcription import TranscriptionResult, TranscriptionUtterance
 from ..utils.retry import RetryConfig
-from .base import BaseTranscriptionProvider, CircuitBreakerConfig
+from .base import BaseTranscriptionProvider, HealthCheckResult
 
 logger = get_logger(__name__)
 
@@ -26,21 +23,15 @@ class MockTranscriber(BaseTranscriptionProvider):
     def __init__(
         self,
         api_key: str | None = None,
-        circuit_config: CircuitBreakerConfig | None = None,
         retry_config: RetryConfig | None = None,
     ) -> None:
         """Initialize mock provider with optional configuration.
 
         Args:
             api_key: Ignored, included for interface compatibility
-            circuit_config: Circuit breaker configuration
             retry_config: Retry configuration
         """
-        super().__init__(
-            api_key=api_key or "mock-api-key",
-            circuit_config=circuit_config,
-            retry_config=retry_config,
-        )
+        super().__init__(api_key, retry_config)
         self.transcription_delay = 0.5  # Simulate processing time
 
     def validate_configuration(self) -> bool:
@@ -107,13 +98,10 @@ class MockTranscriber(BaseTranscriptionProvider):
             ),
         ]
 
-        return TranscriptionResult(
+        return self._build_transcription_result(
             transcript=mock_text,
+            audio_file=audio_file_path,
             duration=15.0,
-            generated_at=datetime.now(),
-            audio_file=str(audio_file_path),
-            provider_name="mock",
-            provider_features=self.get_supported_features(),
             summary="Mock transcription summary for testing",
             chapters=[
                 {
@@ -128,22 +116,16 @@ class MockTranscriber(BaseTranscriptionProvider):
                 {"id": "SPEAKER_01", "total_time": 5.0, "percentage": 33.3},
             ],
             utterances=utterances,
-            topics=["mock", "testing", "transcription"],
-            intents=["testing", "validation"],
-            sentiment_distribution={"neutral": 1.0},
-            metadata={
-                "mock": True,
-                "test_mode": True,
-                "language": language,
-            },
         )
 
-    async def health_check_async(self) -> dict[str, Any]:
+    async def health_check_async(self) -> HealthCheckResult:
         """Mock health check always returns healthy."""
-        return {
-            "healthy": True,
-            "provider": "mock",
-            "status": "Mock provider is always healthy",
-            "response_time_ms": 1,
-            "test_mode": True,
-        }
+
+        async def _check() -> dict[str, Any]:
+            return {
+                "healthy": True,
+                "status": "operational",
+                "test_mode": True,
+            }
+
+        return await self._run_health_check(_check)

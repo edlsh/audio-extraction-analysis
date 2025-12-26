@@ -11,17 +11,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from src.utils.logger import get_logger
 
-from ..config import get_config
 from ..utils.constants import Limits, RetryDefaults, Timeouts
 from ..utils.retry import RetryConfig
-from .base import CircuitBreakerConfig
 
 if TYPE_CHECKING:
-    from .base import BaseTranscriptionProvider, ProviderMeta
+    pass
 
 logger = get_logger(__name__)
 
@@ -42,8 +40,6 @@ class TranscriptionPolicy:
         transcription_timeout: Maximum time for transcription operation
         connect_timeout: Timeout for initial connection
         retry_config: Configuration for retry behavior
-        circuit_config: Configuration for circuit breaker (optional)
-        enable_circuit_breaker: Whether circuit breaker is active
     """
 
     transcription_timeout: float = Timeouts.TRANSCRIPTION_DEFAULT
@@ -57,40 +53,6 @@ class TranscriptionPolicy:
             jitter=RetryDefaults.JITTER,
         )
     )
-    circuit_config: CircuitBreakerConfig = field(
-        default_factory=lambda: CircuitBreakerConfig(
-            enabled=False,  # Disabled by default for CLI
-            failure_threshold=Limits.CIRCUIT_FAILURE_THRESHOLD,
-            recovery_timeout=Limits.CIRCUIT_RECOVERY_TIMEOUT,
-        )
-    )
-    enable_circuit_breaker: bool = False
-
-    @classmethod
-    def from_config(cls) -> TranscriptionPolicy:
-        """Create policy from global configuration."""
-        config = get_config()
-
-        # circuit_breaker_enabled may not exist in older configs
-        circuit_breaker_enabled = getattr(config, "circuit_breaker_enabled", False)
-
-        return cls(
-            transcription_timeout=float(config.transcription_timeout_seconds),
-            connect_timeout=float(config.connect_timeout),
-            retry_config=RetryConfig(
-                max_attempts=config.max_retries,
-                base_delay=config.retry_delay,
-                max_delay=config.max_retry_delay,
-                exponential_base=config.retry_exponential_base,
-                jitter=config.retry_jitter,
-            ),
-            circuit_config=CircuitBreakerConfig(
-                enabled=circuit_breaker_enabled,
-                failure_threshold=config.circuit_breaker_failure_threshold,
-                recovery_timeout=config.circuit_breaker_recovery_timeout,
-            ),
-            enable_circuit_breaker=circuit_breaker_enabled,
-        )
 
     @classmethod
     def cli_defaults(cls) -> TranscriptionPolicy:
@@ -105,8 +67,6 @@ class TranscriptionPolicy:
                 exponential_base=2.0,
                 jitter=True,
             ),
-            circuit_config=CircuitBreakerConfig(enabled=False),
-            enable_circuit_breaker=False,
         )
 
     @classmethod
@@ -122,26 +82,12 @@ class TranscriptionPolicy:
                 exponential_base=2.0,
                 jitter=True,
             ),
-            circuit_config=CircuitBreakerConfig(
-                enabled=True,
-                failure_threshold=5,
-                recovery_timeout=60.0,
-            ),
-            enable_circuit_breaker=True,
         )
 
 
 # =============================================================================
 # Provider Selection Policy - Centralized provider selection logic
 # =============================================================================
-
-
-@dataclass
-class ProviderSizeLimits:
-    """Size limits for a provider in MB."""
-
-    provider: str
-    max_size_mb: float
 
 
 # Default provider size limits
@@ -356,6 +302,5 @@ __all__ = [
     "LARGE_FILE_THRESHOLD_MB",
     "LOCAL_PRIORITY",
     "ProviderSelectionPolicy",
-    "ProviderSizeLimits",
     "TranscriptionPolicy",
 ]

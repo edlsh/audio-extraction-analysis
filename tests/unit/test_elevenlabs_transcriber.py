@@ -174,6 +174,7 @@ class TestElevenLabsTranscriberTranscription:
             "basic_transcription",
         ]
         assert result.duration == 30.5
+        assert result.utterances is not None
         assert len(result.utterances) == 2
 
         # Check utterances
@@ -239,12 +240,11 @@ class TestElevenLabsTranscriberTranscription:
                 "src.providers.elevenlabs.validate_audio_file_or_raise",
                 return_value=temp_audio_file,
             ):
-                with patch(
-                    "src.providers.elevenlabs.asyncio.wait_for", new_callable=AsyncMock
-                ) as mock_wait:
-                    mock_wait.side_effect = Exception("API Error")
-                    with pytest.raises(ProviderAPIError, match=r"(?i)Unexpected elevenlabs error"):
-                        transcriber.transcribe(temp_audio_file, "en")
+                # Test the async method directly to avoid run_async_in_sync complexity
+                with pytest.raises(ProviderAPIError, match=r"(?i)Unexpected elevenlabs error"):
+                    import asyncio
+
+                    asyncio.run(transcriber.transcribe_async(temp_audio_file, "en"))
 
     @patch("src.providers.elevenlabs.ElevenLabsClient")
     def test_transcribe_async_response_variations(self, mock_elevenlabs_class, temp_audio_file):
@@ -294,6 +294,7 @@ class TestElevenLabsTranscriberTranscription:
 
         assert result is not None
         assert result.transcript == "Simple transcription without segments"
+        assert result.utterances is not None
         assert len(result.utterances) == 0
 
 
@@ -354,10 +355,11 @@ class TestElevenLabsTranscriberHealthCheck:
         assert result["healthy"] is True
         assert result["status"] == "operational"
         assert "response_time_ms" in result
-        assert result["details"]["provider"] == "ElevenLabs"
-        assert result["details"]["api_accessible"] is True
-        assert result["details"]["authentication"] == "valid"
-        assert result["details"]["user_id"] == "test_user_123"
+        details = result["details"]
+        assert details.get("provider") == "ElevenLabs"
+        assert details.get("api_accessible") is True
+        assert details.get("authentication") == "valid"
+        assert details.get("user_id") == "test_user_123"
 
     @pytest.mark.asyncio
     @patch("src.providers.elevenlabs.PROVIDER_AVAILABLE", False)
@@ -380,9 +382,10 @@ class TestElevenLabsTranscriberHealthCheck:
         assert result["healthy"] is False
         assert result["status"] == "error"
         assert "response_time_ms" in result
-        assert result["details"]["provider"] == "ElevenLabs"
-        assert "API connection failed" in result["details"]["error"]
-        assert result["details"]["error_type"] == "Exception"
+        details = result["details"]
+        assert details.get("provider") == "ElevenLabs"
+        assert "API connection failed" in str(details.get("error", ""))
+        assert details.get("error_type") == "Exception"
 
     @pytest.mark.asyncio
     @patch("src.providers.elevenlabs.ElevenLabsClient")
@@ -568,17 +571,20 @@ class TestElevenLabsTranscriberEdgeCases:
         transcriber = ElevenLabsTranscriber(api_key="test_key")
 
         with patch("builtins.open", mock_open(read_data=b"test_audio")):
-            result = transcriber.transcribe(temp_audio_file, None)
+            # Pass empty string to test auto-detection behavior (provider converts to None)
+            result = transcriber.transcribe(temp_audio_file, "")
 
         assert result is not None
-        # Verify language_code was passed as None
+        # Verify language_code was passed as None (auto-detect) - provider converts "" to None
         call_args = mock_speech_to_text_client.convert.call_args
         assert call_args[1]["language_code"] is None
 
     @patch("src.providers.elevenlabs.ElevenLabsClient")
     def test_transcribe_permission_error(self, mock_elevenlabs_class, temp_audio_file):
         """Test transcription with permission error raises FileAccessError."""
-        from src.exceptions import FileAccessError, ProviderAPIError
+        import asyncio
+
+        from src.exceptions import FileAccessError
 
         mock_client = Mock()
         mock_speech_to_text_client = Mock()
@@ -593,16 +599,14 @@ class TestElevenLabsTranscriberEdgeCases:
                 "src.providers.elevenlabs.validate_audio_file_or_raise",
                 return_value=temp_audio_file,
             ):
-                with patch(
-                    "src.providers.elevenlabs.asyncio.wait_for", new_callable=AsyncMock
-                ) as mock_wait:
-                    mock_wait.side_effect = ValueError("Invalid audio format")
-                    with pytest.raises(ProviderAPIError, match="Invalid audio format"):
-                        transcriber.transcribe(temp_audio_file, "en")
+                with pytest.raises(FileAccessError, match="Permission denied"):
+                    asyncio.run(transcriber.transcribe_async(temp_audio_file, "en"))
 
     @patch("src.providers.elevenlabs.ElevenLabsClient")
     def test_transcribe_memory_error(self, mock_elevenlabs_class, temp_audio_file):
         """Test transcription with memory error raises ProviderAPIError."""
+        import asyncio
+
         from src.exceptions import ProviderAPIError
 
         mock_client = Mock()
@@ -618,12 +622,8 @@ class TestElevenLabsTranscriberEdgeCases:
                 "src.providers.elevenlabs.validate_audio_file_or_raise",
                 return_value=temp_audio_file,
             ):
-                with patch(
-                    "src.providers.elevenlabs.asyncio.wait_for", new_callable=AsyncMock
-                ) as mock_wait:
-                    mock_wait.side_effect = MemoryError("Out of memory")
-                    with pytest.raises(ProviderAPIError, match="Insufficient memory"):
-                        transcriber.transcribe(temp_audio_file, "en")
+                with pytest.raises(ProviderAPIError, match="Insufficient memory"):
+                    asyncio.run(transcriber.transcribe_async(temp_audio_file, "en"))
 
     @patch("src.providers.elevenlabs.ElevenLabsClient")
     def test_transcribe_os_error(self, mock_elevenlabs_class, temp_audio_file):
@@ -660,6 +660,8 @@ class TestElevenLabsTranscriberEdgeCases:
     @patch("src.providers.elevenlabs.ElevenLabsClient")
     def test_transcribe_value_error(self, mock_elevenlabs_class, temp_audio_file):
         """Test transcription with value error raises ProviderAPIError."""
+        import asyncio
+
         from src.exceptions import ProviderAPIError
 
         mock_client = Mock()
@@ -675,12 +677,8 @@ class TestElevenLabsTranscriberEdgeCases:
                 "src.providers.elevenlabs.validate_audio_file_or_raise",
                 return_value=temp_audio_file,
             ):
-                with patch(
-                    "src.providers.elevenlabs.asyncio.wait_for", new_callable=AsyncMock
-                ) as mock_wait:
-                    mock_wait.side_effect = ValueError("Invalid audio format")
-                    with pytest.raises(ProviderAPIError, match=r"(?i)Unexpected elevenlabs error"):
-                        transcriber.transcribe(temp_audio_file, "en")
+                with pytest.raises(ProviderAPIError, match=r"(?i)Unexpected elevenlabs error"):
+                    asyncio.run(transcriber.transcribe_async(temp_audio_file, "en"))
 
     @pytest.mark.asyncio
     @patch("src.providers.elevenlabs.ElevenLabsClient")

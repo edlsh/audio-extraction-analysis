@@ -7,7 +7,8 @@ All custom exceptions should inherit from AudioAnalysisError.
 
 from __future__ import annotations
 
-from typing import Any, Optional
+import subprocess
+from typing import Any
 
 
 class AudioAnalysisError(Exception):
@@ -366,6 +367,45 @@ class AnalysisFormatError(AnalysisError):
 
     Raised when the analysis result cannot be properly formatted.
     """
+
+
+# ============================================================================
+# Exception Groups for Safe Catching
+# ============================================================================
+
+# Cache exceptions: narrow to specific cache-related errors
+# - CacheError: base cache error
+# - CacheReadError: failed to read from cache
+# - CacheWriteError: failed to write to cache
+# - CacheCorruptionError: cached data is corrupted/invalid
+CACHE_EXCEPTIONS = (
+    CacheError,
+    CacheReadError,
+    CacheWriteError,
+    CacheCorruptionError,
+)
+
+
+# Audio extraction exceptions: narrow to specific file I/O errors
+# - AudioFileNotFoundError: file does not exist
+# - FileAccessError: access denied (permissions)
+# - FFmpegExecutionError: FFmpeg-specific errors
+# - subprocess.TimeoutExpired: extraction timed out
+AUDIO_EXTRACTION_EXCEPTIONS = (
+    FFmpegExecutionError,
+    AudioFileNotFoundError,
+    FileAccessError,
+    subprocess.TimeoutExpired,
+)
+
+
+PROVIDER_EXCEPTIONS = (
+    TimeoutError,
+    ConnectionError,
+    ConnectionRefusedError,
+    ConnectionResetError,
+    ConnectionAbortedError,
+)
 
 
 # ============================================================================

@@ -155,48 +155,42 @@ def sanitize_url(url: str, *, redact_query: bool = True, remove_fragment: bool =
 
     try:
         parsed = urlparse(url)
-    except Exception:
-        # If URL parsing fails, return a minimal safe representation
-        return "[INVALID_URL]"
 
-    # Handle fragment
-    fragment = "" if remove_fragment else parsed.fragment
+        # Handle fragment
+        fragment = "" if remove_fragment else parsed.fragment
 
-    # Handle query parameters
-    new_query = parsed.query
-    if redact_query and parsed.query:
-        try:
-            # Parse query parameters
-            params = parse_qs(parsed.query, keep_blank_values=True)
-            redacted_params: dict[str, list[str]] = {}
+        # Handle query parameters
+        new_query = parsed.query
+        if redact_query and parsed.query:
+            try:
+                # Parse query parameters
+                params = parse_qs(parsed.query, keep_blank_values=True)
+                redacted_params: dict[str, list[str]] = {}
 
-            for key, values in params.items():
-                # Check if this key is sensitive (case-insensitive)
-                if key.lower() in SENSITIVE_URL_PARAMS:
-                    redacted_params[key] = [REDACTED for _ in values]
-                else:
-                    redacted_params[key] = values
+                for key, values in params.items():
+                    # Check if this key is sensitive (case-insensitive)
+                    if key.lower() in SENSITIVE_URL_PARAMS:
+                        redacted_params[key] = [REDACTED for _ in values]
+                    else:
+                        redacted_params[key] = values
 
-            # Rebuild query string
-            # urlencode with doseq=True handles list values
-            new_query = urlencode(redacted_params, doseq=True)
-        except Exception:
-            # If query parsing fails, redact the entire query
-            new_query = REDACTED
+                # Rebuild query string
+                # urlencode with doseq=True handles list values
+                new_query = urlencode(redacted_params, doseq=True)
+            except (ValueError, TypeError):
+                new_query = REDACTED
 
-    # Reconstruct the URL
-    sanitized = urlunparse(
-        (
+        # Reconstruct the URL
+        return urlunparse((
             parsed.scheme,
             parsed.netloc,
             parsed.path,
             parsed.params,  # URL params (rarely used, between path and query)
             new_query,
             fragment,
-        )
-    )
-
-    return sanitized
+        ))
+    except (ValueError, TypeError):
+        return "[INVALID_URL]"
 
 
 def sanitize_url_for_display(url: str) -> str:
@@ -221,16 +215,14 @@ def sanitize_url_for_display(url: str) -> str:
     try:
         parsed = urlparse(url)
         # Return just scheme://host/path
-        return urlunparse(
-            (
-                parsed.scheme,
-                parsed.netloc,
-                parsed.path,
-                "",  # no params
-                "",  # no query
-                "",  # no fragment
-            )
-        )
+        return urlunparse((
+            parsed.scheme,
+            parsed.netloc,
+            parsed.path,
+            "",  # no params
+            "",  # no query
+            "",  # no fragment
+        ))
     except Exception:
         return "[INVALID_URL]"
 

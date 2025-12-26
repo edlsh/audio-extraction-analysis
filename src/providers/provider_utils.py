@@ -1,4 +1,17 @@
-"""Provider configuration and error handling utilities."""
+"""Provider configuration and error handling utilities.
+
+Exception Handling Policy:
+    - Re-raise: Network errors (ConnectionError, TimeoutError) for retry logic
+    - Wrap and log: Provider API errors (mapped to ProviderAPIError)
+    - Wrap and raise: Validation errors (mapped to ValidationError)
+    - Log only: Cache errors (non-critical)
+
+Decorator Usage:
+    @provider_error_handler("deepgram", "uv add deepgram-sdk")
+    async def _transcribe_impl(self, audio_file_path: Path, language: str = "en"):
+        # Provider-specific logic only - no try/except needed
+        ...
+"""
 
 from __future__ import annotations
 
@@ -22,7 +35,6 @@ from ..exceptions import (
     ValidationError,
 )
 from ..utils.retry import RetryConfig
-from .base import CircuitBreakerConfig
 
 logger = get_logger(__name__)
 
@@ -63,11 +75,8 @@ def require_sdk(meta: ProviderMeta) -> None:
         raise ImportError(f"{meta.name} SDK not available.{install_hint}")
 
 
-def get_default_configs(
-    retry_config: RetryConfig | None = None,
-    circuit_config: CircuitBreakerConfig | None = None,
-) -> tuple[RetryConfig, CircuitBreakerConfig]:
-    """Get retry and circuit breaker configs with defaults from global config."""
+def get_default_configs(retry_config: RetryConfig | None = None) -> RetryConfig:
+    """Get retry config with defaults from global config."""
     config = get_config()
 
     if retry_config is None:
@@ -79,13 +88,7 @@ def get_default_configs(
             jitter=config.retry_jitter,
         )
 
-    if circuit_config is None:
-        circuit_config = CircuitBreakerConfig(
-            failure_threshold=config.circuit_breaker_failure_threshold,
-            recovery_timeout=config.circuit_breaker_recovery_timeout,
-        )
-
-    return retry_config, circuit_config
+    return retry_config
 
 
 def map_provider_error(
@@ -228,3 +231,7 @@ def provider_error_handler(
         return wrapper
 
     return decorator
+
+
+# Shorter alias for common usage
+handle_provider_errors = provider_error_handler

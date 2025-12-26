@@ -6,7 +6,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from urllib.parse import ParseResult, urlparse
 
 from cachetools import TTLCache
@@ -115,7 +115,7 @@ class UrlIngestionService:
             return
 
         event = Event(
-            type=event_type,  # type: ignore[arg-type]
+            type=cast(EventType, event_type),
             stage=stage,
             data=data or {},
         )

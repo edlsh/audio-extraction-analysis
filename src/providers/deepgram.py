@@ -8,8 +8,6 @@ analysis, sentiment analysis, and automatic summarization.
 from __future__ import annotations
 
 import asyncio
-import time
-from datetime import datetime
 from typing import TYPE_CHECKING, Any, BinaryIO
 
 from src.utils.logger import get_logger
@@ -19,7 +17,6 @@ if TYPE_CHECKING:
 
     from ..utils.retry import RetryConfig
 
-from ..config import get_config
 from ..models.transcription import (
     TranscriptionChapter,
     TranscriptionResult,
@@ -27,10 +24,8 @@ from ..models.transcription import (
     TranscriptionUtterance,
 )
 from ..utils.file_validation import validate_audio_file_or_raise
-from .base import BaseTranscriptionProvider, CircuitBreakerConfig, ProviderMeta
-from .deepgram_utils import build_prerecorded_options
-from .deepgram_utils import detect_mimetype as _dg_detect_mimetype
-from .provider_utils import check_sdk_available, get_default_configs, provider_error_handler
+from .base import BaseTranscriptionProvider, HealthCheckResult, ProviderMeta
+from .provider_utils import get_default_configs, provider_error_handler
 
 logger = get_logger(__name__)
 
@@ -60,17 +55,13 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
         api_key_min_length=20,
         sdk_imports=["deepgram"],
         install_command="uv add deepgram-sdk",
+        estimated_speed_mb_per_sec=2.0,
     )
 
-    def __init__(
-        self,
-        api_key: str | None = None,
-        circuit_config: CircuitBreakerConfig | None = None,
-        retry_config: RetryConfig | None = None,
-    ) -> None:
+    def __init__(self, api_key: str | None = None, retry_config: RetryConfig | None = None) -> None:
         """Initialize the transcriber with API key and configurations."""
-        retry_config, circuit_config = get_default_configs(retry_config, circuit_config)
-        super().__init__(api_key, circuit_config, retry_config)
+        retry_config = get_default_configs(retry_config)
+        super().__init__(api_key, retry_config)
         self.api_key = self._resolve_api_key()
         if not self.api_key:
             raise ValueError(
@@ -256,13 +247,10 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
 
         duration = getattr(metadata, "duration", 0.0) if metadata else 0.0
 
-        result = TranscriptionResult(
+        result = self._build_transcription_result(
             transcript=transcript,
+            audio_file=audio_file_path,
             duration=duration,
-            generated_at=datetime.now(),
-            audio_file=str(audio_file_path),
-            provider_name=self.get_provider_name(),
-            provider_features=self.get_supported_features(),
         )
 
         if results:
@@ -278,7 +266,7 @@ class DeepgramTranscriber(BaseTranscriptionProvider):
         return result
 
     # ---------------------- Public API ----------------------
-    async def health_check_async(self) -> dict[str, Any]:
+    async def health_check_async(self) -> HealthCheckResult:
         """Perform health check for Deepgram service."""
 
         async def _check() -> dict[str, Any]:

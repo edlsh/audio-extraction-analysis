@@ -17,7 +17,7 @@ The loguru backend provides:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from .loguru_config import (
     configure_loguru,
@@ -30,9 +30,6 @@ from .loguru_config import (
 from .loguru_config import (
     reset as reset_loguru,
 )
-
-if TYPE_CHECKING:
-    from loguru import Logger
 
 
 def get_logger(name: str | None = None) -> Any:
@@ -88,6 +85,90 @@ __all__ = [
     "configure_logger",
     "configure_verbose",
     "get_logger",
+    "reset_loguru",
+    "set_level",
+]
+
+
+def log_operation(
+    logger: Any,
+    operation: str,
+    status: str,
+    **context: Any,
+) -> None:
+    """Log an operation with structured context.
+
+    Args:
+        logger: Logger instance
+        operation: Operation name (e.g., "transcribe", "health_check")
+        status: Operation status (e.g., "started", "completed", "failed")
+        **context: Additional context (file_path, provider, duration, etc.)
+    """
+    log_data = {"operation": operation, "status": status, **context}
+    if status == "started":
+        logger.debug(log_data)
+    elif status == "completed":
+        logger.info(log_data)
+    elif status == "failed":
+        logger.error(log_data)
+    else:
+        logger.warning(log_data)
+
+
+def log_performance(
+    logger: Any,
+    operation: str,
+    duration_seconds: float,
+    **context: Any,
+) -> None:
+    """Log performance metrics.
+
+    Args:
+        logger: Logger instance
+        operation: Operation name
+        duration_seconds: Duration in seconds
+        **context: Additional context
+    """
+    logger.info({
+        "operation": operation,
+        "duration_seconds": duration_seconds,
+        "performance": True,
+        **context,
+    })
+
+
+def log_api_call(
+    logger: Any,
+    provider: str,
+    method: str,
+    status: str,
+    **context: Any,
+) -> None:
+    """Log API calls with provider context.
+
+    Args:
+        logger: Logger instance
+        provider: Provider name (e.g., "deepgram", "elevenlabs")
+        method: API method name (e.g., "transcribe_file", "health_check")
+        status: Call status (e.g., "started", "success", "failed")
+        **context: Additional context
+    """
+    logger.debug({
+        "api_call": True,
+        "provider": provider,
+        "method": method,
+        "status": status,
+        **context,
+    })
+
+
+__all__ = [
+    "configure_logger",
+    "configure_verbose",
+    "get_logger",
+    "log_api_call",
+    "log_operation",
+    "log_performance",
     "reset_loguru",
     "set_level",
 ]

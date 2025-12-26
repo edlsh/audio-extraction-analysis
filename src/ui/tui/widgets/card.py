@@ -17,8 +17,6 @@ from textual.reactive import reactive
 from textual.widget import Widget
 from textual.widgets import Label, Static
 
-from ..themes import ANIM_EASING, ANIM_FAST, ANIM_MED
-
 
 class Card(Static):
     """A card container with rounded borders and consistent styling.

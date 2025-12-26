@@ -38,7 +38,7 @@ from .loguru_config import (
 )
 
 if TYPE_CHECKING:
-    from loguru import Logger
+    pass
 
 
 class LoggingFactory:

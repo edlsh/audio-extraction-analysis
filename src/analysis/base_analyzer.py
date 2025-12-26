@@ -2,15 +2,10 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from src.utils.logger import get_logger
 
 from ..utils.constants import AnalysisConstants
 from ..utils.formatting import format_duration, format_timestamp
-
-if TYPE_CHECKING:
-    from ..models.transcription import TranscriptionResult, TranscriptionUtterance
 
 logger = get_logger(__name__)
 

@@ -8,8 +8,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import re
-import shlex
 import subprocess
 import threading
 import time
@@ -26,8 +24,8 @@ from ..exceptions import (
     AudioExtractionError,
     FFmpegNotFoundError,
 )
-from ..utils.constants import MediaLimits, Timeouts
-from ..utils.file_validation import safe_validate_media_file, validate_media_file_or_raise
+from ..utils.constants import Limits, MediaLimits, Timeouts
+from ..utils.file_validation import validate_media_file_or_raise
 
 logger = get_logger(__name__)
 
@@ -54,7 +52,7 @@ class _CachedProbe:
         # Invalidate if file was modified or cache expired
         if current_mtime != self.mtime:
             return False
-        if (time.time() - self.cached_at) > _PROBE_CACHE_TTL:
+        if (time.time() - self.cached_at) > Limits.PROBE_CACHE_TTL:
             return False
         return True
 
@@ -114,15 +112,6 @@ class _ProbeCache:
 
 # Module-level probe cache instance
 _probe_cache = _ProbeCache()
-
-
-def clear_probe_cache() -> None:
-    """Clear the probe cache.
-
-    Call this at the start of a new pipeline run if you want to
-    ensure fresh probe results.
-    """
-    _probe_cache.clear()
 
 
 # =============================================================================
@@ -557,13 +546,11 @@ def build_extract_commands(
     normalize_cmd = ["ffmpeg", "-i", str(temp_path)]
     if allow_overwrite:
         normalize_cmd.append("-y")
-    normalize_cmd.extend(
-        [
-            "-ac",
-            "1",  # Convert to mono (single audio channel)
-            "-af",
-            "loudnorm=I=-16:TP=-1.5:LRA=11",  # EBU R128 loudness normalization
-            str(output_path),
-        ]
-    )
+    normalize_cmd.extend([
+        "-ac",
+        "1",  # Convert to mono (single audio channel)
+        "-af",
+        "loudnorm=I=-16:TP=-1.5:LRA=11",  # EBU R128 loudness normalization
+        str(output_path),
+    ])
     return [extract, normalize_cmd], temp_path

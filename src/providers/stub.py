@@ -9,10 +9,14 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from ..models.transcription import TranscriptionResult
-from .base import BaseTranscriptionProvider, ProviderMeta
+from ..utils.retry import RetryConfig
+from .base import BaseTranscriptionProvider, HealthCheckResult, ProviderMeta
+
+if TYPE_CHECKING:
+    pass
 
 
 @dataclass
@@ -42,8 +46,14 @@ class StubTranscriptionProvider(BaseTranscriptionProvider):
         is_local=True,
     )
 
-    def __init__(self, config: StubProviderConfig | None = None, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
+    def __init__(
+        self,
+        config: StubProviderConfig | None = None,
+        api_key: str | None = None,
+        retry_config: RetryConfig | None = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(api_key=api_key, retry_config=retry_config)
         self.config = config or StubProviderConfig()
 
     async def _transcribe_impl(
@@ -64,15 +74,10 @@ class StubTranscriptionProvider(BaseTranscriptionProvider):
 
         file_hash = self._compute_file_hash(audio_file_path)
 
-        from datetime import datetime
-
-        return TranscriptionResult(
+        return self._build_transcription_result(
             transcript=self.config.transcript_text,
+            audio_file=audio_file_path,
             duration=self.config.duration_seconds,
-            generated_at=datetime.now(),
-            audio_file=str(audio_file_path),
-            provider_name="stub",
-            provider_features=["testing", "offline"],
             metadata={
                 "file_hash": file_hash,
                 "stub_provider": True,
@@ -89,7 +94,7 @@ class StubTranscriptionProvider(BaseTranscriptionProvider):
         h.update(path.read_bytes()[:4096])
         return h.hexdigest()[:16]
 
-    async def health_check_async(self) -> dict[str, Any]:
+    async def health_check_async(self) -> HealthCheckResult:
         """Stub health check always succeeds."""
         return await self._run_health_check(self._do_health_check)
 

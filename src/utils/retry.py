@@ -102,6 +102,26 @@ def _build_tenacity_kwargs(config: RetryConfig) -> dict[str, Any]:
     return kwargs
 
 
+def _build_retry_config(
+    config: RetryConfig | None,
+    max_attempts: int | None,
+    base_delay: float | None,
+    max_delay: float | None,
+    exponential_base: float | None,
+    jitter: bool | None,
+    retriable_exceptions: tuple[type[Exception], ...] | None,
+) -> RetryConfig:
+    """Build RetryConfig from individual parameters or provided config."""
+    return config or RetryConfig(
+        max_attempts=max_attempts or 3,
+        base_delay=base_delay or 1.0,
+        max_delay=max_delay or 60.0,
+        exponential_base=exponential_base or 2.0,
+        jitter=jitter if jitter is not None else True,
+        retriable_exceptions=retriable_exceptions or DEFAULT_RETRIABLE_EXCEPTIONS,
+    )
+
+
 def retry_sync(
     config: RetryConfig | None = None,
     max_attempts: int | None = None,
@@ -112,13 +132,8 @@ def retry_sync(
     retriable_exceptions: tuple[type[Exception], ...] | None = None,
 ) -> Callable[[F], F]:
     """Decorator for synchronous functions with retry logic using tenacity."""
-    cfg = config or RetryConfig(
-        max_attempts=max_attempts or 3,
-        base_delay=base_delay or 1.0,
-        max_delay=max_delay or 60.0,
-        exponential_base=exponential_base or 2.0,
-        jitter=jitter if jitter is not None else True,
-        retriable_exceptions=retriable_exceptions or DEFAULT_RETRIABLE_EXCEPTIONS,
+    cfg = _build_retry_config(
+        config, max_attempts, base_delay, max_delay, exponential_base, jitter, retriable_exceptions
     )
 
     def decorator(func: F) -> F:
@@ -145,13 +160,8 @@ def retry_async(
     retriable_exceptions: tuple[type[Exception], ...] | None = None,
 ) -> Callable[[AsyncF], AsyncF]:
     """Decorator for asynchronous functions with retry logic using tenacity."""
-    cfg = config or RetryConfig(
-        max_attempts=max_attempts or 3,
-        base_delay=base_delay or 1.0,
-        max_delay=max_delay or 60.0,
-        exponential_base=exponential_base or 2.0,
-        jitter=jitter if jitter is not None else True,
-        retriable_exceptions=retriable_exceptions or DEFAULT_RETRIABLE_EXCEPTIONS,
+    cfg = _build_retry_config(
+        config, max_attempts, base_delay, max_delay, exponential_base, jitter, retriable_exceptions
     )
 
     def decorator(func: AsyncF) -> AsyncF:

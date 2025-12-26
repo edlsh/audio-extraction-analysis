@@ -9,6 +9,7 @@ from src.utils.logger import get_logger
 
 # Import ValidationError from the canonical location
 from ..exceptions import ValidationError
+from .file_size import get_file_size_bytes
 from .sanitization import PathSanitizer
 
 logger = get_logger(__name__)
@@ -66,7 +67,7 @@ class FileValidator:
         Raises:
             ValueError: If file exceeds size limit
         """
-        file_size = file_path.stat().st_size
+        file_size = get_file_size_bytes(file_path)
         if file_size > max_size:
             raise ValueError(f"File size {file_size:,} bytes exceeds maximum {max_size:,} bytes")
 
@@ -82,8 +83,10 @@ class FileValidator:
         """
         try:
             isf = file_path.is_file()
-        except Exception:  # e.g., mocked stat without st_mode
-            isf = True  # Defer to permission check
+        except Exception as e:  # e.g., mocked stat without st_mode
+            # Defer to permission check (e.g., Path objects in tests)
+            logger.debug(f"File stat check failed, deferring to permission check: {e}")
+            isf = True
         if not isf:
             raise ValueError(f"Path is not a file: {file_path}")
 
@@ -286,8 +289,9 @@ class FileValidator:
         try:
             if file_path.exists():
                 return file_path.stat().st_size / (1024 * 1024)
-        except (OSError, PermissionError):
-            pass
+        except (OSError, PermissionError) as e:
+            # Return 0 for inaccessible files (will fail validation later)
+            logger.debug(f"File size check failed for {file_path}: {e}")
         return 0.0
 
 

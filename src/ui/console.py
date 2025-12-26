@@ -13,8 +13,6 @@ from contextlib import contextmanager
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from src.utils.logger import get_logger
-
 if TYPE_CHECKING:
     from rich.progress import TaskID
 

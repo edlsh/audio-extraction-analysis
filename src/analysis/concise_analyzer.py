@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING
 from src.utils.logger import get_logger
 
 from ..utils.constants import AnalysisConstants
-from ..utils.formatting import format_duration
 from .base_analyzer import BaseAnalyzer
 
 if TYPE_CHECKING:

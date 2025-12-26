@@ -5,7 +5,6 @@ import tempfile
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 from src.utils.logger import get_logger
 
@@ -170,14 +169,6 @@ class Config:
         default_factory=lambda: _parse_bool(_getenv("RETRY_JITTER_ENABLED", "true"))
     )
 
-    # ========== Circuit Breaker Settings ==========
-    circuit_breaker_failure_threshold: int = field(
-        default_factory=lambda: _getenv_int("CIRCUIT_BREAKER_FAILURE_THRESHOLD", 5)
-    )
-    circuit_breaker_recovery_timeout: float = field(
-        default_factory=lambda: _getenv_float("CIRCUIT_BREAKER_RECOVERY_TIMEOUT", 60.0)
-    )
-
     # ========== Batch Processing ==========
     batch_size: int = field(default_factory=lambda: _getenv_int("BATCH_SIZE", 5))
 
@@ -238,7 +229,6 @@ class Config:
         self._validate_positive_values()
         self._validate_timeouts()
         self._validate_retry_settings()
-        self._validate_circuit_breaker()
         self._validate_environment()
 
     def _validate_enums(self) -> None:
@@ -308,20 +298,6 @@ class Config:
         if self.retry_exponential_base <= 1.0:
             raise ValueError(
                 f"RETRY_EXPONENTIAL_BASE must be > 1.0, got: {self.retry_exponential_base}"
-            )
-
-    def _validate_circuit_breaker(self) -> None:
-        """Validate circuit breaker settings."""
-        if self.circuit_breaker_failure_threshold <= 0:
-            raise ValueError(
-                f"CIRCUIT_BREAKER_FAILURE_THRESHOLD must be positive, "
-                f"got: {self.circuit_breaker_failure_threshold}"
-            )
-
-        if self.circuit_breaker_recovery_timeout <= 0:
-            raise ValueError(
-                f"CIRCUIT_BREAKER_RECOVERY_TIMEOUT must be positive, "
-                f"got: {self.circuit_breaker_recovery_timeout}"
             )
 
     def _validate_environment(self) -> None:

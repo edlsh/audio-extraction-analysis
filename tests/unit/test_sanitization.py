@@ -181,18 +181,19 @@ class TestPathSanitizerFilename:
         """
         result = PathSanitizer.sanitize_filename("file\nname.txt")
 
-        # Current behavior: newlines are preserved as whitespace
+        # Control characters (including newlines) are replaced with underscore
         assert isinstance(result, str)
         assert ".txt" in result
-        # TODO: Consider if newlines should be replaced for security
+        assert "\n" not in result  # Newline was replaced
 
     def test_sanitize_filename_with_tab(self):
-        """Test that tabs are preserved (they're whitespace)."""
+        """Test that tabs are replaced (they're control characters)."""
         result = PathSanitizer.sanitize_filename("file\tname.txt")
 
-        # Tabs are whitespace and should be preserved
+        # Tabs are control characters (0x09) and should be replaced
         assert len(result) > 0
         assert ".txt" in result
+        assert "\t" not in result  # Tab was replaced
 
     def test_sanitize_filename_ending_with_dots(self):
         """Test filename ending with multiple dots."""
@@ -224,10 +225,10 @@ class TestPathSanitizerFilename:
         """
         result = PathSanitizer.sanitize_filename("file\rname.txt")
 
-        # Current behavior: carriage returns are preserved as whitespace
+        # Control characters (including \r) are replaced with underscore
         assert isinstance(result, str)
         assert ".txt" in result
-        # TODO: Consider if \r should be replaced for security/compatibility
+        assert "\r" not in result  # Carriage return was replaced
 
 
 class TestPathSanitizerDirname:
@@ -301,17 +302,18 @@ class TestPathSanitizerDirname:
         """
         result = PathSanitizer.sanitize_dirname("dir\nname")
 
-        # Current behavior: newlines are preserved as whitespace
+        # Control characters (including newlines) are replaced with underscore
         assert isinstance(result, str)
         assert len(result) > 0
-        # TODO: Consider if newlines should be replaced for security
+        assert "\n" not in result  # Newline was replaced
 
     def test_sanitize_dirname_with_tab(self):
         """Test dirname with tab characters."""
         result = PathSanitizer.sanitize_dirname("dir\tname")
 
-        # Tabs are whitespace and should be preserved
+        # Tabs are control characters (0x09) and should be replaced
         assert len(result) > 0
+        assert "\t" not in result  # Tab was replaced
 
     def test_sanitize_dirname_starting_with_dot(self):
         """Test dirname starting with dot."""

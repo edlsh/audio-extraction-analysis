@@ -64,7 +64,9 @@ class PathSanitizer:
             sanitized = "unnamed"
 
         # Limit length to avoid filesystem issues (255 chars is common limit)
-        max_length = 200  # Leave room for extensions
+        from src.utils.constants import PathSanitizationConstants
+
+        max_length = PathSanitizationConstants.MAX_FILENAME_LENGTH
         if len(sanitized) > max_length:
             # Preserve extension if present
             parts = sanitized.rsplit(".", 1)
@@ -106,7 +108,9 @@ class PathSanitizer:
             sanitized = "unnamed_dir"
 
         # Limit length
-        max_length = 100
+        from src.utils.constants import PathSanitizationConstants
+
+        max_length = PathSanitizationConstants.MAX_DIRNAME_LENGTH
         if len(sanitized) > max_length:
             sanitized = sanitized[:max_length].rstrip(replacement)
 
