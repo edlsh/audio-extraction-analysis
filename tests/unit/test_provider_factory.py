@@ -21,7 +21,7 @@ pytestmark = [
 ]
 
 from src.providers.base import BaseTranscriptionProvider
-from src.providers.factory import TranscriptionProviderFactory
+from src.providers.factory import TranscriptionProviderFactory, _providers, register_provider
 
 
 @pytest.fixture(autouse=True)
@@ -34,11 +34,11 @@ def clear_api_keys(monkeypatch):
 @pytest.fixture(autouse=True)
 def clear_provider_registry():
     """Clear provider registry before each test and restore after."""
-    original_providers = TranscriptionProviderFactory._providers.copy()
-    TranscriptionProviderFactory._providers.clear()
+    original_providers = _providers.copy()
+    _providers.clear()
     yield
-    TranscriptionProviderFactory._providers.clear()
-    TranscriptionProviderFactory._providers.update(original_providers)
+    _providers.clear()
+    _providers.update(original_providers)
 
 
 @pytest.fixture
@@ -99,18 +99,28 @@ class TestTranscriptionProviderFactoryRegistration:
     def test_register_provider(self, mock_provider_class):
         """Test registering a new provider."""
         # Clear existing providers
-        TranscriptionProviderFactory._providers.clear()
+        _providers.clear()
 
-        TranscriptionProviderFactory.register_provider("mock", mock_provider_class)
+        register_provider("mock", mock_provider_class)
 
-        assert "mock" in TranscriptionProviderFactory._providers
-        assert TranscriptionProviderFactory._providers["mock"] == mock_provider_class
+        assert "mock" in _providers
+        # Class objects are stored directly (supports local/test classes)
+        assert _providers["mock"] is mock_provider_class
+
+    def test_register_provider_with_string_path(self):
+        """Test registering a provider with string import path."""
+        _providers.clear()
+
+        register_provider("custom", "src.providers.deepgram.DeepgramTranscriber")
+
+        assert "custom" in _providers
+        assert _providers["custom"] == "src.providers.deepgram.DeepgramTranscriber"
 
     def test_get_available_providers(self, mock_provider_class):
         """Test getting list of available providers."""
-        TranscriptionProviderFactory._providers.clear()
-        TranscriptionProviderFactory.register_provider("mock1", mock_provider_class)
-        TranscriptionProviderFactory.register_provider("mock2", mock_provider_class)
+        _providers.clear()
+        register_provider("mock1", mock_provider_class)
+        register_provider("mock2", mock_provider_class)
 
         providers = TranscriptionProviderFactory.get_available_providers()
 
@@ -120,7 +130,7 @@ class TestTranscriptionProviderFactoryRegistration:
 
     def test_get_available_providers_empty(self):
         """Test getting providers when none are registered."""
-        TranscriptionProviderFactory._providers.clear()
+        _providers.clear()
 
         providers = TranscriptionProviderFactory.get_available_providers()
 
@@ -186,8 +196,8 @@ class TestTranscriptionProviderFactoryCreateProvider:
 
     def test_create_provider_success(self, mock_provider_class):
         """Test successfully creating a provider."""
-        TranscriptionProviderFactory._providers.clear()
-        TranscriptionProviderFactory.register_provider("mock", mock_provider_class)
+        _providers.clear()
+        register_provider("mock", mock_provider_class)
 
         provider = TranscriptionProviderFactory.create_provider("mock", api_key="test_key")
 
@@ -196,35 +206,35 @@ class TestTranscriptionProviderFactoryCreateProvider:
 
     def test_create_provider_unknown(self):
         """Test creating unknown provider raises ValueError."""
-        TranscriptionProviderFactory._providers.clear()
+        _providers.clear()
 
         with pytest.raises(ValueError, match="Unknown provider 'unknown'"):
             TranscriptionProviderFactory.create_provider("unknown")
 
     def test_create_provider_invalid_config(self, mock_provider_class):
         """Test creating provider with invalid configuration."""
-        TranscriptionProviderFactory._providers.clear()
+        _providers.clear()
 
         # Create a mock provider class that fails validation
         class InvalidMockProvider(mock_provider_class):
             def validate_configuration(self):
                 return False
 
-        TranscriptionProviderFactory.register_provider("invalid", InvalidMockProvider)
+        register_provider("invalid", InvalidMockProvider)
 
         with pytest.raises(ValueError, match="Provider 'invalid' is not properly configured"):
             TranscriptionProviderFactory.create_provider("invalid")
 
     def test_create_provider_initialization_error(self, mock_provider_class):
         """Test creating provider when initialization fails."""
-        TranscriptionProviderFactory._providers.clear()
+        _providers.clear()
 
         # Create a mock provider class that raises exception during init
         class FailingMockProvider(mock_provider_class):
             def __init__(self, api_key=None):
                 raise Exception("Initialization failed")
 
-        TranscriptionProviderFactory.register_provider("failing", FailingMockProvider)
+        register_provider("failing", FailingMockProvider)
 
         with pytest.raises(Exception, match="Initialization failed"):
             TranscriptionProviderFactory.create_provider("failing")
@@ -404,42 +414,38 @@ class TestTranscriptionProviderFactoryFileValidation:
 class TestTranscriptionProviderFactoryIntegration:
     """Integration tests for TranscriptionProviderFactory."""
 
-    def test_factory_initialization_registers_providers(self):
-        """Test that factory initialization registers default providers."""
-        # Reset the factory and re-initialize
-        TranscriptionProviderFactory._providers.clear()
+    def test_factory_has_default_providers(self):
+        """Test that factory has default providers registered at module level."""
+        # Import fresh to get module-level defaults
+        import importlib
 
-        # Re-run the initialization
-        from src.providers.factory import _initialize_factory
+        import src.providers.factory as factory_module
 
-        _initialize_factory()
+        importlib.reload(factory_module)
 
-        available = TranscriptionProviderFactory.get_available_providers()
+        available = factory_module.TranscriptionProviderFactory.get_available_providers()
 
-        # Should have at least one provider (depending on imports)
-        assert len(available) > 0
+        # Should have default providers
+        assert "deepgram" in available
+        assert "elevenlabs" in available
+        assert "whisper" in available
+        assert "parakeet" in available
 
-    @patch("src.providers.factory.logger")
-    def test_factory_handles_import_errors_gracefully(self, mock_logger):
-        """Test that factory handles import errors gracefully."""
-        # Clear providers
-        TranscriptionProviderFactory._providers.clear()
+    def test_lazy_loading_handles_import_errors(self):
+        """Test that lazy loading handles import errors at creation time."""
+        # Register a provider with invalid import path
+        _providers["broken"] = "src.providers.nonexistent.BrokenProvider"
 
-        # Simply test that ImportError in provider initialization is handled
-        with patch("src.providers.deepgram.DeepgramTranscriber", side_effect=ImportError):
-            with patch("src.providers.elevenlabs.ElevenLabsTranscriber", side_effect=ImportError):
-                # Re-run initialization
-                from src.providers.factory import _initialize_factory
+        with pytest.raises(ValueError, match="module not available"):
+            TranscriptionProviderFactory.create_provider("broken")
 
-                _initialize_factory()
-
-        # Should complete without crashing (ImportErrors are caught)
-        assert True  # Test passes if no exception was raised
+        # Cleanup
+        del _providers["broken"]
 
     def test_full_workflow_with_factory(self, monkeypatch, temp_audio_file, mock_provider_class):
         """Test complete workflow using factory."""
         # Register mock provider for testing
-        TranscriptionProviderFactory.register_provider("mock", mock_provider_class)
+        register_provider("mock", mock_provider_class)
 
         # Test provider creation
         provider = TranscriptionProviderFactory.create_provider("mock", api_key="workflow_key")

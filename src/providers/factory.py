@@ -1,16 +1,11 @@
 """Factory for creating and managing transcription service providers.
 
 This module implements the Factory Pattern for transcription providers, providing:
-- Lazy provider registration and discovery (imports deferred until first use)
+- Direct provider registration and discovery
 - Configuration validation and optional health checking
 - Policy-based provider selection (delegated to ProviderSelectionPolicy)
 
-Providers are loaded lazily on first access to avoid importing heavyweight
-dependencies (torch, nemo) at module import time. This significantly improves
-CLI startup performance.
-
 Example:
-    >>> # Create a provider (imports happen here, not at module load)
     >>> provider = TranscriptionProviderFactory.create_provider("deepgram")
     >>> result = await provider.transcribe_async(audio_file_path)
 """
@@ -18,16 +13,16 @@ Example:
 from __future__ import annotations
 
 import asyncio
-import importlib
 import os
+import threading
 from typing import TYPE_CHECKING, Any
 
 from src.utils.logger import get_logger
 
 from ..config import get_config
 from ..utils.retry import RetryConfig
-from .base import BaseTranscriptionProvider, CircuitBreakerConfig, ProviderMeta
-from .policy import ProviderSelectionPolicy, TranscriptionPolicy
+from .base import BaseTranscriptionProvider, ProviderMeta
+from .policy import ProviderSelectionPolicy
 from .provider_utils import check_sdk_available, get_default_configs
 
 if TYPE_CHECKING:
@@ -35,15 +30,31 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-# Lazy provider import registry: maps provider names to (module_path, class_name)
-# Providers are imported only when first accessed, not at module load time
-_PROVIDER_IMPORTS: dict[str, tuple[str, str]] = {
-    "deepgram": (".deepgram", "DeepgramTranscriber"),
-    "elevenlabs": (".elevenlabs", "ElevenLabsTranscriber"),
-    "whisper": (".whisper", "WhisperTranscriber"),
-    "parakeet": (".parakeet", "ParakeetTranscriber"),
-    "stub": (".stub", "StubTranscriptionProvider"),
+# Provider registry: maps provider names to import path strings OR class objects.
+# String paths enable lazy loading; class objects support local/test classes.
+_providers: dict[str, str | type[BaseTranscriptionProvider]] = {
+    "deepgram": "src.providers.deepgram.DeepgramTranscriber",
+    "elevenlabs": "src.providers.elevenlabs.ElevenLabsTranscriber",
+    "whisper": "src.providers.whisper.WhisperTranscriber",
+    "parakeet": "src.providers.parakeet.ParakeetTranscriber",
+    "stub": "src.providers.stub.StubTranscriptionProvider",
 }
+
+
+def register_provider(name: str, provider_class_or_path: type[BaseTranscriptionProvider] | str) -> None:
+    """Register a provider class or import path.
+
+    Args:
+        name: Provider name (e.g., "custom")
+        provider_class_or_path: Either a class object or a dotted import path string.
+            Class objects are stored directly (supports local/test classes).
+            Strings are stored as-is for lazy loading.
+
+    Note:
+        This function modifies the module-level registry. For thread safety,
+        call only during module initialization.
+    """
+    _providers[name] = provider_class_or_path
 
 
 class TranscriptionProviderFactory:
@@ -63,45 +74,22 @@ class TranscriptionProviderFactory:
         should only be performed during module initialization to avoid race conditions.
     """
 
-    # Registry of available providers: maps provider names to their implementation classes
-    _providers: dict[str, type[BaseTranscriptionProvider]] = {}
-
-    @classmethod
-    def register_provider(cls, name: str, provider_class: type[BaseTranscriptionProvider]) -> None:
-        """Register a transcription provider.
-
-        Args:
-            name: Provider name (e.g., 'deepgram', 'elevenlabs')
-            provider_class: Provider class implementing BaseTranscriptionProvider
-        """
-        cls._providers[name] = provider_class
-        logger.debug(f"Registered transcription provider: {name}")
-
     @classmethod
     def get_available_providers(cls) -> list[str]:
         """Get list of all known provider names.
 
-        Returns all providers that can potentially be loaded, including those
-        not yet imported. This includes both already-loaded providers and
-        those in the lazy import registry.
-
         Returns:
             List of provider names available for use
         """
-        # Combine already-loaded providers with lazy registry
-        all_providers = set(cls._providers.keys()) | set(_PROVIDER_IMPORTS.keys())
         # Add mock provider in test mode
+        provider_names = set(_providers.keys())
         if os.getenv("AUDIO_TEST_MODE") or os.getenv("CI") or os.getenv("PYTEST_CURRENT_TEST"):
-            all_providers.add("mock")
-        return sorted(all_providers)
+            provider_names.add("mock")
+        return sorted(provider_names)
 
     @classmethod
     def _get_provider_class(cls, provider_name: str) -> type[BaseTranscriptionProvider]:
-        """Lazy-load and return provider class.
-
-        Imports the provider module only on first access, caching the class
-        for subsequent calls. This avoids importing heavyweight dependencies
-        (torch, whisper, nemo) until actually needed.
+        """Get provider class by name.
 
         Args:
             provider_name: Name of the provider to load
@@ -111,43 +99,30 @@ class TranscriptionProviderFactory:
 
         Raises:
             ValueError: If provider name is unknown
-            ImportError: If provider module cannot be imported
         """
-        # Return cached provider if already loaded
-        if provider_name in cls._providers:
-            return cls._providers[provider_name]
-
         # Handle mock provider for testing
         if provider_name == "mock":
             if os.getenv("AUDIO_TEST_MODE") or os.getenv("CI") or os.getenv("PYTEST_CURRENT_TEST"):
                 from .mock import MockTranscriber
 
-                cls._providers["mock"] = MockTranscriber
-                logger.debug("Lazy-loaded Mock provider for testing")
                 return MockTranscriber
             raise ValueError("Mock provider only available in test mode")
 
-        # Check if provider is in lazy registry
-        if provider_name not in _PROVIDER_IMPORTS:
+        # Look up in registry
+        if provider_name not in _providers:
             available = ", ".join(cls.get_available_providers())
             raise ValueError(
                 f"Unknown provider '{provider_name}'. Available providers: {available}"
             )
 
-        # Lazy import the provider module
-        # module_path comes from _PROVIDER_IMPORTS, a static whitelist in this module.
-        # provider_name is validated against that dict before this import.
-        module_path, class_name = _PROVIDER_IMPORTS[provider_name]
-        try:
-            # nosemgrep: python.lang.security.audit.non-literal-import.non-literal-import
-            module = importlib.import_module(module_path, package="src.providers")
-            provider_class = getattr(module, class_name)
-            cls._providers[provider_name] = provider_class
-            logger.debug(f"Lazy-loaded provider: {provider_name}")
-            return provider_class
-        except ImportError as e:
-            logger.warning(f"Provider '{provider_name}' not available: {e}")
-            raise ImportError(f"Provider '{provider_name}' dependencies not installed: {e}") from e
+        provider_entry = _providers[provider_name]
+
+        # Return class directly if stored as class object (e.g., local/test classes)
+        if isinstance(provider_entry, type):
+            return provider_entry
+
+        # Lazy-load provider class from import path string
+        return cls._import_provider_class(provider_entry)
 
     @classmethod
     def get_configured_providers(cls) -> list[str]:
@@ -167,8 +142,9 @@ class TranscriptionProviderFactory:
         configured = []
         config = get_config()
 
-        for provider_name in _PROVIDER_IMPORTS:
+        for provider_name in _providers:
             try:
+                # Lazy-load provider class to check configuration
                 provider_class = cls._get_provider_class(provider_name)
                 meta: ProviderMeta | None = getattr(provider_class, "META", None)
 
@@ -185,30 +161,37 @@ class TranscriptionProviderFactory:
                         api_key = getattr(config, meta.api_key_env, None)
                         if api_key and len(api_key) >= meta.api_key_min_length:
                             configured.append(provider_name)
-            except ImportError:
-                # Provider dependencies not installed - skip silently
-                pass
+            except ImportError as e:
+                # Provider dependencies not installed - skip this provider
+                logger.debug(f"Provider {provider_name} skipped due to missing dependencies: {e}")
+            except ValueError as e:
+                # Provider not available - skip this provider
+                logger.debug(f"Provider {provider_name} skipped: {e}")
 
         return configured
 
     # Default selection policy instance
     _selection_policy: ProviderSelectionPolicy | None = None
+    _selection_policy_lock = threading.Lock()
 
     @classmethod
     def get_selection_policy(cls) -> ProviderSelectionPolicy:
-        """Get or create the default selection policy."""
+        """Get or create the default selection policy (thread-safe)."""
         if cls._selection_policy is None:
-            cls._selection_policy = ProviderSelectionPolicy.default()
+            with cls._selection_policy_lock:
+                if cls._selection_policy is None:  # Double-check pattern
+                    cls._selection_policy = ProviderSelectionPolicy.default()
         return cls._selection_policy
 
     @classmethod
     def set_selection_policy(cls, policy: ProviderSelectionPolicy) -> None:
-        """Set a custom selection policy.
+        """Set a custom selection policy (thread-safe).
 
         Args:
             policy: Custom ProviderSelectionPolicy instance
         """
-        cls._selection_policy = policy
+        with cls._selection_policy_lock:
+            cls._selection_policy = policy
 
     @classmethod
     def auto_select_provider(
@@ -270,7 +253,7 @@ class TranscriptionProviderFactory:
         """
         # Preserve backward compatibility for unknown/custom providers:
         # treat them as having no known constraints beyond file accessibility.
-        if provider_name not in _PROVIDER_IMPORTS:
+        if provider_name not in _providers:
             try:
                 file_path.stat()
             except (OSError, AttributeError):
@@ -304,13 +287,10 @@ class TranscriptionProviderFactory:
         provider_class: type[BaseTranscriptionProvider],
         provider_name: str,
         api_key: str | None,
-        circuit_config: CircuitBreakerConfig,
         retry_config: RetryConfig,
     ) -> BaseTranscriptionProvider:
         """Instantiate and validate provider. Raises ValueError if validation fails."""
-        provider = provider_class(
-            api_key=api_key, circuit_config=circuit_config, retry_config=retry_config
-        )
+        provider = provider_class(api_key=api_key, retry_config=retry_config)
 
         if not provider.validate_configuration():
             raise ValueError(f"Provider '{provider_name}' is not properly configured")
@@ -322,20 +302,16 @@ class TranscriptionProviderFactory:
         cls,
         provider_name: str,
         api_key: str | None = None,
-        circuit_config: CircuitBreakerConfig | None = None,
         retry_config: RetryConfig | None = None,
         run_health_check: bool = False,
-        policy: TranscriptionPolicy | None = None,
     ) -> BaseTranscriptionProvider:
         """Create provider with validation and optional health check.
 
         Args:
             provider_name: 'deepgram', 'elevenlabs', 'whisper', or 'parakeet'
             api_key: Override API key (uses env config if None)
-            circuit_config: Override circuit breaker config
-            retry_config: Override retry config
+                retry_config: Override retry config
             run_health_check: Run health check after creation (default: False)
-            policy: Optional TranscriptionPolicy for unified timeout/retry settings
 
         Raises:
             ValueError: If provider unknown or config invalid
@@ -349,21 +325,13 @@ class TranscriptionProviderFactory:
             raise ValueError(f"Provider '{provider_name}' module not available") from e
 
         try:
-            # Use policy if provided, otherwise get default configs
-            if policy is not None:
-                retry_config = policy.retry_config
-                circuit_config = policy.circuit_config
-            else:
-                retry_config, circuit_config = get_default_configs(retry_config, circuit_config)
+            # Get default configs if not provided
+            retry_config = get_default_configs(retry_config)
 
             # Create and validate provider instance
             provider = cls._create_provider_instance(
-                provider_class, provider_name, api_key, circuit_config, retry_config
+                provider_class, provider_name, api_key, retry_config
             )
-
-            # Apply policy timeout if provided
-            if policy is not None and hasattr(provider, "update_transcription_timeout"):
-                provider.update_transcription_timeout(policy.transcription_timeout)
 
             # Run health check if requested (opt-in)
             if run_health_check:
@@ -418,20 +386,34 @@ class TranscriptionProviderFactory:
     def check_provider_health_sync(
         cls, provider_name: str, api_key: str | None = None
     ) -> dict[str, Any]:
-        """Sync wrapper for check_provider_health. Uses thread pool if in async context."""
+        """Sync wrapper for check_provider_health. Uses shared executor if in async context."""
         try:
             asyncio.get_running_loop()
-            import concurrent.futures
+            # Use shared executor from async_bridge to avoid per-call ThreadPoolExecutor creation
+            from src.utils.async_bridge import run_async_in_sync
 
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(
-                    asyncio.run, cls.check_provider_health(provider_name, api_key)
-                )
-                return future.result(timeout=30)
+            return run_async_in_sync(
+                cls.check_provider_health(provider_name, api_key), timeout=30.0
+            )
         except RuntimeError:
+            # No event loop running - safe to use asyncio.run()
             return asyncio.run(cls.check_provider_health(provider_name, api_key))
 
+    @classmethod
+    def _import_provider_class(cls, provider_path: str) -> type[BaseTranscriptionProvider]:
+        """Import and return a provider class from a dotted module path.
 
-# Note: Provider registration is now lazy - providers are imported on first use
-# via _get_provider_class(), not at module import time. This improves CLI startup
-# by avoiding heavyweight imports (torch, nemo) until actually needed.
+        Args:
+            provider_path: Dotted path to provider class (e.g., "src.providers.deepgram.DeepgramTranscriber")
+
+        Returns:
+            The provider class
+
+        Raises:
+            ImportError: If the module or class cannot be imported
+        """
+        import importlib
+
+        module_path, class_name = provider_path.rsplit(".", 1)
+        module = importlib.import_module(module_path)
+        return getattr(module, class_name)
