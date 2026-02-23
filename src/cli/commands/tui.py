@@ -85,6 +85,7 @@ def tui_command(args: argparse.Namespace, console_manager: ConsoleManager | None
 
         env = os.environ.copy()
         env["PROJECT_ROOT"] = str(Path(__file__).parent.parent.parent.parent)
+        env["AUDIO_ANALYSIS_PYTHON"] = sys.executable
 
         result = subprocess.run(
             [cmd, *run_args, str(entry_point)],

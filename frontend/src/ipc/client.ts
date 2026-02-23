@@ -25,10 +25,18 @@ export interface IpcClientConfig {
   debug: boolean;
 }
 
+export function resolveDefaultBackendCommand(): string {
+  return process.env.AUDIO_ANALYSIS_PYTHON ?? process.env.PYTHON ?? "python3";
+}
+
+export function resolveDefaultBackendCwd(): string {
+  return process.env.PROJECT_ROOT ?? "..";
+}
+
 const DEFAULT_CONFIG: IpcClientConfig = {
-  backendCommand: "python",
+  backendCommand: resolveDefaultBackendCommand(),
   backendArgs: ["-m", "src.ui.opentui_backend"],
-  cwd: "..",
+  cwd: resolveDefaultBackendCwd(),
   timeout: 30000,
   debug: false,
 };

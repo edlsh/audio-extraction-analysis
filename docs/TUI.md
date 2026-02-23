@@ -172,7 +172,7 @@ tput lines
 DEBUG=true audio-extraction-analysis tui
 
 # Run backend server standalone
-python -m src.ui.opentui_backend
+python3 -m src.ui.opentui_backend
 ```
 
 ## Comparison with CLI
