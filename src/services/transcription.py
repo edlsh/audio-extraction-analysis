@@ -457,7 +457,7 @@ class TranscriptionService:
         try:
             provider = self._create_provider(provider_name)
             if hasattr(provider, "META") and provider.META:
-                return provider.META.estimated_speed_mb_per_sec
+                return float(provider.META.estimated_speed_mb_per_sec)
         except Exception:
             pass
         return 1.5  # Default fallback
@@ -514,7 +514,8 @@ class TranscriptionService:
         """
         try:
             provider = self._create_provider(provider_name)
-            return provider.get_supported_features()
+            features = provider.get_supported_features()
+            return [str(feature) for feature in features]
         except ValueError as e:
             logger.error(f"Invalid provider '{provider_name}': {e}")
             raise

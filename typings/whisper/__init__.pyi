@@ -1,5 +1,4 @@
 from typing import Any, Optional, Union, List, Dict
-import torch
 
 class Whisper:
     def transcribe(
@@ -20,13 +19,13 @@ class Whisper:
     ) -> Dict[str, Any]: ...
     
     @property
-    def device(self) -> torch.device: ...
+    def device(self) -> Any: ...
     @property
     def dims(self) -> Any: ...
 
 def load_model(
     name: str,
-    device: Optional[Union[str, torch.device]] = None,
+    device: Optional[Union[str, Any]] = None,
     download_root: Optional[str] = None,
     in_memory: bool = False,
 ) -> Whisper: ...

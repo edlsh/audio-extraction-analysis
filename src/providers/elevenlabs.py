@@ -23,15 +23,15 @@ from .provider_utils import get_default_configs, provider_error_handler
 logger = get_logger(__name__)
 
 # Check for ElevenLabs SDK availability
+ElevenLabsClient: Any
 try:
-    from elevenlabs import ElevenLabs
-    from elevenlabs.client import ElevenLabs as ElevenLabsClient
+    from elevenlabs.client import ElevenLabs as _ElevenLabsClient
 
+    ElevenLabsClient = _ElevenLabsClient
     PROVIDER_AVAILABLE = True
 except ImportError as e:
     logger.warning(f"ElevenLabs provider dependencies not installed: {e}")
     PROVIDER_AVAILABLE = False
-    ElevenLabs = None
     ElevenLabsClient = None
 
 

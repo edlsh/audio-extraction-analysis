@@ -17,12 +17,12 @@ from __future__ import annotations
 
 from functools import wraps
 from pathlib import Path
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar
 
 from src.utils.logger import get_logger
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable
+    from collections.abc import Callable, Coroutine
 
     from .base import ProviderMeta
 
@@ -38,6 +38,7 @@ from ..utils.retry import RetryConfig
 
 logger = get_logger(__name__)
 
+P = ParamSpec("P")
 T = TypeVar("T")
 
 
@@ -187,7 +188,7 @@ def map_provider_error(
 def provider_error_handler(
     provider_name: str,
     install_command: str | None = None,
-) -> Callable[[Callable[..., Awaitable[T]]], Callable[..., Awaitable[T]]]:
+) -> Callable[[Callable[P, Coroutine[Any, Any, T]]], Callable[P, Coroutine[Any, Any, T]]]:
     """Decorator to handle common provider errors in _transcribe_impl methods.
 
     Usage:
@@ -204,9 +205,11 @@ def provider_error_handler(
         Decorated async function with standardized error handling
     """
 
-    def decorator(func: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[T]]:
+    def decorator(
+        func: Callable[P, Coroutine[Any, Any, T]]
+    ) -> Callable[P, Coroutine[Any, Any, T]]:
         @wraps(func)
-        async def wrapper(*args: object, **kwargs: object) -> T:
+        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             # Extract file_path from args (typically second arg after self)
             file_path: Path | None = None
             if len(args) >= 2 and isinstance(args[1], Path):

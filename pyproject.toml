@@ -150,9 +150,7 @@ unfixable = []
 
 [tool.ruff.lint.per-file-ignores]
 # Path is used at runtime in these files (not just type annotations)
-"src/cache/transcription_cache.py" = ["TC003"]  # Path used in file operations
 "src/providers/whisper.py" = ["TC003"]  # Path used in file operations
-"src/services/audio_extraction_async.py" = ["TC003"]  # Path used in file operations
 # Test files can use additional patterns
 "tests/**/*.py" = [
     "S101",  # asserts are standard in tests
@@ -167,52 +165,6 @@ unfixable = []
 # Benchmark files use Any for comparison functions
 "tests/benchmarks/**/*.py" = [
     "ANN401",  # typing.Any used intentionally for backend comparison functions
-]
-
-[tool.pytest.ini_options]
-minversion = "8.0"
-
-# Default test profile: Fast unit tests only
-# Override with: pytest -m "integration" for integration tests
-addopts = [
-    "-ra",  # Show summary of all test outcomes
-    "-q",   # Quiet output
-    "--strict-markers",  # Fail on unknown markers
-    "--strict-config",   # Fail on configuration warnings
-    "-m",
-    "not e2e and not integration and not benchmark and not network and not slow and not ffmpeg",
-]
-
-testpaths = ["tests"]
-pythonpath = ["."]
-asyncio_mode = "strict"
-
-# Test categorization markers
-markers = [
-    # Speed categories
-    "slow: Tests that take longer than 5 seconds (deselect with '-m \"not slow\"')",
-    "fast: Quick unit tests (under 1 second)",
-    
-    # Scope categories  
-    "unit: Unit tests (isolated, no external dependencies)",
-    "integration: Integration tests requiring external tools or services",
-    "e2e: End-to-end tests requiring full environment",
-    "benchmark: Performance benchmark tests",
-    
-    # Dependency requirements
-    "ffmpeg: Tests requiring FFmpeg to be installed",
-    "whisper: Tests requiring Whisper dependencies (optional)",
-    "network: Tests requiring network connectivity (external APIs)",
-    "redis: Tests requiring Redis server",
-    
-    # Provider-specific
-    "providers: Tests requiring provider API keys or credentials",
-    "deepgram: Tests specific to Deepgram provider",
-    "elevenlabs: Tests specific to ElevenLabs provider",
-    
-    # Special categories
-    "security: Security and vulnerability tests",
-    "mock: Tests using mocked dependencies",
 ]
 
 [tool.coverage.run]
@@ -308,6 +260,7 @@ module = [
     "nemo.*",
     "elevenlabs.*",
     "yt_dlp.*",
+    "cachetools.*",
     "rich.*",
     "tenacity.*",
     "librosa.*",
@@ -370,6 +323,11 @@ disallow_untyped_defs = false
 disallow_any_generics = false
 warn_return_any = false
 disable_error_code = ["assignment", "arg-type", "union-attr", "misc"]
+
+# URL ingestion: external library stubs pending for cachetools
+[[tool.mypy.overrides]]
+module = "src.services.url_ingestion"
+disable_error_code = ["import-untyped"]
 
 # Pipeline: Now with proper type annotations - enable strict mode
 [[tool.mypy.overrides]]
