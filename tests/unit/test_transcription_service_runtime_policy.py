@@ -127,7 +127,9 @@ class TestTranscriptionServiceRuntimePolicy:
 
     @pytest.mark.unit
     @pytest.mark.fast
-    def test_create_provider_passes_test_runtime_policy_flag(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_create_provider_passes_test_runtime_policy_flag(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Provider creation should propagate explicit runtime policy to factory."""
         service = TranscriptionService(is_test_environment=True)
         create_provider = Mock(return_value=object())

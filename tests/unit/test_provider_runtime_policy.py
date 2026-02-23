@@ -35,7 +35,9 @@ class TestProviderRuntimePolicy:
     @pytest.mark.fast
     def test_get_available_providers_can_include_test_aliases_explicitly(self) -> None:
         """Callers can opt into test aliases with an explicit runtime flag."""
-        providers = TranscriptionProviderFactory.get_available_providers(include_test_providers=True)
+        providers = TranscriptionProviderFactory.get_available_providers(
+            include_test_providers=True
+        )
 
         assert "mock" in providers
         assert "stub" in providers

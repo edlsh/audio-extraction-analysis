@@ -72,10 +72,7 @@ def test_frontend_lockfile_matches_pinned_opentui_versions() -> None:
 def test_frontend_smoke_workflow_exists_and_runs_bun_checks() -> None:
     """CI should include a frontend smoke lane for Bun install and typecheck."""
     workflow_path = (
-        Path(__file__).resolve().parents[2]
-        / ".github"
-        / "workflows"
-        / "frontend-tui-smoke.yml"
+        Path(__file__).resolve().parents[2] / ".github" / "workflows" / "frontend-tui-smoke.yml"
     )
     workflow = workflow_path.read_text(encoding="utf-8")
 

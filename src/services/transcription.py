@@ -106,9 +106,7 @@ class TranscriptionService:
             else test_override_provider
         )
         effective_test_environment = (
-            self._is_test_environment
-            if is_test_environment is None
-            else is_test_environment
+            self._is_test_environment if is_test_environment is None else is_test_environment
         )
 
         # Validate audio file
@@ -354,7 +352,9 @@ class TranscriptionService:
             TranscriptionError: If transcription produces no result or fails
         """
         resolved_provider = provider_name if provider_name and provider_name != "auto" else None
-        path, resolved_provider = self._prepare_transcription(Path(audio_file_path), resolved_provider)
+        path, resolved_provider = self._prepare_transcription(
+            Path(audio_file_path), resolved_provider
+        )
 
         # Calculate estimated processing time based on file characteristics
         file_size_mb = path.stat().st_size / (1024 * 1024)
