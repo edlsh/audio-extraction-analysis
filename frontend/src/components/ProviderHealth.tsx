@@ -29,7 +29,6 @@ const PROVIDER_NAMES: Record<string, string> = {
   deepgram: "Deepgram",
   elevenlabs: "ElevenLabs",
   whisper: "Whisper",
-  parakeet: "Parakeet",
 };
 
 /**

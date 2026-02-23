@@ -25,7 +25,7 @@ export type EventType =
   | "cancelled";
 
 /** Stage status values */
-export type StageStatus = "pending" | "running" | "complete" | "error";
+export type StageStatus = "pending" | "running" | "complete" | "error" | "skipped";
 
 /** Log levels */
 export type LogLevel = "DEBUG" | "INFO" | "WARNING" | "ERROR";
@@ -35,7 +35,7 @@ export interface BaseEvent {
   type: EventType;
   stage?: Stage;
   data: Record<string, unknown>;
-  ts: number;
+  ts: number | string;
   run_id: string;
 }
 
@@ -63,7 +63,8 @@ export interface StageEndData {
 
 /** Artifact event data */
 export interface ArtifactData {
-  kind: string;
+  kind?: string;
+  type?: string;
   path: string;
   [key: string]: unknown;
 }
@@ -86,7 +87,7 @@ export interface SummaryData {
 
 /** Cancelled event data */
 export interface CancelledData {
-  reason: string;
+  reason?: string;
   [key: string]: unknown;
 }
 

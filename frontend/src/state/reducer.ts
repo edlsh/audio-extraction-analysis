@@ -152,7 +152,7 @@ export function applyEvent(state: AppState, event: Event): AppState {
         },
         stageStatus: {
           ...state.stageStatus,
-          ...(eventStage ? { [eventStage]: status as "complete" | "error" } : {}),
+          ...(eventStage ? { [eventStage]: status as "complete" | "error" | "skipped" } : {}),
         },
         currentStage: null,
         currentProgress: 0,
@@ -160,13 +160,18 @@ export function applyEvent(state: AppState, event: Event): AppState {
     }
 
     case "artifact": {
-      // data: { kind: string, path: string }
+      // data: { kind?: string, type?: string, path: string }
+      const artifactKind =
+        (eventData.kind as string | undefined) ??
+        (eventData.type as string | undefined) ??
+        "unknown";
+
       return {
         ...state,
         artifacts: [
           ...state.artifacts,
           {
-            kind: (eventData.kind as string) ?? "unknown",
+            kind: artifactKind,
             path: (eventData.path as string) ?? "",
           },
         ],

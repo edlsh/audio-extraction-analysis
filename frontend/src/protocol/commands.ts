@@ -14,7 +14,7 @@ export interface PipelineStartParams {
   input_path?: string;
   url?: string;
   output_dir: string;
-  quality: "speech" | "music" | "high";
+  quality: "speech" | "standard" | "high" | "compressed";
   language: string;
   provider: string;
   analysis_style: "concise" | "full";

@@ -15,7 +15,7 @@ const FIELDS: FocusField[] = ["deepgram", "elevenlabs", "gemini", "quality", "la
 
 const QUALITY_OPTIONS = ["speech", "standard", "high", "compressed"];
 const LANGUAGE_OPTIONS = ["en", "es", "fr", "de", "auto"];
-const PROVIDER_OPTIONS = ["auto", "deepgram", "elevenlabs", "whisper", "parakeet"];
+const PROVIDER_OPTIONS = ["auto", "deepgram", "elevenlabs", "whisper"];
 
 export function SettingsScreen({ onBack, onThemes }: SettingsScreenProps) {
   const [settings, setSettings] = useState<SettingsData | null>(null);
@@ -139,7 +139,7 @@ export function SettingsScreen({ onBack, onThemes }: SettingsScreenProps) {
     } else if (key.name === "return" || key.name === "enter") {
       if (["deepgram", "elevenlabs", "gemini"].includes(focusField)) {
         setEditMode(true);
-        setInputBuffer(settings?.api_keys?.[focusField as keyof typeof settings.api_keys] ?? "");
+        setInputBuffer("");
       }
     } else if (key.name === "left" || key.name === "h") {
       if (["quality", "language", "provider"].includes(focusField)) {

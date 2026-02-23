@@ -28,6 +28,7 @@ const STATUS_ICONS: Record<StageStatus | "pending", string> = {
   running: "◉",
   complete: "●",
   error: "✗",
+  skipped: "◌",
 };
 
 /** Status colors */
@@ -36,6 +37,7 @@ const STATUS_COLORS: Record<StageStatus | "pending", string> = {
   running: "#0EA5E9",  // blue
   complete: "#10B981", // green
   error: "#EF4444",    // red
+  skipped: "#94A3B8",  // slate
 };
 
 export interface ProgressTimelineProps {

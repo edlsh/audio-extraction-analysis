@@ -245,6 +245,23 @@ describe("applyEvent", () => {
         path: "/tmp/output.mp3",
       });
     });
+
+    it("uses data.type when kind is missing", () => {
+      const state = createInitialState();
+      const event = createEvent({
+        type: "artifact",
+        data: { type: "transcript", path: "/tmp/output.txt" },
+      });
+      delete (event.data as Record<string, unknown>).kind;
+
+      const newState = applyEvent(state, event);
+
+      expect(newState.artifacts).toHaveLength(1);
+      expect(newState.artifacts[0]).toEqual({
+        kind: "transcript",
+        path: "/tmp/output.txt",
+      });
+    });
   });
 
   describe("log events", () => {
