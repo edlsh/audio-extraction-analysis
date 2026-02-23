@@ -84,6 +84,8 @@ async def _execute_processing_pipeline(
     quality: AudioQuality,
     args: argparse.Namespace,
     console_manager: ConsoleManager | None,
+    *,
+    skip_extraction: bool = False,
 ) -> tuple[dict[str, object], TranscriptionResult | None]:
     """Execute the audio processing pipeline.
 
@@ -97,6 +99,7 @@ async def _execute_processing_pipeline(
         provider=args.provider,
         analysis_style=args.analysis_style,
         console_manager=console_manager,
+        skip_extraction=skip_extraction,
     )
 
     if hasattr(pipeline_result_raw, "to_legacy_dict"):
@@ -154,10 +157,10 @@ async def process_command(
 
     try:
         timing.start_stage("resolve_input")
-        input_path = _resolve_input_source(args)
+        resolved_input = _resolve_input_source(args)
         timing.end_stage("resolve_input")
 
-        if input_path is None:
+        if resolved_input is None:
             if json_mode:
                 error_result = JsonCommandResult(
                     success=False,
@@ -168,6 +171,8 @@ async def process_command(
                 )
                 error_result.print_json()
             return 1
+
+        input_path, skip_extraction = resolved_input
 
         output_dir = _setup_process_output_dir(args)
         quality = parse_quality_preset(args.quality)
@@ -181,7 +186,12 @@ async def process_command(
 
         timing.start_stage("pipeline")
         pipeline_result, transcription_result = await _execute_processing_pipeline(
-            input_path, output_dir, quality, args, console_manager
+            input_path,
+            output_dir,
+            quality,
+            args,
+            console_manager,
+            skip_extraction=skip_extraction,
         )
         timing.end_stage("pipeline")
 
@@ -256,8 +266,12 @@ async def process_command(
         return handle_cli_error(e, "process")
 
 
-def _resolve_input_source(args: argparse.Namespace) -> Path | None:
-    """Resolve input from URL or local file. Returns None on error."""
+def _resolve_input_source(args: argparse.Namespace) -> tuple[Path, bool] | None:
+    """Resolve input source.
+
+    Returns:
+        Tuple of (resolved_path, skip_extraction) or None on error.
+    """
     if getattr(args, "url", None) and args.video_file:
         logger.error("Specify either a local video file or --url, not both.")
         return None
@@ -268,8 +282,12 @@ def _resolve_input_source(args: argparse.Namespace) -> Path | None:
     return _resolve_local_file(args)
 
 
-def _ingest_from_url(args: argparse.Namespace) -> Path | None:
-    """Download media from URL. Returns audio path or None on error."""
+def _ingest_from_url(args: argparse.Namespace) -> tuple[Path, bool] | None:
+    """Download media from URL.
+
+    Returns:
+        Tuple of (audio_path, skip_extraction=True) or None on error.
+    """
     config = get_config()
 
     if not config.url_ingest_enabled:
@@ -287,14 +305,18 @@ def _ingest_from_url(args: argparse.Namespace) -> Path | None:
 
     try:
         ingest_result = ingestion_service.ingest(args.url, quality=quality)
-        return ingest_result.audio_path
+        return ingest_result.audio_path, True
     except UrlIngestionError as exc:
         logger.error("URL ingestion failed: %s", exc)
         return None
 
 
-def _resolve_local_file(args: argparse.Namespace) -> Path | None:
-    """Resolve local video file. Returns path or None on error."""
+def _resolve_local_file(args: argparse.Namespace) -> tuple[Path, bool] | None:
+    """Resolve local video file.
+
+    Returns:
+        Tuple of (input_path, skip_extraction=False) or None on error.
+    """
     if not args.video_file:
         logger.error("You must provide a local video file or --url.")
         return None
@@ -313,4 +335,4 @@ def _resolve_local_file(args: argparse.Namespace) -> Path | None:
         logger.error(f"Invalid file path: {e}")
         return None
 
-    return input_path
+    return input_path, False

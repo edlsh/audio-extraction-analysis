@@ -143,5 +143,9 @@ jobs:
         run: uv run bandit -r src -ll
 
       - name: Dependency audit
-        # Known vulnerabilities in dependencies should fail the build
-        run: uv run pip-audit --strict
+        # Known vulnerabilities in dependencies should fail the build.
+        # Use --no-install-project so pip-audit checks third-party dependencies
+        # without failing on the local editable package not being on PyPI.
+        run: |
+          uv sync --locked --all-extras --dev --no-install-project
+          .venv/bin/pip-audit --strict

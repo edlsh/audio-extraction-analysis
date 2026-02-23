@@ -125,6 +125,7 @@ class Limits:
 
     # Cache limits
     PROBE_CACHE_TTL: float = 60.0  # FFmpeg probe cache TTL in seconds
+    PROBE_CACHE_MAX_SIZE: int = 512  # Max in-memory ffprobe cache entries
 
 
 class UIConstants:

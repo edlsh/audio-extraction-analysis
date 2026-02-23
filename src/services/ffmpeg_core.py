@@ -11,6 +11,7 @@ import json
 import subprocess
 import threading
 import time
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -33,10 +34,6 @@ logger = get_logger(__name__)
 # =============================================================================
 # Probe Cache
 # =============================================================================
-
-
-# Cache TTL - invalidate after this many seconds
-_PROBE_CACHE_TTL = 60.0
 
 
 @dataclass
@@ -64,9 +61,24 @@ class _ProbeCache:
     redundant subprocess calls within a pipeline run.
     """
 
-    def __init__(self) -> None:
-        self._cache: dict[str, _CachedProbe] = {}
+    def __init__(self, max_size: int = Limits.PROBE_CACHE_MAX_SIZE) -> None:
+        self._cache: OrderedDict[str, _CachedProbe] = OrderedDict()
+        self._max_size = max(1, int(max_size))
         self._lock = threading.Lock()
+        self._hits = 0
+        self._misses = 0
+        self._evictions = 0
+
+    def _purge_stale_locked(self) -> None:
+        """Remove expired entries (lock must be held)."""
+        now = time.time()
+        stale_keys = [
+            key
+            for key, entry in self._cache.items()
+            if (now - entry.cached_at) > Limits.PROBE_CACHE_TTL
+        ]
+        for key in stale_keys:
+            self._cache.pop(key, None)
 
     def get(self, path: Path) -> MediaProbeResult | None:
         """Get cached probe result if still valid."""
@@ -74,21 +86,26 @@ class _ProbeCache:
         with self._lock:
             entry = self._cache.get(key)
             if entry is None:
+                self._misses += 1
                 return None
 
             try:
                 current_mtime = path.stat().st_mtime
             except OSError:
                 # File might have been deleted
-                del self._cache[key]
+                self._cache.pop(key, None)
+                self._misses += 1
                 return None
 
             if entry.is_valid(current_mtime):
+                self._hits += 1
+                self._cache.move_to_end(key, last=True)
                 logger.debug(f"Probe cache hit for {path.name}")
                 return entry.result
 
             # Cache invalid - remove it
-            del self._cache[key]
+            self._cache.pop(key, None)
+            self._misses += 1
             return None
 
     def put(self, path: Path, result: MediaProbeResult) -> None:
@@ -101,17 +118,55 @@ class _ProbeCache:
             return
 
         with self._lock:
+            self._purge_stale_locked()
+
+            if key in self._cache:
+                self._cache.move_to_end(key, last=True)
+
             self._cache[key] = _CachedProbe(result=result, mtime=mtime)
+
+            if len(self._cache) > self._max_size:
+                self._cache.popitem(last=False)
+                self._evictions += 1
+
             logger.debug(f"Cached probe result for {path.name}")
 
     def clear(self) -> None:
-        """Clear all cached entries."""
+        """Clear all cached entries and reset counters."""
         with self._lock:
             self._cache.clear()
+            self._hits = 0
+            self._misses = 0
+            self._evictions = 0
+
+    def stats(self) -> dict[str, int | float]:
+        """Return cache metrics for observability."""
+        with self._lock:
+            self._purge_stale_locked()
+            total = self._hits + self._misses
+            hit_rate = (self._hits / total) if total else 0.0
+            return {
+                "entries": len(self._cache),
+                "max_entries": self._max_size,
+                "hits": self._hits,
+                "misses": self._misses,
+                "evictions": self._evictions,
+                "hit_rate": hit_rate,
+            }
 
 
 # Module-level probe cache instance
 _probe_cache = _ProbeCache()
+
+
+def clear_probe_cache() -> None:
+    """Clear probe cache entries and reset counters."""
+    _probe_cache.clear()
+
+
+def get_probe_cache_stats() -> dict[str, int | float]:
+    """Get probe cache metrics for diagnostics/observability."""
+    return _probe_cache.stats()
 
 
 # =============================================================================

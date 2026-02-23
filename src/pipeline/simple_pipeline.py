@@ -30,6 +30,7 @@ from ..models.events import (
 from ..services.audio_extraction import AsyncAudioExtractor, AudioQuality
 from ..services.transcription import TranscriptionService
 from ..ui.console import ConsoleManager
+from ..utils.file_validation import FileValidator
 from ..utils.sanitization import PathSanitizer
 from .reporter import StageReporter, create_reporter
 from .result import ArtifactTier, PipelineError, StageResult
@@ -37,6 +38,7 @@ from .result import PipelineResult as PipelineResultDataclass
 
 if TYPE_CHECKING:
     from ..models.transcription import TranscriptionResult
+    from ..services.cache import TranscriptionCache
 
 logger = get_logger(__name__)
 
@@ -264,6 +266,22 @@ def _cleanup_artifacts(result: PipelineResultDataclass, failed_stage: str | None
             logger.warning(f"Failed to cleanup {path}: {e}")
 
 
+def _can_skip_extraction(input_path: Path, skip_extraction: bool) -> bool:
+    """Return True when extraction can be safely bypassed for pre-prepared audio."""
+    if not skip_extraction:
+        return False
+
+    if input_path.suffix.lower() not in FileValidator.AUDIO_EXTENSIONS:
+        logger.info(
+            "skip_extraction requested, but "
+            f"'{input_path.suffix}' is not a natively validated audio extension; "
+            "running extraction stage"
+        )
+        return False
+
+    return True
+
+
 # =============================================================================
 # Main Pipeline Function
 # =============================================================================
@@ -279,6 +297,8 @@ async def _process_pipeline_internal(
     console_manager: ConsoleManager | None = None,
     run_id: str | None = None,
     event_sink: EventSink | None = None,
+    skip_extraction: bool = False,
+    transcription_cache: TranscriptionCache | None = None,
 ) -> PipelineResultDataclass:
     """Internal pipeline implementation returning PipelineResultDataclass.
 
@@ -312,7 +332,10 @@ async def _process_pipeline_internal(
     reporter = create_reporter(run_id=run_id, event_sink=event_sink)
 
     # Create shared service instance (reused across stages)
-    service = TranscriptionService()
+    if transcription_cache is None:
+        service = TranscriptionService()
+    else:
+        service = TranscriptionService(cache=transcription_cache)
 
     # Initialize result tracking with new dataclass
     result = PipelineResultDataclass()
@@ -323,39 +346,73 @@ async def _process_pipeline_internal(
         # Sanitize input stem for output filenames
         safe_stem = PathSanitizer.sanitize_filename(input_path.stem)
 
-        # Stage 1: Audio Extraction
-        try:
+        # Stage 1: Audio Extraction (or bypass when pre-prepared audio is provided)
+        should_skip_extraction = _can_skip_extraction(input_path, skip_extraction)
+
+        if should_skip_extraction:
             extract_start = time.time()
-            audio_path, extraction_duration = await _extract_audio(
-                input_path, output_dir, cm, quality, reporter, safe_stem
-            )
+            if not input_path.exists():
+                message = f"Audio extraction skipped, but input audio not found: {input_path}"
+                result.add_error_message(message, "extract", error_type="FileNotFoundError")
+                result.stage_results["extraction"] = StageResult(
+                    status="error",
+                    duration=time.time() - extract_start,
+                    error=PipelineError(
+                        message=message,
+                        error_type="FileNotFoundError",
+                        stage="extract",
+                    ),
+                )
+                result.success = False
+                return result
+
+            cm.print_stage("Audio Extraction", "skipped")
+            with reporter.stage_context("extract", "Using pre-extracted audio", 100) as stage:
+                stage.progress(100, "Using pre-extracted audio")
+
+            extraction_duration = time.time() - extract_start
+            audio_path = input_path
             result.audio_path = str(audio_path)
-            result.add_artifact(audio_path, "extract", ArtifactTier.INTERMEDIATE, "audio")
             result.stages_completed.append("audio_extraction")
             result.stage_results["extraction"] = StageResult(
-                status="complete",
+                status="skipped",
                 duration=extraction_duration,
                 output=str(audio_path),
             )
-        except Exception as e:
-            duration = time.time() - extract_start
-            message = f"Audio extraction failed: {e!s}"
-            result.add_error_message(message, "extract", error_type=type(e).__name__)
-            result.stage_results["extraction"] = StageResult(
-                status="error",
-                duration=duration,
-                error=PipelineError(
-                    message=message,
-                    error_type=type(e).__name__,
-                    stage="extract",
-                    original_exception=e,
-                ),
-            )
-            logger.exception("Audio extraction failed")
-            cm.print_stage("Audio Extraction", "error")
-            result.success = False
-            _cleanup_artifacts(result, "extract")
-            return result
+            reporter.log(f"Using existing audio: {audio_path}", "INFO", __name__)
+        else:
+            try:
+                extract_start = time.time()
+                audio_path, extraction_duration = await _extract_audio(
+                    input_path, output_dir, cm, quality, reporter, safe_stem
+                )
+                result.audio_path = str(audio_path)
+                result.add_artifact(audio_path, "extract", ArtifactTier.INTERMEDIATE, "audio")
+                result.stages_completed.append("audio_extraction")
+                result.stage_results["extraction"] = StageResult(
+                    status="complete",
+                    duration=extraction_duration,
+                    output=str(audio_path),
+                )
+            except Exception as e:
+                duration = time.time() - extract_start
+                message = f"Audio extraction failed: {e!s}"
+                result.add_error_message(message, "extract", error_type=type(e).__name__)
+                result.stage_results["extraction"] = StageResult(
+                    status="error",
+                    duration=duration,
+                    error=PipelineError(
+                        message=message,
+                        error_type=type(e).__name__,
+                        stage="extract",
+                        original_exception=e,
+                    ),
+                )
+                logger.exception("Audio extraction failed")
+                cm.print_stage("Audio Extraction", "error")
+                result.success = False
+                _cleanup_artifacts(result, "extract")
+                return result
 
         # Stage 2: Transcription
         try:
@@ -462,6 +519,8 @@ async def process_pipeline(
     console_manager: ConsoleManager | None = None,
     run_id: str | None = None,
     event_sink: EventSink | None = None,
+    skip_extraction: bool = False,
+    transcription_cache: TranscriptionCache | None = None,
 ) -> dict[str, Any]:
     """Process audio/video file through extraction -> transcription -> analysis pipeline.
 
@@ -500,6 +559,8 @@ async def process_pipeline(
         console_manager=console_manager,
         run_id=run_id,
         event_sink=event_sink,
+        skip_extraction=skip_extraction,
+        transcription_cache=transcription_cache,
     )
     return result.to_legacy_dict()
 
@@ -514,6 +575,8 @@ async def process_pipeline_v2(
     console_manager: ConsoleManager | None = None,
     run_id: str | None = None,
     event_sink: EventSink | None = None,
+    skip_extraction: bool = False,
+    transcription_cache: TranscriptionCache | None = None,
 ) -> PipelineResultDataclass:
     """Process pipeline returning PipelineResult dataclass with typed errors.
 
@@ -534,4 +597,6 @@ async def process_pipeline_v2(
         console_manager=console_manager,
         run_id=run_id,
         event_sink=event_sink,
+        skip_extraction=skip_extraction,
+        transcription_cache=transcription_cache,
     )

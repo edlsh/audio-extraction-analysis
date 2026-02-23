@@ -13,6 +13,7 @@ import pytest
 
 from src.models.transcription import TranscriptionResult, TranscriptionUtterance
 from src.providers.elevenlabs import ElevenLabsTranscriber
+from src.services.ffmpeg_core import MediaProbeResult
 
 # Apply markers for unit tests
 pytestmark = [
@@ -301,20 +302,21 @@ class TestElevenLabsTranscriberTranscription:
 class TestElevenLabsTranscriberDurationEstimation:
     """Test ElevenLabsTranscriber duration estimation."""
 
-    @patch("subprocess.run")
-    def test_estimate_audio_duration_with_ffprobe(self, mock_subprocess, temp_audio_file):
-        """Test duration estimation using ffprobe."""
-        mock_subprocess.return_value = Mock(returncode=0, stdout='{"format": {"duration": "45.6"}}')
+    @patch("src.providers.elevenlabs.probe_media_sync")
+    def test_estimate_audio_duration_with_probe_media_sync(self, mock_probe, temp_audio_file):
+        """Test duration estimation via shared ffmpeg_core probe helper."""
+        mock_probe.return_value = MediaProbeResult(duration=45.6, size_bytes=123, size_mb=0.001)
 
         transcriber = ElevenLabsTranscriber(api_key="test_key")
         duration = transcriber._estimate_audio_duration(temp_audio_file)
 
         assert duration == 45.6
+        mock_probe.assert_called_once()
 
-    @patch("subprocess.run")
-    def test_estimate_audio_duration_ffprobe_fail(self, mock_subprocess, temp_audio_file):
-        """Test duration estimation fallback when ffprobe fails."""
-        mock_subprocess.return_value = Mock(returncode=1)
+    @patch("src.providers.elevenlabs.probe_media_sync")
+    def test_estimate_audio_duration_probe_failure_uses_fallback(self, mock_probe, temp_audio_file):
+        """Test duration estimation fallback when probe helper returns no duration."""
+        mock_probe.return_value = MediaProbeResult(duration=None, size_bytes=123, size_mb=0.001)
 
         transcriber = ElevenLabsTranscriber(api_key="test_key")
         duration = transcriber._estimate_audio_duration(temp_audio_file)
@@ -323,10 +325,12 @@ class TestElevenLabsTranscriberDurationEstimation:
         assert duration > 0
         assert isinstance(duration, float)
 
-    @patch("subprocess.run")
-    def test_estimate_audio_duration_ffprobe_exception(self, mock_subprocess, temp_audio_file):
-        """Test duration estimation when ffprobe raises exception."""
-        mock_subprocess.side_effect = Exception("ffprobe not found")
+    @patch("src.providers.elevenlabs.probe_media_sync")
+    def test_estimate_audio_duration_probe_exception_uses_fallback(
+        self, mock_probe, temp_audio_file
+    ):
+        """Test duration estimation fallback when probe helper raises exception."""
+        mock_probe.side_effect = RuntimeError("probe failure")
 
         transcriber = ElevenLabsTranscriber(api_key="test_key")
         duration = transcriber._estimate_audio_duration(temp_audio_file)

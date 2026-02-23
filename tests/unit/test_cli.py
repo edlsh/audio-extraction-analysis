@@ -439,6 +439,71 @@ class TestCLIProcessCommand:
         assert pipeline_result["audio_path"] == str(output_dir / "audio.mp3")
         assert transcription_result is fake_transcript
 
+    @pytest.mark.asyncio
+    async def test_process_command_url_passes_skip_extraction(self, tmp_path) -> None:
+        """URL-ingested audio should instruct the pipeline to skip extraction."""
+        from datetime import datetime
+        from types import SimpleNamespace
+
+        from src.models.transcription import TranscriptionResult
+        from src.services.url_ingestion import UrlIngestionResult
+
+        audio_path = tmp_path / "downloaded.m4a"
+        audio_path.write_bytes(b"audio")
+
+        args = create_parser().parse_args(
+            [
+                "process",
+                "--url",
+                "https://example.com/video",
+                "--output-dir",
+                str(tmp_path / "out"),
+            ]
+        )
+
+        fake_config = SimpleNamespace(
+            url_ingest_enabled=True,
+            url_ingest_download_dir=tmp_path / "downloads",
+            url_ingest_prefer_audio_only=True,
+            url_ingest_keep_video_default=False,
+        )
+
+        fake_transcript = TranscriptionResult(
+            transcript="ok",
+            duration=1.0,
+            generated_at=datetime.utcnow(),
+            audio_file=str(audio_path),
+            provider_name="mock",
+        )
+
+        process_pipeline_mock = AsyncMock(
+            return_value={
+                "success": True,
+                "transcript": fake_transcript,
+                "audio_path": str(audio_path),
+                "files_created": [],
+            }
+        )
+
+        with patch("src.cli.commands.process.get_config", return_value=fake_config):
+            with patch("src.cli.commands.process.UrlIngestionService") as mock_ingestion_cls:
+                mock_ingestion = Mock()
+                mock_ingestion.ingest.return_value = UrlIngestionResult(
+                    audio_path=audio_path,
+                    source_video_path=None,
+                )
+                mock_ingestion_cls.return_value = mock_ingestion
+
+                with patch(
+                    "src.cli.commands.process.process_pipeline",
+                    process_pipeline_mock,
+                ):
+                    exit_code = await process_command(args, console_manager=None)
+
+        assert exit_code == 0
+        assert process_pipeline_mock.await_count == 1
+        assert process_pipeline_mock.await_args.kwargs.get("skip_extraction") is True
+
 
 class TestCLILogging:
     """Test CLI logging functionality."""

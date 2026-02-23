@@ -3,16 +3,15 @@
 from __future__ import annotations
 
 import asyncio
-import json
-import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from src.utils.logger import get_logger
+from src.utils.probe_adapter import probe_media_sync
 
 from ..config import get_config
 from ..models.transcription import TranscriptionResult, TranscriptionUtterance
-from ..utils.constants import Limits
+from ..utils.constants import Limits, Timeouts
 from ..utils.file_validation import validate_audio_file_or_raise
 
 if TYPE_CHECKING:
@@ -250,39 +249,14 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
             raise OSError(f"Cannot read file: {file_path}") from e
 
     def _estimate_audio_duration(self, audio_file_path: Path) -> float:
-        """Estimate audio duration from file using ffprobe."""
+        """Estimate audio duration from file using shared ffprobe helper."""
         try:
-            cmd = [
-                "ffprobe",
-                "-v",
-                "quiet",
-                "-print_format",
-                "json",
-                "-show_entries",
-                "format=duration",
-                str(audio_file_path),
-            ]
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=10.0,
-                check=False,
-            )
-
-            if result.returncode == 0 and result.stdout.strip():
-                data = json.loads(result.stdout)
-                raw_duration = data.get("format", {}).get("duration")
-                if raw_duration:
-                    duration = float(raw_duration)
-                    if duration > 0:
-                        return duration
-        except (json.JSONDecodeError, ValueError, KeyError) as e:
-            logger.debug(f"Failed to parse ffprobe output: {e}")
+            probe_result = probe_media_sync(audio_file_path, timeout=Timeouts.FFMPEG_PROBE)
+            duration = getattr(probe_result, "duration", None)
+            if isinstance(duration, (int, float)) and duration > 0:
+                return float(duration)
         except FileNotFoundError:
             logger.debug("ffprobe not found in PATH - using fallback duration estimation")
-        except subprocess.TimeoutExpired:
-            logger.debug("ffprobe timed out - using fallback duration estimation")
         except Exception as e:
             logger.debug(f"ffprobe failed, using fallback estimation: {e}")
 

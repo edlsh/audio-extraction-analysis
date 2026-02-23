@@ -27,8 +27,13 @@ def test_ingest_rejects_playlist(download_dir: Path) -> None:
         service.ingest("https://www.youtube.com/playlist?list=123")
 
 
+@patch("src.services.url_ingestion.AudioExtractor")
 @patch("src.services.url_ingestion.YoutubeDL")
-def test_ingest_returns_audio_when_bestaudio(mock_ydl: MagicMock, download_dir: Path) -> None:
+def test_ingest_returns_audio_when_bestaudio(
+    mock_ydl: MagicMock,
+    mock_extractor_cls: MagicMock,
+    download_dir: Path,
+) -> None:
     service = UrlIngestionService(download_dir, prefer_audio_only=True)
 
     audio_file = download_dir / "abc_title.m4a"
@@ -45,6 +50,7 @@ def test_ingest_returns_audio_when_bestaudio(mock_ydl: MagicMock, download_dir: 
     assert isinstance(result, UrlIngestionResult)
     assert result.audio_path == audio_file
     assert result.source_video_path is None
+    mock_extractor_cls.assert_not_called()
 
 
 @patch("src.services.url_ingestion.YoutubeDL")

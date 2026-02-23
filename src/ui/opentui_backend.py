@@ -276,7 +276,9 @@ class SettingsStore:
             "last_used": datetime.now(UTC).isoformat(),
         }
 
-        filtered = [entry for entry in entries if isinstance(entry, dict) and entry.get("path") != str(path)]
+        filtered = [
+            entry for entry in entries if isinstance(entry, dict) and entry.get("path") != str(path)
+        ]
         filtered.insert(0, record)
 
         self._data["recent_files"] = filtered[:100]
@@ -556,7 +558,9 @@ class OpenTuiBackend:
                 stderr=subprocess.DEVNULL,
             )
         except OSError as exc:
-            raise RpcError(_FILE_ERROR, f"Failed to open path: {path}", {"error": str(exc)}) from exc
+            raise RpcError(
+                _FILE_ERROR, f"Failed to open path: {path}", {"error": str(exc)}
+            ) from exc
 
         return {"success": True}
 
@@ -641,6 +645,7 @@ class OpenTuiBackend:
         quality_enum = _quality_from_string(quality)
 
         resolved_input: Path
+        skip_extraction = False
         try:
             if url:
                 await self._emit_url_download_start(run_id)
@@ -651,8 +656,11 @@ class OpenTuiBackend:
                     keep_video=keep_downloaded_videos,
                     event_sink=event_sink,
                 )
-                ingest_result = await asyncio.to_thread(ingestion_service.ingest, url, quality=quality_enum)
+                ingest_result = await asyncio.to_thread(
+                    ingestion_service.ingest, url, quality=quality_enum
+                )
                 resolved_input = ingest_result.audio_path
+                skip_extraction = True
                 await self._emit_url_download_end(run_id, status="complete")
             else:
                 if input_path is None:
@@ -668,6 +676,7 @@ class OpenTuiBackend:
                 analysis_style=analysis_style,
                 run_id=run_id,
                 event_sink=event_sink,
+                skip_extraction=skip_extraction,
             )
 
             for artifact in result.artifacts:
@@ -777,7 +786,9 @@ class OpenTuiBackend:
         url = url_obj if isinstance(url_obj, str) and url_obj else None
 
         if (input_path is None and url is None) or (input_path is not None and url is not None):
-            raise RpcError(_INVALID_PARAMS, "pipeline.start requires exactly one of input_path or url")
+            raise RpcError(
+                _INVALID_PARAMS, "pipeline.start requires exactly one of input_path or url"
+            )
 
         if not isinstance(output_dir_obj, str) or not output_dir_obj:
             raise RpcError(_INVALID_PARAMS, "pipeline.start requires output_dir")
@@ -895,7 +906,9 @@ class OpenTuiBackend:
 
         handler = handlers.get(method_obj)
         if handler is None:
-            return self._response_error(request_id, _METHOD_NOT_FOUND, f"Method not found: {method_obj}")
+            return self._response_error(
+                request_id, _METHOD_NOT_FOUND, f"Method not found: {method_obj}"
+            )
 
         try:
             result = await handler(params_obj)
@@ -927,7 +940,9 @@ class OpenTuiBackend:
                     parsed = json.loads(line)
                 except json.JSONDecodeError:
                     await self._send_message(
-                        self._response_error(None, _PARSE_ERROR, "Parse error", {"line": line[:200]})
+                        self._response_error(
+                            None, _PARSE_ERROR, "Parse error", {"line": line[:200]}
+                        )
                     )
                     continue
 

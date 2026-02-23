@@ -14,7 +14,7 @@ import asyncio
 import math
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from src.utils.logger import get_logger
 
@@ -238,8 +238,63 @@ class TranscriptionService:
             except Exception as e:
                 logger.warning(f"Failed to cache transcription result: {e}")
 
-        assert isinstance(result, TranscriptionResult)
-        return result
+        return cast("TranscriptionResult", result)
+
+    async def _transcribe_async_prepared(
+        self,
+        audio_file_path: Path,
+        provider_name: str,
+        language: str = "en",
+        *,
+        use_cache: bool = True,
+    ) -> TranscriptionResult:
+        """Execute async transcription for an already validated path/provider."""
+        if use_cache and self._cache is not None:
+            try:
+                cached_result = self._cache.get(audio_file_path, provider_name, language)
+                if cached_result is not None:
+                    logger.info(f"Using cached transcription for {audio_file_path.name}")
+                    return cached_result
+            except Exception as e:
+                logger.warning(f"Cache lookup failed, proceeding with transcription: {e}")
+
+        provider = self._create_provider(provider_name)
+        timeout_seconds = self._provider_timeout
+
+        logger.info(f"Starting async transcription with {provider.get_provider_name()}")
+
+        try:
+            result = await provider.transcribe_async(
+                audio_file_path,
+                language,
+                timeout=timeout_seconds,
+            )
+        except TimeoutError as exc:
+            raise ProviderTimeoutError(
+                f"Transcription timed out after {timeout_seconds}s",
+                context={"provider": provider_name, "file_path": str(audio_file_path)},
+            ) from exc
+
+        if not result:
+            raise TranscriptionError(
+                "Transcription returned no result",
+                context={
+                    "provider": provider_name,
+                    "file_path": str(audio_file_path),
+                    "language": language,
+                },
+            )
+
+        logger.info(f"Transcription completed successfully with {provider.get_provider_name()}")
+        logger.info(f"Transcript length: {len(result.transcript)} characters")
+
+        if use_cache and self._cache is not None:
+            try:
+                self._cache.put(audio_file_path, provider_name, language, result)
+            except Exception as e:
+                logger.warning(f"Failed to cache transcription result: {e}")
+
+        return cast("TranscriptionResult", result)
 
     async def transcribe_async(
         self,
@@ -270,57 +325,13 @@ class TranscriptionService:
             ProviderAPIError: If provider API fails
             TranscriptionError: If transcription produces no result or fails
         """
-        # Validate and prepare for transcription (now raises exceptions)
-        audio_file_path, provider_name = self._prepare_transcription(audio_file_path, provider_name)
-
-        # Check cache first if enabled
-        if use_cache and self._cache is not None:
-            try:
-                cached_result = self._cache.get(audio_file_path, provider_name, language)
-                if cached_result is not None:
-                    logger.info(f"Using cached transcription for {audio_file_path.name}")
-                    return cached_result
-            except Exception as e:
-                # Log but don't fail on cache errors
-                logger.warning(f"Cache lookup failed, proceeding with transcription: {e}")
-
-        # Create provider instance with policy-based configuration
-        provider = self._create_provider(provider_name)
-        timeout_seconds = self._provider_timeout
-
-        logger.info(f"Starting async transcription with {provider.get_provider_name()}")
-
-        try:
-            result = await provider.transcribe_async(
-                audio_file_path, language, timeout=timeout_seconds
-            )
-        except TimeoutError as exc:
-            raise ProviderTimeoutError(
-                f"Transcription timed out after {timeout_seconds}s",
-                context={"provider": provider_name, "file_path": str(audio_file_path)},
-            ) from exc
-
-        if not result:
-            raise TranscriptionError(
-                "Transcription returned no result",
-                context={
-                    "provider": provider_name,
-                    "file_path": str(audio_file_path),
-                    "language": language,
-                },
-            )
-
-        logger.info(f"Transcription completed successfully with {provider.get_provider_name()}")
-        logger.info(f"Transcript length: {len(result.transcript)} characters")
-
-        if use_cache and self._cache is not None:
-            try:
-                self._cache.put(audio_file_path, provider_name, language, result)
-            except Exception as e:
-                logger.warning(f"Failed to cache transcription result: {e}")
-
-        assert isinstance(result, TranscriptionResult)
-        return result
+        path, resolved_provider = self._prepare_transcription(audio_file_path, provider_name)
+        return await self._transcribe_async_prepared(
+            path,
+            resolved_provider,
+            language,
+            use_cache=use_cache,
+        )
 
     async def transcribe_with_progress(
         self,
@@ -372,6 +383,8 @@ class TranscriptionService:
             ProgressConstants.MINIMUM_SECONDS,  # Minimum
         )
 
+        use_cache = bool(kwargs.get("use_cache", True))
+
         # Create progress update task inside try block to ensure cleanup on exception
         progress_task = None
         try:
@@ -380,9 +393,12 @@ class TranscriptionService:
                     self._simulate_progress(estimated_time, progress_callback)
                 )
 
-            # Run actual transcription
-            result = await self.transcribe_async(
-                path, provider_name=resolved_provider, language=language
+            # Run actual transcription without re-running prepare step
+            result = await self._transcribe_async_prepared(
+                path,
+                resolved_provider,
+                language,
+                use_cache=use_cache,
             )
 
             # Complete progress
@@ -455,9 +471,12 @@ class TranscriptionService:
     def _get_provider_speed_by_name(self, provider_name: str) -> float:
         """Get estimated processing speed by provider name (MB/second)."""
         try:
-            provider = self._create_provider(provider_name)
-            if hasattr(provider, "META") and provider.META:
-                return float(provider.META.estimated_speed_mb_per_sec)
+            meta = self.factory.get_provider_meta(
+                provider_name,
+                include_test_providers=self._is_test_environment,
+            )
+            if meta is not None:
+                return float(meta.estimated_speed_mb_per_sec)
         except Exception:
             pass
         return 1.5  # Default fallback

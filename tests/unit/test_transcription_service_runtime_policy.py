@@ -10,6 +10,7 @@ import pytest
 
 from src.exceptions import ProviderNotAvailableError, ProviderSelectionError
 from src.models.transcription import TranscriptionResult
+from src.providers.base import ProviderMeta
 from src.services import transcription as transcription_module
 from src.services.ffmpeg_core import MediaProbeResult
 from src.services.transcription import TranscriptionService
@@ -217,3 +218,74 @@ class TestTranscriptionServiceRuntimePolicy:
 
         create_provider.assert_called_once_with("test", include_test_providers=True)
         provider.save_result_to_file.assert_called_once_with(result, output_path)
+
+    @pytest.mark.unit
+    @pytest.mark.fast
+    @pytest.mark.asyncio
+    async def test_transcribe_with_progress_prepares_transcription_once(
+        self, monkeypatch: pytest.MonkeyPatch, sample_audio_path: Path
+    ) -> None:
+        """Progress wrapper should not re-run preparation in transcribe_async path."""
+        service = TranscriptionService()
+
+        prepare_calls = 0
+
+        def fake_prepare(*_args, **_kwargs):
+            nonlocal prepare_calls
+            prepare_calls += 1
+            return sample_audio_path, "deepgram"
+
+        fake_result = TranscriptionResult(
+            transcript="ok",
+            duration=1.0,
+            generated_at=datetime.utcnow(),
+            audio_file=str(sample_audio_path),
+            provider_name="Deepgram Nova 3",
+        )
+
+        class FakeProvider:
+            async def transcribe_async(self, *_args, **_kwargs):
+                return fake_result
+
+            def get_provider_name(self) -> str:
+                return "Deepgram Nova 3"
+
+        monkeypatch.setattr(service, "_prepare_transcription", fake_prepare)
+        monkeypatch.setattr(service, "_get_audio_duration", AsyncMock(return_value=1.0))
+        monkeypatch.setattr(service, "_get_provider_speed_by_name", Mock(return_value=1.0))
+        monkeypatch.setattr(service, "_create_provider", Mock(return_value=FakeProvider()))
+
+        result = await service.transcribe_with_progress(sample_audio_path, provider_name="deepgram")
+
+        assert result is fake_result
+        assert prepare_calls == 1
+
+    @pytest.mark.unit
+    @pytest.mark.fast
+    def test_get_provider_speed_uses_provider_meta_without_instantiation(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Provider speed lookup should use class metadata, not instantiate providers."""
+        service = TranscriptionService()
+
+        monkeypatch.setattr(
+            service,
+            "_create_provider",
+            Mock(side_effect=AssertionError("should not instantiate provider for speed lookup")),
+        )
+
+        meta = ProviderMeta(
+            name="Deepgram Nova 3",
+            provider_key="deepgram",
+            estimated_speed_mb_per_sec=2.75,
+        )
+        monkeypatch.setattr(
+            service.factory,
+            "get_provider_meta",
+            Mock(return_value=meta),
+            raising=False,
+        )
+
+        speed = service._get_provider_speed_by_name("deepgram")
+
+        assert speed == 2.75

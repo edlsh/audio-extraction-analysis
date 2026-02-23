@@ -248,3 +248,109 @@ async def test_process_pipeline_extraction_returns_none_raises_error(
     assert results["success"] is False
     assert any("Audio extraction failed" in err for err in results["errors"])
     assert "audio_extraction" not in results["stages_completed"]
+
+
+@pytest.mark.asyncio
+async def test_process_pipeline_skips_extraction_for_prepared_audio(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """Pre-prepared audio should bypass FFmpeg extraction when requested."""
+    input_audio = tmp_path / "prepared.mp3"
+    input_audio.write_bytes(b"audio")
+    output_dir = tmp_path / "prepared_out"
+
+    class UnexpectedExtractor:
+        async def extract_audio_async(self, *_args, **_kwargs):
+            raise AssertionError(
+                "extract_audio_async should not be called when skip_extraction=True"
+            )
+
+    class FakeTranscriptionService:
+        async def transcribe_with_progress(self, audio_path, *_args, **_kwargs):
+            assert audio_path == input_audio
+            return SimpleNamespace(
+                provider_name="mock",
+                audio_file=str(input_audio),
+                duration=1.0,
+                transcript="hello",
+            )
+
+        def save_transcription_result(self, _result, dest: Path, provider_name: str | None = None):
+            dest.write_text("transcript")
+
+    class FakeConciseAnalyzer:
+        def analyze_and_save(self, _transcript, out_dir: Path, stem: str):
+            report = out_dir / f"{stem}_concise.md"
+            report.write_text("concise")
+            return report
+
+    monkeypatch.setattr("src.pipeline.simple_pipeline.ConsoleManager", _DummyConsole)
+    monkeypatch.setattr("src.pipeline.simple_pipeline.AsyncAudioExtractor", UnexpectedExtractor)
+    monkeypatch.setattr(
+        "src.pipeline.simple_pipeline.TranscriptionService", FakeTranscriptionService
+    )
+    monkeypatch.setattr("src.pipeline.simple_pipeline.ConciseAnalyzer", FakeConciseAnalyzer)
+
+    results = await process_pipeline(
+        input_path=input_audio,
+        output_dir=output_dir,
+        quality=AudioQuality.SPEECH,
+        analysis_style="concise",
+        skip_extraction=True,
+    )
+
+    assert results["success"] is True
+    assert results["audio_path"] == str(input_audio)
+    assert results["stage_results"]["extraction"]["status"] == "skipped"
+    assert "audio_extraction" in results["stages_completed"]
+
+
+@pytest.mark.asyncio
+async def test_process_pipeline_injects_transcription_cache(monkeypatch, tmp_path: Path) -> None:
+    """Pipeline should pass injected transcription cache to TranscriptionService."""
+    input_audio = tmp_path / "cached_input.mp3"
+    input_audio.write_bytes(b"audio")
+    output_dir = tmp_path / "cached_out"
+
+    cache_token = object()
+    captured_cache: dict[str, object | None] = {"value": None}
+
+    class FakeTranscriptionService:
+        def __init__(self, cache=None):
+            captured_cache["value"] = cache
+
+        async def transcribe_with_progress(self, *_args, **_kwargs):
+            return SimpleNamespace(
+                provider_name="mock",
+                audio_file=str(input_audio),
+                duration=1.0,
+                transcript="hello",
+            )
+
+        def save_transcription_result(self, _result, dest: Path, provider_name: str | None = None):
+            dest.write_text("transcript")
+
+    class FakeConciseAnalyzer:
+        def analyze_and_save(self, _transcript, out_dir: Path, stem: str):
+            report = out_dir / f"{stem}_concise.md"
+            report.write_text("concise")
+            return report
+
+    monkeypatch.setattr("src.pipeline.simple_pipeline.ConsoleManager", _DummyConsole)
+    monkeypatch.setattr(
+        "src.pipeline.simple_pipeline.TranscriptionService",
+        FakeTranscriptionService,
+    )
+    monkeypatch.setattr("src.pipeline.simple_pipeline.ConciseAnalyzer", FakeConciseAnalyzer)
+
+    results = await process_pipeline(
+        input_path=input_audio,
+        output_dir=output_dir,
+        quality=AudioQuality.SPEECH,
+        analysis_style="concise",
+        skip_extraction=True,
+        transcription_cache=cache_token,
+    )
+
+    assert results["success"] is True
+    assert captured_cache["value"] is cache_token

@@ -14,9 +14,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+import src.services.ffmpeg_core as ffmpeg_core_module
 from src.services.ffmpeg_core import (
     MediaProbeResult,
     cleanup_temp_file,
+    clear_probe_cache,
+    get_probe_cache_stats,
     probe_media_async,
     probe_media_sync,
 )
@@ -123,6 +126,59 @@ class TestProbeMediaAsync:
 
         assert result.duration is None
         assert result.size_bytes > 0
+
+
+class TestProbeCacheObservability:
+    """Test probe cache metrics and bounded behavior."""
+
+    def test_probe_cache_reports_hits_and_misses(self, tmp_path):
+        """Repeated probe of same file should register miss then hit."""
+        clear_probe_cache()
+
+        test_file = tmp_path / "cached.mp3"
+        test_file.write_bytes(b"fake audio content")
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0,
+                stdout='{"format": {"duration": "2.5"}}',
+            )
+
+            first = probe_media_sync(test_file)
+            second = probe_media_sync(test_file)
+
+        assert first.duration == 2.5
+        assert second.duration == 2.5
+
+        stats = get_probe_cache_stats()
+        assert stats["misses"] >= 1
+        assert stats["hits"] >= 1
+        assert stats["entries"] >= 1
+
+    def test_probe_cache_eviction_when_max_size_reached(self, monkeypatch, tmp_path):
+        """Cache should evict least-recently-used entry when capacity is exceeded."""
+        tiny_cache = ffmpeg_core_module._ProbeCache(max_size=2)
+        monkeypatch.setattr(ffmpeg_core_module, "_probe_cache", tiny_cache)
+
+        file_a = tmp_path / "a.mp3"
+        file_b = tmp_path / "b.mp3"
+        file_c = tmp_path / "c.mp3"
+        for path in (file_a, file_b, file_c):
+            path.write_bytes(b"content")
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0,
+                stdout='{"format": {"duration": "1.0"}}',
+            )
+            probe_media_sync(file_a)
+            probe_media_sync(file_b)
+            probe_media_sync(file_c)
+
+        stats = get_probe_cache_stats()
+        assert stats["max_entries"] == 2
+        assert stats["entries"] <= 2
+        assert stats["evictions"] >= 1
 
 
 class TestValidatePathSecurity:

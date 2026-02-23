@@ -57,6 +57,11 @@ def register_provider(
     """
     _providers[name] = provider_class_or_path
 
+    # Reset cached configured-provider scans when registry changes.
+    factory_cls = globals().get("TranscriptionProviderFactory")
+    if factory_cls is not None and hasattr(factory_cls, "_clear_configured_providers_cache"):
+        factory_cls._clear_configured_providers_cache()
+
 
 class TranscriptionProviderFactory:
     """Factory class for creating and managing transcription service providers.
@@ -84,6 +89,7 @@ class TranscriptionProviderFactory:
         """
         with cls._selection_policy_lock:
             cls._test_mode_enabled = enabled
+        cls._clear_configured_providers_cache()
 
     @classmethod
     def _is_test_mode_enabled(cls, include_test_providers: bool | None = None) -> bool:
@@ -156,6 +162,19 @@ class TranscriptionProviderFactory:
         return cls._import_provider_class(provider_entry)
 
     @classmethod
+    def get_provider_meta(
+        cls,
+        provider_name: str,
+        include_test_providers: bool | None = None,
+    ) -> ProviderMeta | None:
+        """Get provider metadata without instantiating provider instances."""
+        provider_class = cls._get_provider_class(
+            provider_name,
+            include_test_providers=include_test_providers,
+        )
+        return getattr(provider_class, "META", None)
+
+    @classmethod
     def get_configured_providers(
         cls,
         include_test_providers: bool | None = None,
@@ -177,7 +196,15 @@ class TranscriptionProviderFactory:
             This checks configuration only, not provider health or availability.
             Use check_provider_health() for runtime health validation.
         """
-        configured = []
+        include_tests = cls._is_test_mode_enabled(include_test_providers)
+        cache_key = cls._build_configured_cache_key(include_tests)
+
+        with cls._configured_cache_lock:
+            cached = cls._configured_providers_cache.get(cache_key)
+            if cached is not None:
+                return list(cached)
+
+        configured: list[str] = []
         config = get_config()
 
         for provider_name in _providers:
@@ -185,7 +212,7 @@ class TranscriptionProviderFactory:
                 # Lazy-load provider class to check configuration
                 provider_class = cls._get_provider_class(
                     provider_name,
-                    include_test_providers=include_test_providers,
+                    include_test_providers=include_tests,
                 )
                 meta: ProviderMeta | None = getattr(provider_class, "META", None)
 
@@ -209,8 +236,15 @@ class TranscriptionProviderFactory:
                 # Provider not available - skip this provider
                 logger.debug(f"Provider {provider_name} skipped: {e}")
 
-        if cls._is_test_mode_enabled(include_test_providers):
+        if include_tests:
             configured.extend(sorted(_TEST_PROVIDER_ALIASES))
+
+        with cls._configured_cache_lock:
+            cls._configured_providers_cache[cache_key] = list(configured)
+            # Bound cache growth across dynamic env/provider combinations.
+            if len(cls._configured_providers_cache) > 16:
+                oldest_key = next(iter(cls._configured_providers_cache))
+                cls._configured_providers_cache.pop(oldest_key, None)
 
         return configured
 
@@ -218,6 +252,31 @@ class TranscriptionProviderFactory:
     _selection_policy: ProviderSelectionPolicy | None = None
     _selection_policy_lock = threading.Lock()
     _test_mode_enabled = False
+
+    # Cache configured-provider scans to avoid repeated import/env checks on hot paths.
+    _configured_providers_cache: dict[tuple[object, ...], list[str]] = {}
+    _configured_cache_lock = threading.Lock()
+
+    @classmethod
+    def _build_configured_cache_key(
+        cls,
+        include_test_providers: bool,
+    ) -> tuple[object, ...]:
+        """Build cache key for configured-provider discovery."""
+        config = get_config()
+        provider_registry = tuple(sorted(_providers.keys()))
+        return (
+            provider_registry,
+            include_test_providers,
+            config.DEEPGRAM_API_KEY,
+            config.ELEVENLABS_API_KEY,
+        )
+
+    @classmethod
+    def _clear_configured_providers_cache(cls) -> None:
+        """Clear configured-provider cache."""
+        with cls._configured_cache_lock:
+            cls._configured_providers_cache.clear()
 
     @classmethod
     def get_selection_policy(cls) -> ProviderSelectionPolicy:

@@ -81,10 +81,16 @@ class UrlIngestionService:
         self._download_dir = download_dir
         self._prefer_audio_only = prefer_audio_only
         self._keep_video = keep_video
-        self._extractor = AudioExtractor()
+        self._extractor: AudioExtractor | None = None
         self._event_sink = event_sink
         # _pinned_ips reserved for future enforcement
         self._pinned_ips: set[str] | None = None
+
+    def _get_extractor(self) -> AudioExtractor:
+        """Lazily create audio extractor only when video extraction is required."""
+        if self._extractor is None:
+            self._extractor = AudioExtractor()
+        return self._extractor
 
     def _emit_event(
         self,
@@ -271,7 +277,8 @@ class UrlIngestionService:
                 data={"completed": 10, "total": 100, "message": "Starting audio extraction..."},
             )
 
-            audio_path = self._extractor.extract_audio(
+            extractor = self._get_extractor()
+            audio_path = extractor.extract_audio(
                 input_path=downloaded_path, output_path=None, quality=quality
             )
 

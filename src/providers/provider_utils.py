@@ -15,6 +15,8 @@ Decorator Usage:
 
 from __future__ import annotations
 
+import importlib.util
+import threading
 from functools import wraps
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar
@@ -41,9 +43,16 @@ logger = get_logger(__name__)
 P = ParamSpec("P")
 T = TypeVar("T")
 
+_sdk_availability_cache: dict[tuple[str, ...], bool] = {}
+_sdk_warning_emitted: set[tuple[str, ...]] = set()
+_sdk_cache_lock = threading.Lock()
+
 
 def check_sdk_available(meta: ProviderMeta) -> bool:
     """Check if required SDK modules are available for a provider.
+
+    Results are memoized per module list to avoid repeated import probing on
+    hot paths like provider selection and health checks.
 
     Args:
         meta: ProviderMeta with sdk_imports list
@@ -53,13 +62,37 @@ def check_sdk_available(meta: ProviderMeta) -> bool:
     """
     if not meta.sdk_imports:
         return True
-    try:
-        for module in meta.sdk_imports:
-            __import__(module)
-        return True
-    except ImportError as e:
-        logger.warning(f"{meta.name} provider dependencies not installed: {e}")
-        return False
+
+    cache_key = tuple(meta.sdk_imports)
+
+    with _sdk_cache_lock:
+        cached = _sdk_availability_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+    missing_modules: list[str] = []
+    for module in cache_key:
+        try:
+            if importlib.util.find_spec(module) is None:
+                missing_modules.append(module)
+        except (ImportError, AttributeError, ValueError):
+            missing_modules.append(module)
+
+    available = not missing_modules
+
+    with _sdk_cache_lock:
+        _sdk_availability_cache[cache_key] = available
+        should_warn = not available and cache_key not in _sdk_warning_emitted
+        if should_warn:
+            _sdk_warning_emitted.add(cache_key)
+
+    if not available and should_warn:
+        logger.warning(
+            f"{meta.name} provider dependencies not installed: "
+            f"missing {', '.join(missing_modules)}"
+        )
+
+    return available
 
 
 def require_sdk(meta: ProviderMeta) -> None:
@@ -205,9 +238,7 @@ def provider_error_handler(
         Decorated async function with standardized error handling
     """
 
-    def decorator(
-        func: Callable[P, Coroutine[Any, Any, T]]
-    ) -> Callable[P, Coroutine[Any, Any, T]]:
+    def decorator(func: Callable[P, Coroutine[Any, Any, T]]) -> Callable[P, Coroutine[Any, Any, T]]:
         @wraps(func)
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             # Extract file_path from args (typically second arg after self)
