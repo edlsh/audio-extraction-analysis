@@ -119,23 +119,3 @@ def secure_temp_directory(
                 logger.debug(f"Cleaned up temporary directory: {temp_dir}")
         except Exception as e:
             logger.warning(f"Failed to cleanup temp directory {temp_dir}: {e}")
-
-
-def validate_temp_file_security(file_path: Path) -> bool:
-    """Validate that a file has secure permissions.
-
-    Args:
-        file_path: Path to file to check
-
-    Returns:
-        True if file has restrictive permissions (0600 or stricter)
-    """
-    import stat
-
-    if not file_path.exists():
-        return False
-
-    mode = file_path.stat().st_mode
-    # Check that file is readable/writable only by owner
-    # Reject if group or others have any permissions
-    return (mode & (stat.S_IRWXG | stat.S_IRWXO)) == 0

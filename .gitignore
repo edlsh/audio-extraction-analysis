@@ -160,6 +160,10 @@ test-results.xml
 # Build artifacts
 coverage.json
 
+# Frontend artifacts
+frontend/node_modules/
+frontend/dist/
+
 # Temporary tool files
 tools/*.tmp
 .architecture_baseline.json.tmp

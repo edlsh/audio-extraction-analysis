@@ -8,8 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from src.exceptions import AudioExtractionTimeoutError
-from src.services.audio_extraction import AudioQuality
-from src.services.audio_extraction_async import AsyncAudioExtractor
+from src.services.audio_extraction import AsyncAudioExtractor, AudioQuality
 from src.services.ffmpeg_core import MediaProbeResult
 
 # Apply markers to all tests in this module
@@ -101,7 +100,7 @@ class TestAsyncAudioExtractor:
 
         # Mock probe_media_async to return our fake result
         with patch(
-            "src.services.audio_extraction_async.probe_media_async",
+            "src.services.audio_extraction.probe_media_async",
             AsyncMock(return_value=fake_probe),
         ):
             # Mock _run_ffmpeg_with_progress to raise TimeoutError
@@ -122,7 +121,7 @@ class TestAsyncAudioExtractor:
         hanging_proc = self._HangingProcess()
 
         with patch(
-            "src.services.audio_extraction_async.asyncio.create_subprocess_exec",
+            "src.services.audio_extraction.asyncio.create_subprocess_exec",
             AsyncMock(return_value=hanging_proc),
         ):
             with pytest.raises(TimeoutError):
@@ -139,7 +138,7 @@ class TestAsyncAudioExtractor:
         failing_proc = self._FailingProcess()
 
         with patch(
-            "src.services.audio_extraction_async.asyncio.create_subprocess_exec",
+            "src.services.audio_extraction.asyncio.create_subprocess_exec",
             AsyncMock(return_value=failing_proc),
         ):
             with pytest.raises(RuntimeError):
@@ -160,7 +159,7 @@ class TestAsyncAudioExtractor:
 
         # Mock probe_media_async to return our fake result
         with patch(
-            "src.services.audio_extraction_async.probe_media_async",
+            "src.services.audio_extraction.probe_media_async",
             AsyncMock(return_value=fake_probe),
         ):
             # Mock _run_ffmpeg_with_progress to raise subprocess.TimeoutExpired

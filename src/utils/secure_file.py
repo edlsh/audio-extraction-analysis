@@ -281,7 +281,7 @@ def check_file_permissions(path: Path, *, warn_if_too_permissive: bool = True) -
 
 def secure_write_json(
     path: Path,
-    data: dict | list,
+    data: dict[str, Any] | list[Any],
     *,
     indent: int = 2,
 ) -> None:

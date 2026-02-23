@@ -96,11 +96,14 @@ class FailingMockProvider(MockTranscriptionProvider):
         self._fail_on_nth_call = fail_on_nth_call
         self._error_type = error_type
 
-    async def transcribe(self, audio_file_path: Path, **kwargs: Any) -> dict[str, Any]:
+    async def transcribe(
+        self, audio_file_path: Path, language: str = "en", **kwargs: Any
+    ) -> dict[str, Any]:
         """Mock transcription that fails after N calls.
 
         Args:
             audio_file_path: Path to audio file
+            language: Language code
             **kwargs: Additional parameters
 
         Raises:

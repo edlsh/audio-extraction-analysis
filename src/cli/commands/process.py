@@ -10,9 +10,11 @@ from src.utils.logger import get_logger
 
 from ...config import get_config
 from ...error_handlers import handle_cli_error
+from ...exceptions import UrlIngestionError
 from ...models.transcription import TranscriptionResult
 from ...pipeline.simple_pipeline import process_pipeline
-from ...services.url_ingestion import UrlIngestionError, UrlIngestionService
+from ...services.audio_extraction import AudioQuality
+from ...services.url_ingestion import UrlIngestionService
 from ...ui.console import ConsoleManager
 from ..json_output import CommandTiming, JsonCommandResult, log_json_message
 from ..utils import (
@@ -79,12 +81,11 @@ def _setup_process_output_dir(args: argparse.Namespace) -> Path:
 async def _execute_processing_pipeline(
     input_path: Path,
     output_dir: Path,
-    quality: str,  # AudioQuality passed as enum, but type hint might be specific
+    quality: AudioQuality,
     args: argparse.Namespace,
     console_manager: ConsoleManager | None,
 ) -> tuple[dict[str, object], TranscriptionResult | None]:
     """Execute the audio processing pipeline."""
-    # Note: quality arg passed to process_pipeline expects AudioQuality enum
     pipeline_result = await process_pipeline(
         input_path=str(input_path),
         output_dir=str(output_dir),
@@ -148,14 +149,14 @@ async def process_command(
 
         if input_path is None:
             if json_mode:
-                result = JsonCommandResult(
+                error_result = JsonCommandResult(
                     success=False,
                     command="process",
                     input=input_str,
                     exit_code=1,
                     errors=["Failed to resolve input source"],
                 )
-                result.print_json()
+                error_result.print_json()
             return 1
 
         output_dir = _setup_process_output_dir(args)
@@ -169,13 +170,13 @@ async def process_command(
             )
 
         timing.start_stage("pipeline")
-        pipeline_result, result = await _execute_processing_pipeline(
+        pipeline_result, transcription_result = await _execute_processing_pipeline(
             input_path, output_dir, quality, args, console_manager
         )
         timing.end_stage("pipeline")
 
-        if result:
-            _handle_process_success(result, output_dir, args, input_path)
+        if transcription_result:
+            _handle_process_success(transcription_result, output_dir, args, input_path)
 
             if json_mode:
                 # Build JSON output
@@ -185,7 +186,7 @@ async def process_command(
                 if pipeline_result.get("transcript_path"):
                     outputs["transcript"] = str(pipeline_result.get("transcript_path"))
                 files_created = pipeline_result.get("files_created", [])
-                if files_created:
+                if files_created and isinstance(files_created, list):
                     outputs["analysis"] = [str(f) for f in files_created]
 
                 json_result = JsonCommandResult(
@@ -297,7 +298,7 @@ def _resolve_local_file(args: argparse.Namespace) -> Path | None:
     from ...utils.sanitization import PathSanitizer
 
     try:
-        PathSanitizer.validate_path_security(str(input_path))
+        PathSanitizer.validate_path_security(input_path)
     except ValueError as e:
         logger.error(f"Invalid file path: {e}")
         return None

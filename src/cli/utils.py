@@ -11,7 +11,7 @@ logger = get_logger(__name__)
 DEFAULT_OUTPUT_DIR = "output"
 
 # Available transcription providers
-TRANSCRIPTION_PROVIDERS = ["deepgram", "elevenlabs", "whisper", "parakeet", "auto"]
+TRANSCRIPTION_PROVIDERS = ["deepgram", "elevenlabs", "whisper", "auto"]
 
 
 def add_transcription_options(parser: argparse.ArgumentParser) -> None:

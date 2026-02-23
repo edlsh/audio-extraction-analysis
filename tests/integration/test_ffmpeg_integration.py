@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from src.services.audio_extraction_async import AsyncAudioExtractor, AudioQuality
+from src.services.audio_extraction import AsyncAudioExtractor, AudioQuality
 from tests.conftest_helpers import skip_without_ffmpeg
 
 # Apply markers to all tests in this module

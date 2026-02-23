@@ -45,6 +45,7 @@ class TestUtilsPackage:
 
         expected_exports = [
             # Constants
+            "FileSizeUnits",
             "HTTPStatusCodes",
             "Limits",
             "ProgressConstants",
@@ -65,7 +66,6 @@ class TestUtilsPackage:
             "format_file_size",
             "format_file_size_bytes",
             "format_file_size_mb",
-            "format_percentage",
             "format_timestamp",
             # File size utilities
             "get_file_size_bytes",
@@ -211,6 +211,7 @@ class TestUtilsPackage:
         imported_names = [name for name in namespace.keys() if not name.startswith("__")]
         expected_names = [
             # Constants
+            "FileSizeUnits",
             "HTTPStatusCodes",
             "Limits",
             "ProgressConstants",
@@ -231,7 +232,6 @@ class TestUtilsPackage:
             "format_file_size",
             "format_file_size_bytes",
             "format_file_size_mb",
-            "format_percentage",
             "format_timestamp",
             # File size utilities
             "get_file_size_bytes",

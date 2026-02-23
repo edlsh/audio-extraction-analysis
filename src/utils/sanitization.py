@@ -196,38 +196,36 @@ class PathSanitizer:
         return output_path
 
 
-# Convenience functions for backward compatibility
+# Convenience functions
 def sanitize_path(file_path: Path | str) -> str:
-    """Sanitize file path for safe subprocess usage.
-
-    Args:
-        file_path: Path to sanitize
-
-    Returns:
-        Safely quoted path string
-    """
+    """Sanitize file path for safe subprocess usage."""
     return PathSanitizer.sanitize_for_subprocess(file_path)
 
 
 def sanitize_filename(filename: str) -> str:
-    """Sanitize a filename by replacing invalid characters.
-
-    Args:
-        filename: Original filename
-
-    Returns:
-        Sanitized filename
-    """
+    """Sanitize a filename by replacing invalid characters."""
     return PathSanitizer.sanitize_filename(filename)
 
 
 def sanitize_dirname(dirname: str) -> str:
-    """Sanitize a directory name by replacing invalid characters.
-
-    Args:
-        dirname: Original directory name
-
-    Returns:
-        Sanitized directory name
-    """
+    """Sanitize a directory name by replacing invalid characters."""
     return PathSanitizer.sanitize_dirname(dirname)
+
+
+def sanitize_path_for_display(path: Path | str) -> str:
+    """Return only the filename from a path for error messages (prevents leaking full paths)."""
+    try:
+        p = Path(path)
+        if p.name:
+            return p.name
+        return str(p)
+    except (TypeError, ValueError, OSError):
+        return "[unknown]"
+
+
+def sanitize_path_in_message(message: str, path: Path | str | None = None) -> str:
+    """Replace full file paths with filename-only versions in error messages."""
+    if path is not None:
+        filename = sanitize_path_for_display(path)
+        message = message.replace(str(path), filename)
+    return message

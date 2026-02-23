@@ -1,4 +1,4 @@
-"""Shared formatting utilities for duration, timestamps, and other common formats.
+"""Shared formatting utilities for duration, timestamps, file sizes, and other common formats.
 
 This module consolidates duplicate formatting functions that were scattered
 across multiple modules (analyzers, formatters, etc.) to ensure consistent
@@ -6,6 +6,16 @@ formatting throughout the application.
 """
 
 from __future__ import annotations
+
+from pathlib import Path
+
+
+class FileSizeUnits:
+    """Constant multipliers for file size calculations."""
+
+    BYTES_PER_KB = 1024
+    BYTES_PER_MB = 1024 * 1024
+    BYTES_PER_GB = 1024 * 1024 * 1024
 
 
 def format_duration(seconds: float | int | None, style: str = "compact") -> str:
@@ -123,32 +133,51 @@ def format_file_size(size_bytes: int | float, precision: int = 2) -> str:
     return f"{size:.{precision}f} {units[unit_index]}"
 
 
-def format_percentage(value: float, total: float, precision: int = 1) -> str:
-    """Format a ratio as percentage string.
+def get_file_size_bytes(path: Path | str) -> int:
+    """Get file size in bytes, returns 0 on error."""
+    try:
+        p = Path(path)
+        return p.stat().st_size
+    except (OSError, ValueError, TypeError):
+        return 0
 
-    Args:
-        value: The numerator value.
-        total: The denominator (total) value.
-        precision: Number of decimal places.
 
-    Returns:
-        Formatted percentage string.
+def get_file_size_mb(path: Path | str) -> float:
+    """Get file size in megabytes, returns 0.0 on error."""
+    return get_file_size_bytes(path) / FileSizeUnits.BYTES_PER_MB
 
-    Examples:
-        >>> format_percentage(25, 100)
-        '25.0%'
-        >>> format_percentage(1, 3, precision=2)
-        '33.33%'
-    """
-    if total <= 0:
-        return "0.0%"
-    percentage = (value / total) * 100
-    return f"{percentage:.{precision}f}%"
+
+def format_file_size_bytes(size_bytes: int) -> str:
+    """Format bytes as human-readable string (e.g., '1.5 KB', '2.00 MB')."""
+    if size_bytes < 0:
+        return "0 B"
+
+    if size_bytes < FileSizeUnits.BYTES_PER_KB:
+        return f"{size_bytes} B"
+    elif size_bytes < FileSizeUnits.BYTES_PER_MB:
+        kb = size_bytes / FileSizeUnits.BYTES_PER_KB
+        return f"{kb:.1f} KB"
+    elif size_bytes < FileSizeUnits.BYTES_PER_GB:
+        mb = size_bytes / FileSizeUnits.BYTES_PER_MB
+        return f"{mb:.2f} MB"
+    else:
+        gb = size_bytes / FileSizeUnits.BYTES_PER_GB
+        return f"{gb:.2f} GB"
+
+
+def format_file_size_mb(size_bytes: int) -> str:
+    """Format bytes as megabytes with two decimal places."""
+    mb = size_bytes / FileSizeUnits.BYTES_PER_MB
+    return f"{mb:.2f} MB"
 
 
 __all__ = [
+    "FileSizeUnits",
     "format_duration",
     "format_file_size",
-    "format_percentage",
+    "format_file_size_bytes",
+    "format_file_size_mb",
     "format_timestamp",
+    "get_file_size_bytes",
+    "get_file_size_mb",
 ]

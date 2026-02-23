@@ -82,7 +82,7 @@ class DeepgramAPIClient(BaseAPIClient):
         import asyncio
 
         # Use streaming upload for large files (> 100MB)
-        from src.utils.file_size import get_file_size_bytes
+        from src.utils.formatting import get_file_size_bytes
 
         if isinstance(audio_file, Path):
             file_size = get_file_size_bytes(audio_file)
@@ -91,7 +91,7 @@ class DeepgramAPIClient(BaseAPIClient):
 
         # Small file - direct upload (run in executor since SDK is sync)
         return await asyncio.to_thread(
-            client.listen.v1.media.transcribe_file,
+            client.listen.v1.media.transcribe_file,  # type: ignore[attr-defined]
             request=audio_file,
             options=options,
             request_options={"timeout_in_seconds": int(timeout)},
@@ -119,7 +119,7 @@ class DeepgramAPIClient(BaseAPIClient):
 
         # Pass the file path directly - SDK handles streaming efficiently
         return await asyncio.to_thread(
-            client.listen.v1.media.transcribe_file,
+            client.listen.v1.media.transcribe_file,  # type: ignore[attr-defined]
             request=str(audio_file),
             options=options,
             request_options={"timeout_in_seconds": int(timeout)},
@@ -135,7 +135,7 @@ class DeepgramAPIClient(BaseAPIClient):
 
         async def _check() -> dict[str, Any]:
             try:
-                info = client.manage.v1.projects.get_projects()
+                info = client.manage.v1.projects.get_projects()  # type: ignore[attr-defined]
                 return {"status": "healthy", "project_count": len(info.get("projects", []))}
             except Exception as e:
                 return {"status": "unhealthy", "error": str(e)}

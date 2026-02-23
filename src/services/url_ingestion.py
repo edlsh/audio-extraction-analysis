@@ -6,7 +6,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import ParseResult, urlparse
 
 from cachetools import TTLCache
@@ -91,7 +91,7 @@ class UrlIngestionService:
         event_type: str,
         *,
         stage: str | None = None,
-        data: dict | None = None,
+        data: dict[str, Any] | None = None,
     ) -> None:
         """Emit an event via the injected sink (thread-safe for use with asyncio.to_thread)."""
         if self._event_sink is None:
@@ -151,7 +151,7 @@ class UrlIngestionService:
         safe_dir.mkdir(parents=True, exist_ok=True)
         return safe_dir
 
-    def _build_ydl_opts(self, safe_dir: Path) -> dict:
+    def _build_ydl_opts(self, safe_dir: Path) -> dict[str, Any]:
         """Build yt-dlp options dict."""
         output_template = safe_dir / "%(id)s.%(ext)s"
         opts = {
@@ -176,25 +176,24 @@ class UrlIngestionService:
             status = d.get("status")
 
             if status == "downloading":
-                # Emit progress events for TUI feedback
-                total = d.get("total_bytes") or d.get("total_bytes_estimate") or 0
-                downloaded = d.get("downloaded_bytes", 0)
-                is_valid_total = total and isinstance(total, (int, float))
-                is_valid_downloaded = isinstance(downloaded, (int, float))
-                if is_valid_total and is_valid_downloaded:
-                    percent = (downloaded / total) * 100
-                    # Only emit if progress changed by at least 1%
-                    if percent - last_percent >= 1.0:
-                        last_percent = percent
-                        self._emit_event(
-                            "stage_progress",
-                            stage="url_download",
-                            data={
-                                "completed": int(percent),
-                                "total": 100,
-                                "message": f"Downloading... {percent:.0f}%",
-                            },
-                        )
+                total_raw = d.get("total_bytes") or d.get("total_bytes_estimate") or 0
+                downloaded_raw = d.get("downloaded_bytes", 0)
+                if isinstance(total_raw, (int, float)) and isinstance(downloaded_raw, (int, float)):
+                    total = float(total_raw)
+                    downloaded = float(downloaded_raw)
+                    if total > 0:
+                        percent = (downloaded / total) * 100
+                        if percent - last_percent >= 1.0:
+                            last_percent = percent
+                            self._emit_event(
+                                "stage_progress",
+                                stage="url_download",
+                                data={
+                                    "completed": int(percent),
+                                    "total": 100,
+                                    "message": f"Downloading... {percent:.0f}%",
+                                },
+                            )
 
             elif status == "finished":
                 filename = d.get("filename")
@@ -221,7 +220,7 @@ class UrlIngestionService:
         return downloaded_path
 
     def _resolve_download_path(
-        self, downloaded_path: Path | None, result: dict | None, safe_dir: Path, url: str
+        self, downloaded_path: Path | None, result: dict[str, Any] | None, safe_dir: Path, url: str
     ) -> Path:
         """Resolve and validate the downloaded file path."""
         if not downloaded_path:
@@ -423,7 +422,7 @@ class UrlIngestionService:
             try:
                 resolved_ip = ipaddress.ip_address(ip_str)
                 UrlIngestionService._check_ip_is_safe(resolved_ip, raw_url, "dns_resolved")
-                validated_ips.add(ip_str)
+                validated_ips.add(str(ip_str))
             except ValueError:
                 continue
 
@@ -442,7 +441,7 @@ class UrlIngestionService:
         with cls._dns_cache_lock:
             cached = cls._dns_cache.get(hostname)
             if cached and not cached.is_expired():
-                return cached.ips
+                return set(cached.ips)
             return None
 
     @classmethod

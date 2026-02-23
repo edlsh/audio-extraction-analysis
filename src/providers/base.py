@@ -80,7 +80,7 @@ class ProviderMeta:
     """Install command for missing SDK (e.g., 'uv add deepgram-sdk')"""
 
     is_local: bool = False
-    """True for local providers (Whisper, Parakeet) that don't need API keys"""
+    """True for local providers (Whisper) that don't need API keys"""
 
     estimated_speed_mb_per_sec: float = 1.5
     """Estimated processing speed in MB/second for progress estimation"""
@@ -235,11 +235,13 @@ class BaseTranscriptionProvider(ABC):
         **details: Any,
     ) -> HealthCheckResult:
         """Build a standardized health check response dictionary."""
+        health_details: HealthCheckDetails = {"provider": self.get_provider_name()}
+        health_details.update(details)  # type: ignore[typeddict-item]
         return {
             "healthy": healthy,
             "status": status,
             "response_time_ms": response_time_ms,
-            "details": {"provider": self.get_provider_name(), **details},
+            "details": health_details,
         }
 
     async def _run_health_check(
@@ -315,7 +317,7 @@ class BaseTranscriptionProvider(ABC):
 
         return TranscriptionResult(
             transcript=transcript,
-            duration=duration,
+            duration=duration if duration is not None else 0.0,
             generated_at=datetime.now(),
             audio_file=str(audio_file),
             provider_name=self.get_provider_name(),

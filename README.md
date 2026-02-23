@@ -6,11 +6,11 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-3776ab.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Transform video and audio recordings into structured, actionable documentation. Supports multiple transcription providers (Deepgram, ElevenLabs, Whisper, Parakeet) with speaker diarization, topic detection, and sentiment analysis.
+Transform video and audio recordings into structured, actionable documentation. Supports multiple transcription providers (Deepgram, ElevenLabs, Whisper) with speaker diarization, topic detection, and sentiment analysis.
 
 ## Key Features
 
-- **Multi-Provider Support** — Cloud (Deepgram, ElevenLabs) and local (Whisper, Parakeet) transcription
+- **Multi-Provider Support** — Cloud (Deepgram, ElevenLabs) and local (Whisper) transcription
 - **URL Ingestion** — Direct processing from YouTube, Vimeo, and other platforms
 - **Interactive TUI** — Terminal interface with live progress and health monitoring
 - **Intelligent Analysis** — Speaker separation, topic extraction, sentiment analysis
@@ -22,7 +22,7 @@ Transform video and audio recordings into structured, actionable documentation. 
 
 - Python 3.11+ (3.12 recommended)
 - FFmpeg
-- API key for cloud providers OR local models (Whisper/Parakeet)
+- API key for cloud providers OR local Whisper installation
 
 ### Setup
 
@@ -41,10 +41,21 @@ choco install ffmpeg       # Windows
 ### Optional Extras
 
 ```bash
-uv sync --extra tui                    # Terminal UI
 uv add openai-whisper torch            # Local Whisper
-uv sync --extra parakeet               # NVIDIA Parakeet
-uv sync --dev --extra tui --extra parakeet  # All features
+uv sync --extra dev                    # Dev tooling (pytest, ruff, mypy)
+```
+
+### Terminal UI (OpenTUI)
+
+The TUI requires Bun:
+It currently runs from a project checkout that includes `frontend/`.
+
+```bash
+# Install Bun
+curl -fsSL https://bun.sh/install | bash
+
+# Install frontend dependencies
+cd frontend && bun install
 ```
 
 ### Configure Provider
@@ -96,7 +107,7 @@ audio-extraction-analysis process video.mp4 --analysis-style full
 |--------|--------|-------------|
 | `--quality` | `speech`, `standard`, `high`, `compressed` | Audio quality preset |
 | `--language` | `en`, `es`, `fr`, `de`, `auto` | Transcription language |
-| `--provider` | `auto`, `deepgram`, `elevenlabs`, `whisper`, `parakeet` | Provider selection |
+| `--provider` | `auto`, `deepgram`, `elevenlabs`, `whisper` | Provider selection |
 | `--output-dir` | Path | Output directory |
 | `--analysis-style` | `concise`, `full` | Single file vs 5-file output |
 | `--verbose` | Flag | Detailed logging |
@@ -122,10 +133,10 @@ done
 ## Interactive TUI
 
 Launch a guided interface with real-time progress monitoring:
+Current policy: `source-checkout-only` (requires project checkout with `frontend/`).
 
 ```bash
 audio-extraction-analysis tui
-audio-extraction-analysis tui --input video.mp4 --output-dir ./results
 ```
 
 ### Features
@@ -202,7 +213,7 @@ Whisper supports 100+ languages.
 | Input file not found | Use absolute path: `/full/path/to/video.mp4` |
 | API key not configured | `export DEEPGRAM_API_KEY='...'` or create `.env` |
 | FFmpeg not found | Install: `brew install ffmpeg` (macOS) |
-| TUI not working | `uv sync --extra tui` |
+| TUI not working | Install Bun and run `cd frontend && bun install` |
 
 For detailed troubleshooting, see [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
 
@@ -223,7 +234,7 @@ For detailed troubleshooting, see [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING
 
 ## Documentation
 
-- [Provider Configuration](docs/PROVIDERS.md) — Whisper, Parakeet, cloud provider setup
+- [Provider Configuration](docs/PROVIDERS.md) — Whisper and cloud provider setup
 - [Templates Guide](docs/TEMPLATES.md) — Customize Markdown output
 - [Troubleshooting](docs/TROUBLESHOOTING.md) — Common issues and solutions
 - [HTML Dashboard](docs/HTML_DASHBOARD.md) — Interactive dashboard rendering
@@ -235,7 +246,7 @@ For detailed troubleshooting, see [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING
 # Development setup
 git clone https://github.com/edlsh/audio-extraction-analysis.git
 cd audio-extraction-analysis
-uv sync --dev --extra tui --extra parakeet
+uv sync --extra dev
 
 # Run tests
 pytest                                    # Unit tests

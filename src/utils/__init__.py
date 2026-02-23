@@ -6,23 +6,15 @@ from .constants import (
     RetryDefaults,
     Timeouts,
 )
-
-# New utilities (clean single import pattern)
-from .file_size import (
-    format_file_size_bytes,
-    format_file_size_mb,
-    get_file_size_bytes,
-    get_file_size_mb,
-)
 from .formatting import (
+    FileSizeUnits,
     format_duration,
     format_file_size,
-    format_percentage,
+    format_file_size_bytes,
+    format_file_size_mb,
     format_timestamp,
-)
-from .path_sanitizer import (
-    sanitize_path_for_display,
-    sanitize_path_in_message,
+    get_file_size_bytes,
+    get_file_size_mb,
 )
 from .progress_constants import (
     ProgressConstants,
@@ -38,9 +30,14 @@ from .retry import (
     retry_on_network_error_async,
     retry_sync,
 )
+from .sanitization import (
+    sanitize_path_for_display,
+    sanitize_path_in_message,
+)
 
 __all__ = [
     # Constants
+    "FileSizeUnits",
     "HTTPStatusCodes",
     "Limits",
     "ProgressConstants",
@@ -56,7 +53,6 @@ __all__ = [
     "format_file_size",
     "format_file_size_bytes",
     "format_file_size_mb",
-    "format_percentage",
     "format_timestamp",
     "get_file_size_bytes",
     "get_file_size_mb",

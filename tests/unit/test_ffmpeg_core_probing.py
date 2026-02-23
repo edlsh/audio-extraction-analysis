@@ -19,9 +19,8 @@ from src.services.ffmpeg_core import (
     cleanup_temp_file,
     probe_media_async,
     probe_media_sync,
-    sanitize_path,
-    validate_path_security,
 )
+from src.utils.sanitization import PathSanitizer, sanitize_path
 
 
 class TestProbeMediaSync:
@@ -127,93 +126,72 @@ class TestProbeMediaAsync:
 
 
 class TestValidatePathSecurity:
-    """Test validate_path_security function."""
+    """Test PathSanitizer.validate_path_security method."""
 
     def test_valid_path_passes(self, tmp_path):
-        """Normal paths should pass validation."""
         valid_path = tmp_path / "audio.mp3"
-        # Should not raise
-        validate_path_security(valid_path)
+        PathSanitizer.validate_path_security(valid_path)
 
     def test_path_with_spaces_passes(self):
-        """Paths with spaces should pass (common in media files)."""
         path = Path("/media/My Audio Files/podcast episode 01.mp3")
-        # Should not raise
-        validate_path_security(path)
+        PathSanitizer.validate_path_security(path)
 
     def test_path_with_brackets_passes(self):
-        """Paths with brackets should pass (common in media files)."""
         path = Path("/media/Song [Official Video] (HD).mp4")
-        # Should not raise
-        validate_path_security(path)
+        PathSanitizer.validate_path_security(path)
 
     def test_path_with_semicolon_fails(self):
-        """Paths with semicolon should fail (command injection risk)."""
         path = Path("/media/file;rm -rf /.mp3")
         with pytest.raises(ValueError, match="Invalid characters"):
-            validate_path_security(path)
+            PathSanitizer.validate_path_security(path)
 
     def test_path_with_ampersand_fails(self):
-        """Paths with & should fail (command chaining risk)."""
         path = Path("/media/file & echo bad.mp3")
         with pytest.raises(ValueError, match="Invalid characters"):
-            validate_path_security(path)
+            PathSanitizer.validate_path_security(path)
 
     def test_path_with_pipe_fails(self):
-        """Paths with pipe should fail (command piping risk)."""
         path = Path("/media/file | cat /etc/passwd.mp3")
         with pytest.raises(ValueError, match="Invalid characters"):
-            validate_path_security(path)
+            PathSanitizer.validate_path_security(path)
 
     def test_path_with_backtick_fails(self):
-        """Paths with backticks should fail (command substitution risk)."""
         path = Path("/media/`whoami`.mp3")
         with pytest.raises(ValueError, match="Invalid characters"):
-            validate_path_security(path)
+            PathSanitizer.validate_path_security(path)
 
     def test_path_with_dollar_fails(self):
-        """Paths with $ should fail (variable expansion risk)."""
         path = Path("/media/$HOME.mp3")
         with pytest.raises(ValueError, match="Invalid characters"):
-            validate_path_security(path)
+            PathSanitizer.validate_path_security(path)
 
     def test_path_with_redirect_fails(self):
-        """Paths with < or > should fail (redirect risk)."""
         path = Path("/media/file > /etc/passwd.mp3")
         with pytest.raises(ValueError, match="Invalid characters"):
-            validate_path_security(path)
+            PathSanitizer.validate_path_security(path)
 
 
 class TestSanitizePath:
-    """Test sanitize_path function."""
+    """Test sanitize_path function from sanitization module."""
 
     def test_simple_path_quoted(self):
-        """Simple paths should be properly quoted."""
         path = Path("/media/audio.mp3")
         result = sanitize_path(path)
-        # shlex.quote adds quotes only if needed
         assert "/media/audio.mp3" in result
 
     def test_path_with_spaces_quoted(self):
-        """Paths with spaces should be properly quoted."""
         path = Path("/media/my audio.mp3")
         result = sanitize_path(path)
-        # Should be quoted to handle spaces
         assert "my audio.mp3" in result or result.startswith("'")
 
     def test_path_with_special_chars_quoted(self):
-        """Paths with special characters should be properly quoted."""
         path = Path("/media/file (1) [copy].mp3")
         result = sanitize_path(path)
-        # Should handle shell special characters
         assert "(1)" in result or "\\(" in result or "'" in result
 
     def test_result_is_shell_safe(self):
-        """Result should be safe for shell usage."""
         path = Path("/media/file with 'quotes'.mp3")
         result = sanitize_path(path)
-        # shlex.quote should make it safe
-        # Result should be parseable by shlex
         try:
             shlex.split(result)
         except ValueError:

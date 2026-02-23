@@ -143,7 +143,12 @@ def retry_sync(
                     with attempt:
                         return func(*args, **kwargs)
             except RetryError as e:
-                raise RetryExhaustedError(cfg.max_attempts, e.last_attempt.exception()) from e
+                last_exc = e.last_attempt.exception()
+                if last_exc is None or not isinstance(last_exc, Exception):
+                    raise RetryExhaustedError(
+                        cfg.max_attempts, RuntimeError("Retry failed with unknown error")
+                    ) from e
+                raise RetryExhaustedError(cfg.max_attempts, last_exc) from e
 
         return cast(F, wrapper)
 
@@ -171,7 +176,12 @@ def retry_async(
                     with attempt:
                         return await func(*args, **kwargs)
             except RetryError as e:
-                raise RetryExhaustedError(cfg.max_attempts, e.last_attempt.exception()) from e
+                last_exc = e.last_attempt.exception()
+                if last_exc is None or not isinstance(last_exc, Exception):
+                    raise RetryExhaustedError(
+                        cfg.max_attempts, RuntimeError("Retry failed with unknown error")
+                    ) from e
+                raise RetryExhaustedError(cfg.max_attempts, last_exc) from e
 
         return cast(AsyncF, wrapper)
 

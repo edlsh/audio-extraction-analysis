@@ -9,7 +9,7 @@ Solutions for common issues when using Audio Extraction Analysis.
 | Input file not found | Use absolute path |
 | API key not configured | Set environment variable or `.env` |
 | FFmpeg not found | Install FFmpeg for your OS |
-| TUI not working | Install with `uv sync --extra tui` |
+| TUI not working | Install Bun and run `cd frontend && bun install` from a checkout |
 
 ---
 
@@ -107,42 +107,11 @@ uv add openai-whisper torch torchaudio --index-url https://download.pytorch.org/
 python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
 ```
 
-### Parakeet
+### Parakeet (Removed)
 
-#### "Parakeet dependencies not installed"
-
-```bash
-# Install with Parakeet extra
-uv sync --extra parakeet
-
-# Or install NeMo directly
-uv add "nemo-toolkit[asr]@1.20.0"
-
-# Verify installation
-python -c "import nemo; print('Parakeet installed successfully')"
-```
-
-#### "NeMo model download failed"
-
-```bash
-# Set custom cache directory
-export PARAKEET_MODEL_CACHE_DIR=~/.cache/parakeet
-
-# Ensure directory exists and has space
-mkdir -p ~/.cache/parakeet
-df -h ~/.cache/parakeet
-```
-
-#### GPU acceleration for Parakeet
-
-```bash
-# Install with GPU support
-uv add "nemo-toolkit[asr]@1.20.0" torch torchaudio
-
-# Enable FP16 for faster inference
-export PARAKEET_USE_FP16=true
-export PARAKEET_DEVICE=cuda
-```
+Parakeet support was removed from this codebase. If you still have older
+shell snippets using `--provider parakeet` or `uv sync --extra parakeet`,
+replace them with a supported provider (`deepgram`, `elevenlabs`, or `whisper`).
 
 ### ElevenLabs
 
@@ -159,14 +128,20 @@ export ELEVENLABS_API_KEY="your-key-here"
 
 ## TUI Issues
 
-### "TUI not working / Textual not found"
+### "TUI not working / frontend not found"
 
 ```bash
-# Install TUI dependencies
-uv sync --extra tui
+# Check Bun is installed
+bun --version
 
-# Or install Textual directly
-uv add "textual>=0.47.0"
+# Install Bun if needed
+curl -fsSL https://bun.sh/install | bash
+
+# Verify frontend directory exists
+ls frontend/package.json
+
+# Install frontend dependencies
+cd frontend && bun install
 
 # Verify TUI works
 audio-extraction-analysis tui --help
@@ -217,7 +192,6 @@ export WHISPER_MODEL=base
 
 # Ensure GPU is being used (if available)
 export WHISPER_DEVICE=cuda
-export PARAKEET_DEVICE=cuda
 ```
 
 ### High memory usage
@@ -225,12 +199,6 @@ export PARAKEET_DEVICE=cuda
 ```bash
 # Use smaller models
 export WHISPER_MODEL=tiny  # or base
-
-# Reduce batch size for Parakeet
-export PARAKEET_BATCH_SIZE=4
-
-# Process in chunks
-export PARAKEET_CHUNK_LENGTH=15
 ```
 
 ### Large output files
@@ -265,7 +233,7 @@ echo $HTTPS_PROXY
 
 - Wait a few minutes before retrying
 - Check your API plan limits at the provider's dashboard
-- Consider using local providers (Whisper/Parakeet) for bulk processing
+- Consider using local Whisper for bulk processing
 
 ---
 

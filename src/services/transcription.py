@@ -11,7 +11,6 @@ operations across providers. Key features:
 from __future__ import annotations
 
 import asyncio
-import json
 import math
 import time
 from pathlib import Path
@@ -29,6 +28,7 @@ from ..exceptions import ProviderTimeoutError, TranscriptionError
 from ..providers.factory import TranscriptionProviderFactory
 from ..utils.constants import Timeouts
 from ..utils.file_validation import validate_audio_file_or_raise
+from .ffmpeg_core import probe_media_async
 
 logger = get_logger(__name__)
 
@@ -44,16 +44,25 @@ class TranscriptionService:
     def __init__(
         self,
         cache: TranscriptionCache | None = None,
+        *,
+        test_override_provider: str | None = None,
+        is_test_environment: bool = False,
     ) -> None:
         """Initialize transcription service.
 
         Args:
             cache: Optional TranscriptionCache instance for caching results.
                    If None, caching is disabled.
+            test_override_provider: Optional provider override used only when
+                auto-selecting providers in controlled test scenarios.
+            is_test_environment: Explicit test-mode flag for mapping provider
+                auto-selection failures to ProviderNotAvailableError.
         """
         self.factory = TranscriptionProviderFactory
         self._config = get_config()
         self._cache = cache
+        self._test_override_provider = test_override_provider
+        self._is_test_environment = is_test_environment
 
     @property
     def _provider_timeout(self) -> float:
@@ -61,13 +70,20 @@ class TranscriptionService:
         return float(self._config.transcription_timeout_seconds)
 
     def _prepare_transcription(
-        self, audio_file_path: Path, provider_name: str | None = None
+        self,
+        audio_file_path: Path,
+        provider_name: str | None = None,
+        *,
+        test_override_provider: str | None = None,
+        is_test_environment: bool | None = None,
     ) -> tuple[Path, str]:
         """Validate audio file and select provider for transcription.
 
         Args:
             audio_file_path: Path to the audio file to transcribe
             provider_name: Optional provider name. If None, auto-selects best provider
+            test_override_provider: Optional provider override used only for this call
+            is_test_environment: Optional test-mode override for this call
 
         Returns:
             Tuple of (validated_path, provider_name)
@@ -78,12 +94,21 @@ class TranscriptionService:
             ProviderValidationError: If provider cannot handle the file
             ProviderNotAvailableError: If no providers configured (test environments)
         """
-        import os
-
         from ..exceptions import (
             ProviderNotAvailableError,
             ProviderSelectionError,
             ProviderValidationError,
+        )
+
+        effective_test_override = (
+            self._test_override_provider
+            if test_override_provider is None
+            else test_override_provider
+        )
+        effective_test_environment = (
+            self._is_test_environment
+            if is_test_environment is None
+            else is_test_environment
         )
 
         # Validate audio file
@@ -92,19 +117,17 @@ class TranscriptionService:
         # Auto-select provider if not specified
         if not provider_name:
             try:
-                # Get test override from environment (used by ProviderSelectionPolicy)
-                test_override = os.getenv("AUDIO_TEST_PROVIDER")
                 provider_name = self.factory.auto_select_provider(
                     audio_file_path=validated_path,
-                    test_override=test_override,
+                    test_override=effective_test_override,
+                    include_test_providers=effective_test_environment,
                 )
                 logger.info(f"Auto-selected provider: {provider_name}")
             except ValueError as e:
-                # In CI/testing, provide clear error
-                if os.getenv("CI") or os.getenv("PYTEST_CURRENT_TEST"):
+                if effective_test_environment:
                     raise ProviderNotAvailableError(
                         "No providers configured in test environment",
-                        context={"environment": "test", "ci": True},
+                        context={"environment": "test", "ci": False},
                     ) from e
                 raise ProviderSelectionError(
                     f"Failed to auto-select provider: {e}",
@@ -136,7 +159,10 @@ class TranscriptionService:
 
     def _create_provider(self, provider_name: str) -> Any:
         """Create provider instance with config-based configuration."""
-        return self.factory.create_provider(provider_name)
+        return self.factory.create_provider(
+            provider_name,
+            include_test_providers=self._is_test_environment,
+        )
 
     def transcribe(
         self,
@@ -212,9 +238,9 @@ class TranscriptionService:
             try:
                 self._cache.put(audio_file_path, provider_name, language, result)
             except Exception as e:
-                # Log but don't fail on cache errors
                 logger.warning(f"Failed to cache transcription result: {e}")
 
+        assert isinstance(result, TranscriptionResult)
         return result
 
     async def transcribe_async(
@@ -289,14 +315,13 @@ class TranscriptionService:
         logger.info(f"Transcription completed successfully with {provider.get_provider_name()}")
         logger.info(f"Transcript length: {len(result.transcript)} characters")
 
-        # Cache the result if enabled
         if use_cache and self._cache is not None:
             try:
                 self._cache.put(audio_file_path, provider_name, language, result)
             except Exception as e:
-                # Log but don't fail on cache errors
                 logger.warning(f"Failed to cache transcription result: {e}")
 
+        assert isinstance(result, TranscriptionResult)
         return result
 
     async def transcribe_with_progress(
@@ -328,41 +353,17 @@ class TranscriptionService:
             ProviderAPIError: If provider API fails
             TranscriptionError: If transcription produces no result or fails
         """
-        import os
-
-        from ..exceptions import ProviderNotAvailableError, ProviderSelectionError
-
-        path = validate_audio_file_or_raise(Path(audio_file_path))
+        resolved_provider = provider_name if provider_name and provider_name != "auto" else None
+        path, resolved_provider = self._prepare_transcription(Path(audio_file_path), resolved_provider)
 
         # Calculate estimated processing time based on file characteristics
         file_size_mb = path.stat().st_size / (1024 * 1024)
         audio_duration = await self._get_audio_duration(str(path))
 
-        # Auto-select provider if not specified or if "auto" is specified
-        if not provider_name or provider_name == "auto":
-            test_override = os.getenv("AUDIO_TEST_PROVIDER")
-            try:
-                provider_name = self.factory.auto_select_provider(
-                    audio_file_path=path,
-                    test_override=test_override,
-                )
-                logger.info(f"Auto-selected provider: {provider_name}")
-            except ValueError as e:
-                # In CI/testing, provide clear error
-                if os.getenv("CI") or os.getenv("PYTEST_CURRENT_TEST"):
-                    raise ProviderNotAvailableError(
-                        "No providers configured in test environment",
-                        context={"environment": "test", "ci": True},
-                    ) from e
-                raise ProviderSelectionError(
-                    f"Failed to auto-select provider: {e}",
-                    context={"file_path": str(path)},
-                ) from e
-
         # Estimate transcription time (empirical formula based on provider speed)
         from src.utils.progress_constants import ProgressConstants
 
-        processing_speed = self._get_provider_speed_by_name(provider_name)  # MB per second
+        processing_speed = self._get_provider_speed_by_name(resolved_provider)  # MB per second
 
         estimated_time = max(
             file_size_mb / processing_speed,  # Based on file size
@@ -381,7 +382,7 @@ class TranscriptionService:
 
             # Run actual transcription
             result = await self.transcribe_async(
-                path, provider_name=provider_name, language=language
+                path, provider_name=resolved_provider, language=language
             )
 
             # Complete progress
@@ -454,7 +455,7 @@ class TranscriptionService:
     def _get_provider_speed_by_name(self, provider_name: str) -> float:
         """Get estimated processing speed by provider name (MB/second)."""
         try:
-            provider = self.factory.create_provider(provider_name)
+            provider = self._create_provider(provider_name)
             if hasattr(provider, "META") and provider.META:
                 return provider.META.estimated_speed_mb_per_sec
         except Exception:
@@ -467,53 +468,15 @@ class TranscriptionService:
         Returns:
             Duration in seconds, or None if unable to determine
         """
-        proc = None
         try:
-            cmd = [
-                "ffprobe",
-                "-v",
-                "quiet",
-                "-print_format",
-                "json",
-                "-show_entries",
-                "format=duration",
-                audio_path,
-            ]
-
-            proc = await asyncio.create_subprocess_exec(
-                *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+            probe_result = await probe_media_async(
+                Path(audio_path),
+                timeout=Timeouts.FFMPEG_PROBE,
             )
-
-            try:
-                stdout, stderr = await asyncio.wait_for(
-                    proc.communicate(), timeout=Timeouts.FFMPEG_PROBE
-                )
-            except asyncio.CancelledError:
-                proc.kill()
-                await proc.wait()
-                raise
-            except TimeoutError:
-                proc.kill()
-                await proc.wait()
-                logger.debug("ffprobe timed out getting audio duration")
-                return None
-
-            if proc.returncode != 0:
-                logger.debug(f"ffprobe failed with code {proc.returncode}: {stderr.decode()}")
-                return None
-
-            data = json.loads(stdout.decode())
-            duration = float(data.get("format", {}).get("duration", 0))
-            return duration if duration > 0 else None
+            return probe_result.duration
 
         except asyncio.CancelledError:
-            if proc is not None and proc.returncode is None:
-                proc.kill()
-                await proc.wait()
             raise
-        except (json.JSONDecodeError, ValueError, KeyError) as e:
-            logger.debug(f"Failed to parse audio duration: {e}")
-            return None
         except FileNotFoundError:
             logger.debug("ffprobe not found in PATH")
             return None
@@ -550,7 +513,7 @@ class TranscriptionService:
             ValueError: If provider is not available
         """
         try:
-            provider = self.factory.create_provider(provider_name)
+            provider = self._create_provider(provider_name)
             return provider.get_supported_features()
         except ValueError as e:
             logger.error(f"Invalid provider '{provider_name}': {e}")
@@ -576,7 +539,7 @@ class TranscriptionService:
             try:
                 # Map display names to internal provider keys
                 provider_key = self._get_provider_key_from_name(provider_name)
-                provider = self.factory.create_provider(provider_key)
+                provider = self._create_provider(provider_key)
                 # Check if provider has save_result_to_file method
                 if hasattr(provider, "save_result_to_file") and callable(
                     provider.save_result_to_file
@@ -642,7 +605,9 @@ class TranscriptionService:
         mapped_key = name_mappings.get(provider_name, provider_name.lower())
 
         # Validate it's a known provider
-        available = self.factory.get_available_providers()
+        available = self.factory.get_available_providers(
+            include_test_providers=self._is_test_environment
+        )
         if mapped_key not in available:
             raise ValueError(
                 f"Unknown provider '{provider_name}'. Available providers: {available}"

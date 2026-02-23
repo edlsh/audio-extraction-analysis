@@ -26,7 +26,9 @@ T = TypeVar("T")
 logger = get_logger(__name__)
 
 
-def with_timeout(timeout: float):
+def with_timeout(
+    timeout: float,
+) -> Callable[[Callable[..., Awaitable[T]]], Callable[..., Awaitable[T]]]:
     """Decorator to add timeout to async functions.
 
     Args:
@@ -81,7 +83,7 @@ class BaseAPIClient:
         self.api_key = api_key
         self._retry_config = retry_config or RetryConfig()
         self._default_timeout = default_timeout
-        self._sdk_client = None
+        self._sdk_client: object | None = None
 
     def _get_sdk_client(self) -> object:
         """Lazy-load SDK client."""

@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from src.services.audio_extraction_async import AsyncAudioExtractor, AudioQuality
+from src.services.audio_extraction import AsyncAudioExtractor, AudioQuality
 
 
 class TestAsyncPerformance:

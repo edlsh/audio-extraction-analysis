@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import collections
 import hashlib
 import json
@@ -481,21 +480,6 @@ class TranscriptionCache:
             logger.debug(f"Invalidated cache entry: {cache_key[:8]}...")
             return True
 
-    async def invalidate_async(self, audio_file: Path, provider: str, language: str = "en") -> bool:
-        """Invalidate a specific cache entry asynchronously.
-
-        Non-blocking variant of invalidate() that offloads file I/O to a thread.
-
-        Args:
-            audio_file: Path to the audio file
-            provider: Transcription provider name
-            language: Language code (default: 'en')
-
-        Returns:
-            True if entry was found and removed, False otherwise
-        """
-        return await asyncio.to_thread(self.invalidate, audio_file, provider, language)
-
     def clear(self) -> int:
         """Clear all cached entries.
 
@@ -578,44 +562,3 @@ class TranscriptionCache:
 
             cache_file = self._get_cache_file_path(cache_key)
             return cache_file.exists()
-
-    async def get_async(
-        self, audio_file: Path, provider: str, language: str = "en"
-    ) -> TranscriptionResult | None:
-        """Retrieve cached transcription result asynchronously.
-
-        Thread-safe: delegates to sync get() via asyncio.to_thread().
-        This ensures all state access uses the same locking as sync methods.
-
-        Args:
-            audio_file: Path to the audio file
-            provider: Transcription provider name
-            language: Language code (default: 'en')
-
-        Returns:
-            Cached TranscriptionResult or None if not found/expired
-        """
-        return await asyncio.to_thread(self.get, audio_file, provider, language)
-
-    async def put_async(
-        self,
-        audio_file: Path,
-        provider: str,
-        language: str,
-        result: TranscriptionResult,
-    ) -> str:
-        """Store transcription result in cache asynchronously.
-
-        Thread-safe: delegates to sync put() via asyncio.to_thread().
-        This ensures all state access uses the same locking as sync methods.
-
-        Args:
-            audio_file: Path to the audio file
-            provider: Transcription provider name
-            language: Language code
-            result: TranscriptionResult to cache
-
-        Returns:
-            Cache key for the stored entry
-        """
-        return await asyncio.to_thread(self.put, audio_file, provider, language, result)

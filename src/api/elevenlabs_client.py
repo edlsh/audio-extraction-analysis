@@ -88,7 +88,7 @@ class ElevenLabsAPIClient(BaseAPIClient):
         async def _convert() -> dict[str, Any]:
             return await asyncio.get_event_loop().run_in_executor(
                 None,
-                lambda: client.speech_to_text.convert(
+                lambda: client.speech_to_text.convert(  # type: ignore[attr-defined]
                     file=audio_bytes,
                     **(options or {}),
                 ),
@@ -124,7 +124,7 @@ class ElevenLabsAPIClient(BaseAPIClient):
 
                 user_info = await asyncio.get_event_loop().run_in_executor(
                     None,
-                    lambda: client.user.get_user_info(),
+                    lambda: client.user.get_user_info(),  # type: ignore[attr-defined]
                 )
                 return {"status": "healthy", "user": user_info.get("username", "unknown")}
             except Exception as e:

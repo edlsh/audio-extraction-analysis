@@ -95,12 +95,11 @@ DEFAULT_PROVIDER_LIMITS: dict[str, float] = {
     "deepgram": 2000.0,  # 2GB limit
     "elevenlabs": float(Limits.MAX_FILE_SIZE_MB),  # 50MB limit
     "whisper": float("inf"),  # Local, no limit
-    "parakeet": float("inf"),  # Local, no limit
 }
 
 # Provider priority for different scenarios
-CLOUD_PRIORITY = ["deepgram", "elevenlabs", "whisper", "parakeet"]
-LOCAL_PRIORITY = ["whisper", "parakeet", "deepgram", "elevenlabs"]
+CLOUD_PRIORITY = ["deepgram", "elevenlabs", "whisper"]
+LOCAL_PRIORITY = ["whisper", "deepgram", "elevenlabs"]
 LARGE_FILE_THRESHOLD_MB = 100.0
 
 
@@ -160,7 +159,7 @@ class ProviderSelectionPolicy:
         if not configured_providers:
             raise ValueError(
                 "No transcription providers configured. "
-                "Set DEEPGRAM_API_KEY or ELEVENLABS_API_KEY, or install whisper/parakeet."
+                "Set DEEPGRAM_API_KEY or ELEVENLABS_API_KEY, or install whisper."
             )
 
         # Determine priority order based on file size

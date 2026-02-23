@@ -13,7 +13,6 @@ Example:
 from __future__ import annotations
 
 import asyncio
-import os
 import threading
 from typing import TYPE_CHECKING, Any
 
@@ -36,9 +35,9 @@ _providers: dict[str, str | type[BaseTranscriptionProvider]] = {
     "deepgram": "src.providers.deepgram.DeepgramTranscriber",
     "elevenlabs": "src.providers.elevenlabs.ElevenLabsTranscriber",
     "whisper": "src.providers.whisper.WhisperTranscriber",
-    "parakeet": "src.providers.parakeet.ParakeetTranscriber",
-    "stub": "src.providers.stub.StubTranscriptionProvider",
 }
+
+_TEST_PROVIDER_ALIASES = frozenset({"mock", "stub", "test"})
 
 
 def register_provider(
@@ -77,24 +76,50 @@ class TranscriptionProviderFactory:
     """
 
     @classmethod
-    def get_available_providers(cls) -> list[str]:
+    def set_test_mode(cls, enabled: bool) -> None:
+        """Set process-local test mode for test-only provider aliases.
+
+        This explicit toggle avoids ambient environment coupling and makes
+        runtime behavior deterministic in production and tests.
+        """
+        with cls._selection_policy_lock:
+            cls._test_mode_enabled = enabled
+
+    @classmethod
+    def _is_test_mode_enabled(cls, include_test_providers: bool | None = None) -> bool:
+        """Resolve whether test-only providers should be available."""
+        if include_test_providers is not None:
+            return include_test_providers
+        return cls._test_mode_enabled
+
+    @classmethod
+    def get_available_providers(cls, include_test_providers: bool | None = None) -> list[str]:
         """Get list of all known provider names.
+
+        Args:
+            include_test_providers: Explicitly include test aliases (`mock`,
+                `stub`, `test`). If None, uses the factory-level test mode.
 
         Returns:
             List of provider names available for use
         """
-        # Add mock provider in test mode
         provider_names = set(_providers.keys())
-        if os.getenv("AUDIO_TEST_MODE") or os.getenv("CI") or os.getenv("PYTEST_CURRENT_TEST"):
-            provider_names.add("mock")
+        if cls._is_test_mode_enabled(include_test_providers):
+            provider_names.update(_TEST_PROVIDER_ALIASES)
         return sorted(provider_names)
 
     @classmethod
-    def _get_provider_class(cls, provider_name: str) -> type[BaseTranscriptionProvider]:
+    def _get_provider_class(
+        cls,
+        provider_name: str,
+        include_test_providers: bool | None = None,
+    ) -> type[BaseTranscriptionProvider]:
         """Get provider class by name.
 
         Args:
             provider_name: Name of the provider to load
+            include_test_providers: Explicitly include test aliases (`mock`,
+                `stub`, `test`). If None, uses the factory-level test mode.
 
         Returns:
             Provider class implementing BaseTranscriptionProvider
@@ -102,17 +127,21 @@ class TranscriptionProviderFactory:
         Raises:
             ValueError: If provider name is unknown
         """
-        # Handle mock provider for testing
-        if provider_name == "mock":
-            if os.getenv("AUDIO_TEST_MODE") or os.getenv("CI") or os.getenv("PYTEST_CURRENT_TEST"):
-                from .mock import MockTranscriber
+        # Handle test-only providers
+        if provider_name in _TEST_PROVIDER_ALIASES:
+            if cls._is_test_mode_enabled(include_test_providers):
+                from .mock import TestTranscriptionProvider
 
-                return MockTranscriber
-            raise ValueError("Mock provider only available in test mode")
+                return TestTranscriptionProvider
+            raise ValueError(
+                f"Provider '{provider_name}' is only available when test providers are enabled"
+            )
 
         # Look up in registry
         if provider_name not in _providers:
-            available = ", ".join(cls.get_available_providers())
+            available = ", ".join(
+                cls.get_available_providers(include_test_providers=include_test_providers)
+            )
             raise ValueError(
                 f"Unknown provider '{provider_name}'. Available providers: {available}"
             )
@@ -127,12 +156,19 @@ class TranscriptionProviderFactory:
         return cls._import_provider_class(provider_entry)
 
     @classmethod
-    def get_configured_providers(cls) -> list[str]:
+    def get_configured_providers(
+        cls,
+        include_test_providers: bool | None = None,
+    ) -> list[str]:
         """Get list of providers that have valid API keys or dependencies configured.
 
         This method checks both API-based providers (requiring API keys) and
         local providers (requiring Python packages). Uses provider META for
         configuration requirements.
+
+        Args:
+            include_test_providers: Explicitly include test aliases (`mock`,
+                `stub`, `test`). If None, uses the factory-level test mode.
 
         Returns:
             List of provider names that are properly configured and ready to use
@@ -147,7 +183,10 @@ class TranscriptionProviderFactory:
         for provider_name in _providers:
             try:
                 # Lazy-load provider class to check configuration
-                provider_class = cls._get_provider_class(provider_name)
+                provider_class = cls._get_provider_class(
+                    provider_name,
+                    include_test_providers=include_test_providers,
+                )
                 meta: ProviderMeta | None = getattr(provider_class, "META", None)
 
                 if meta is None:
@@ -170,11 +209,15 @@ class TranscriptionProviderFactory:
                 # Provider not available - skip this provider
                 logger.debug(f"Provider {provider_name} skipped: {e}")
 
+        if cls._is_test_mode_enabled(include_test_providers):
+            configured.extend(sorted(_TEST_PROVIDER_ALIASES))
+
         return configured
 
     # Default selection policy instance
     _selection_policy: ProviderSelectionPolicy | None = None
     _selection_policy_lock = threading.Lock()
+    _test_mode_enabled = False
 
     @classmethod
     def get_selection_policy(cls) -> ProviderSelectionPolicy:
@@ -201,6 +244,7 @@ class TranscriptionProviderFactory:
         audio_file_path: Path | None = None,
         preferred_features: list[str] | None = None,
         test_override: str | None = None,
+        include_test_providers: bool | None = None,
     ) -> str:
         """Auto-select the best available provider based on configuration and file.
 
@@ -210,7 +254,6 @@ class TranscriptionProviderFactory:
         1. Deepgram (most features, fastest for API-based)
         2. ElevenLabs (good alternative API)
         3. Whisper (local, no API key needed)
-        4. Parakeet (local, specialized)
 
         For large files (>100MB), local providers are preferred.
 
@@ -218,6 +261,8 @@ class TranscriptionProviderFactory:
             audio_file_path: Optional path to audio file (for size-based selection)
             preferred_features: Optional list of required features
             test_override: Optional provider override for testing
+            include_test_providers: Explicitly include test aliases (`mock`,
+                `stub`, `test`). If None, uses the factory-level test mode.
 
         Returns:
             Name of the selected provider
@@ -225,7 +270,9 @@ class TranscriptionProviderFactory:
         Raises:
             ValueError: If no providers are configured
         """
-        configured = cls.get_configured_providers()
+        configured = cls.get_configured_providers(
+            include_test_providers=include_test_providers,
+        )
         policy = cls.get_selection_policy()
 
         return policy.select_provider(
@@ -306,14 +353,17 @@ class TranscriptionProviderFactory:
         api_key: str | None = None,
         retry_config: RetryConfig | None = None,
         run_health_check: bool = False,
+        include_test_providers: bool | None = None,
     ) -> BaseTranscriptionProvider:
         """Create provider with validation and optional health check.
 
         Args:
-            provider_name: 'deepgram', 'elevenlabs', 'whisper', or 'parakeet'
+            provider_name: 'deepgram', 'elevenlabs', or 'whisper'
             api_key: Override API key (uses env config if None)
                 retry_config: Override retry config
             run_health_check: Run health check after creation (default: False)
+            include_test_providers: Explicitly include test aliases (`mock`,
+                `stub`, `test`). If None, uses the factory-level test mode.
 
         Raises:
             ValueError: If provider unknown or config invalid
@@ -321,7 +371,10 @@ class TranscriptionProviderFactory:
         """
         # Lazy-load provider class (imports module on first access)
         try:
-            provider_class = cls._get_provider_class(provider_name)
+            provider_class = cls._get_provider_class(
+                provider_name,
+                include_test_providers=include_test_providers,
+            )
         except ImportError as e:
             logger.error(f"Provider module not available '{provider_name}': {e}")
             raise ValueError(f"Provider '{provider_name}' module not available") from e
@@ -371,7 +424,8 @@ class TranscriptionProviderFactory:
 
         try:
             provider = cls.create_provider(provider_name, api_key, run_health_check=False)
-            return await provider.health_check_async()
+            result = await provider.health_check_async()
+            return dict(result)
         except Exception as e:
             return {
                 "healthy": False,
@@ -415,7 +469,8 @@ class TranscriptionProviderFactory:
             ImportError: If the module or class cannot be imported
         """
         import importlib
+        from typing import cast
 
         module_path, class_name = provider_path.rsplit(".", 1)
         module = importlib.import_module(module_path)
-        return getattr(module, class_name)
+        return cast(type[BaseTranscriptionProvider], getattr(module, class_name))

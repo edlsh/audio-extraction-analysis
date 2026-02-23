@@ -1,0 +1,29 @@
+{
+  "name": "audio-extraction-analysis-tui",
+  "version": "0.1.0",
+  "description": "OpenTUI frontend for audio-extraction-analysis",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run src/app/index.tsx",
+    "build": "bun build src/app/index.tsx --outdir dist --target bun",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts,.tsx"
+  },
+  "dependencies": {
+    "@opentui/core": "0.1.67",
+    "@opentui/react": "0.1.67",
+    "react": "^19.0.0",
+    "zustand": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/react": "^19.0.0",
+    "@typescript-eslint/parser": "^8.24.1",
+    "eslint": "^9.20.1",
+    "typescript": "^5.3.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

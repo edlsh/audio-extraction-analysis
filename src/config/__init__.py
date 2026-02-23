@@ -203,22 +203,6 @@ class Config:
     WHISPER_COMPUTE_TYPE: str = field(
         default_factory=lambda: _getenv("WHISPER_COMPUTE_TYPE", "int8")
     )
-    PARAKEET_MODEL: str = field(
-        default_factory=lambda: _getenv("PARAKEET_MODEL", "stt_en_conformer_ctc_large")
-    )
-    PARAKEET_BATCH_SIZE: int = field(default_factory=lambda: _getenv_int("PARAKEET_BATCH_SIZE", 8))
-    PARAKEET_BEAM_SIZE: int = field(default_factory=lambda: _getenv_int("PARAKEET_BEAM_SIZE", 10))
-    PARAKEET_USE_FP16: bool = field(
-        default_factory=lambda: _parse_bool(_getenv("PARAKEET_USE_FP16", "true"))
-    )
-    PARAKEET_CHUNK_LENGTH: int = field(
-        default_factory=lambda: _getenv_int("PARAKEET_CHUNK_LENGTH", 30)
-    )
-    PARAKEET_MODEL_CACHE_DIR: Path = field(
-        default_factory=lambda: Path(
-            _getenv("PARAKEET_MODEL_CACHE_DIR", "~/.cache/parakeet")
-        ).expanduser()
-    )
 
     def __post_init__(self) -> None:
         """Validate configuration and ensure required directories exist."""

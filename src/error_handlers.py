@@ -76,7 +76,6 @@ def handle_provider_not_available(error: ProviderNotAvailableError) -> None:
             print(f"\n📦 Missing dependency: {module}", file=sys.stderr)
             cmd = {
                 "whisper": "pip install openai-whisper",
-                "parakeet": "pip install audio-extraction-analysis[parakeet]",
             }.get(provider, f"pip install audio-extraction-analysis[{provider}]")
             print(f"  Install with: {cmd}", file=sys.stderr)
     logger.error("Provider error: %s", error.message, extra={"context": error.context})
@@ -179,7 +178,7 @@ def handle_keyboard_interrupt() -> NoReturn:
 
 
 # Exception type to handler dispatch table
-_ERROR_HANDLERS: dict[type[Exception], Callable[[Exception], None]] = {
+_ERROR_HANDLERS: dict[type[Exception], Callable[..., None]] = {
     ValidationError: handle_validation_error,
     FFmpegNotFoundError: handle_ffmpeg_error,
     FFmpegExecutionError: handle_ffmpeg_error,

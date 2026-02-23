@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import asyncio
 import atexit
+from collections.abc import Coroutine
 from concurrent.futures import ThreadPoolExecutor
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from src.utils.constants import Limits
 
@@ -44,9 +45,7 @@ def _has_running_loop() -> bool:
         return False
 
 
-def run_async_in_sync(
-    coro: asyncio.coroutines.Coroutine[None, None, T], timeout: float | None = None
-) -> T:
+def run_async_in_sync(coro: Coroutine[Any, Any, T], timeout: float | None = None) -> T:
     """Run an async coroutine from a synchronous context.
 
     Handles two cases:

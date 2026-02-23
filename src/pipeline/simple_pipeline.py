@@ -27,8 +27,7 @@ from ..models.events import (
     reset_current_run_id,
     set_current_run_id,
 )
-from ..services.audio_extraction import AudioQuality
-from ..services.audio_extraction_async import AsyncAudioExtractor
+from ..services.audio_extraction import AsyncAudioExtractor, AudioQuality
 from ..services.transcription import TranscriptionService
 from ..ui.console import ConsoleManager
 from ..utils.sanitization import PathSanitizer

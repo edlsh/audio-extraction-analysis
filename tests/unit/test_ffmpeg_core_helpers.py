@@ -18,9 +18,9 @@ from src.services.ffmpeg_core import (
     check_ffmpeg_available,
     cleanup_temp_file,
     prepare_extraction_paths,
-    validate_path_security,
     verify_extraction_output,
 )
+from src.utils.sanitization import PathSanitizer
 
 
 class TestPrepareExtractionPaths:
@@ -190,21 +190,21 @@ class TestCheckFfmpegAvailable:
 
 
 class TestValidatePathSecurity:
-    """Tests for validate_path_security function."""
+    """Tests for PathSanitizer.validate_path_security method."""
 
     def test_safe_path_passes(self, tmp_path):
         """Safe path should pass validation."""
         safe_path = tmp_path / "safe_file.mp4"
 
         # Should not raise
-        validate_path_security(safe_path)
+        PathSanitizer.validate_path_security(safe_path)
 
     def test_path_with_semicolon_raises(self, tmp_path):
         """Path with semicolon should raise ValueError."""
         unsafe_path = tmp_path / "file;rm -rf.mp4"
 
         with pytest.raises(ValueError) as exc_info:
-            validate_path_security(unsafe_path)
+            PathSanitizer.validate_path_security(unsafe_path)
 
         assert (
             "dangerous" in str(exc_info.value).lower() or "invalid" in str(exc_info.value).lower()
@@ -215,7 +215,7 @@ class TestValidatePathSecurity:
         unsafe_path = tmp_path / "file&whoami.mp4"
 
         with pytest.raises(ValueError) as exc_info:
-            validate_path_security(unsafe_path)
+            PathSanitizer.validate_path_security(unsafe_path)
 
         assert (
             "dangerous" in str(exc_info.value).lower() or "invalid" in str(exc_info.value).lower()
@@ -226,7 +226,7 @@ class TestValidatePathSecurity:
         unsafe_path = tmp_path / "file`id`.mp4"
 
         with pytest.raises(ValueError) as exc_info:
-            validate_path_security(unsafe_path)
+            PathSanitizer.validate_path_security(unsafe_path)
 
         assert (
             "dangerous" in str(exc_info.value).lower() or "invalid" in str(exc_info.value).lower()

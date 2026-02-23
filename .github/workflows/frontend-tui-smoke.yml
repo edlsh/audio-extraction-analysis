@@ -1,0 +1,53 @@
+name: Frontend TUI Smoke
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "frontend/**"
+      - "src/cli/commands/tui.py"
+      - "docs/TUI.md"
+      - ".github/workflows/frontend-tui-smoke.yml"
+  push:
+    branches: [main, develop]
+    paths:
+      - "frontend/**"
+      - "src/cli/commands/tui.py"
+      - "docs/TUI.md"
+      - ".github/workflows/frontend-tui-smoke.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  frontend-smoke:
+    name: Frontend Smoke Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: bun install --frozen-lockfile
+
+      - name: Lint frontend
+        working-directory: frontend
+        run: bun run lint
+
+      - name: Typecheck frontend
+        working-directory: frontend
+        run: bun run typecheck
+
+      - name: Run frontend tests (optional)
+        working-directory: frontend
+        run: |
+          if [ -d tests ] && [ -n "$(find tests -type f -print -quit)" ]; then
+            bun run test
+          else
+            echo "No frontend tests detected; skipping bun test"
+          fi

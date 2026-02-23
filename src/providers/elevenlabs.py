@@ -128,9 +128,9 @@ class ElevenLabsTranscriber(BaseTranscriptionProvider):
     def _extract_transcript(self, response: Any) -> str:
         """Extract transcript text from response."""
         if hasattr(response, "text") and response.text is not None:
-            return response.text
+            return str(response.text)
         if hasattr(response, "transcript") and response.transcript is not None:
-            return response.transcript
+            return str(response.transcript)
         return str(response)
 
     def _build_result(

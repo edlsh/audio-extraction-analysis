@@ -407,51 +407,6 @@ def verify_extraction_output(
 
 
 # =============================================================================
-# Path Validation & Sanitization
-# =============================================================================
-
-
-def validate_path_security(file_path: Path) -> None:
-    """Validate file path for security concerns.
-
-    DEPRECATED: Use PathSanitizer.validate_path_security from src.utils.sanitization
-    for consistency across the codebase.
-
-    Checks for dangerous shell characters that could enable command injection.
-    Note: Square brackets [], parentheses (), and spaces are common in media
-    filenames and are safe when properly quoted with shlex.quote().
-
-    Args:
-        file_path: Path to validate
-
-    Raises:
-        ValueError: If path contains dangerous shell characters
-    """
-    # Delegate to canonical implementation for consistency
-    from ..utils.sanitization import PathSanitizer
-
-    PathSanitizer.validate_path_security(file_path)
-
-
-def sanitize_path(file_path: Path) -> str:
-    """Sanitize file path for safe subprocess usage.
-
-    DEPRECATED: Use PathSanitizer.sanitize_for_subprocess from src.utils.sanitization
-    for consistency across the codebase.
-
-    Args:
-        file_path: Path to sanitize
-
-    Returns:
-        Safely quoted path string for shell usage
-    """
-    # Delegate to canonical implementation
-    from ..utils.sanitization import PathSanitizer
-
-    return PathSanitizer.sanitize_for_subprocess(file_path)
-
-
-# =============================================================================
 # Temp File Cleanup
 # =============================================================================
 

@@ -101,6 +101,70 @@ class TestProviderMetaBasedConfiguration:
             assert "whisper" in configured
             assert "parakeet" not in configured
 
+    def test_test_providers_not_treated_as_configured_in_normal_runtime(self, monkeypatch):
+        """stub/test providers must not appear as configured outside explicit test mode."""
+        monkeypatch.delenv("AUDIO_TEST_MODE", raising=False)
+        monkeypatch.delenv("CI", raising=False)
+        monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+
+        with patch("src.providers.factory.get_config") as mock_get_config:
+            mock_config = Mock()
+            mock_config.DEEPGRAM_API_KEY = None
+            mock_config.ELEVENLABS_API_KEY = None
+            mock_get_config.return_value = mock_config
+
+            configured = TranscriptionProviderFactory.get_configured_providers()
+
+            assert "stub" not in configured
+            assert "test" not in configured
+
+    def test_auto_select_without_real_providers_raises(self, monkeypatch):
+        """auto-select should fail when no real providers are configured."""
+        monkeypatch.delenv("AUDIO_TEST_MODE", raising=False)
+        monkeypatch.delenv("CI", raising=False)
+        monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+
+        with patch("src.providers.factory.get_config") as mock_get_config:
+            mock_config = Mock()
+            mock_config.DEEPGRAM_API_KEY = None
+            mock_config.ELEVENLABS_API_KEY = None
+            mock_get_config.return_value = mock_config
+
+            with pytest.raises(ValueError, match="No transcription providers configured"):
+                TranscriptionProviderFactory.auto_select_provider()
+
+    def test_test_env_vars_do_not_enable_test_providers(self, monkeypatch):
+        """Ambient CI/pytest env vars must not implicitly enable test providers."""
+        monkeypatch.setenv("AUDIO_TEST_MODE", "1")
+        monkeypatch.setenv("CI", "true")
+        monkeypatch.setenv("PYTEST_CURRENT_TEST", "tests::runtime-policy")
+
+        with patch("src.providers.factory.get_config") as mock_get_config:
+            mock_config = Mock()
+            mock_config.DEEPGRAM_API_KEY = None
+            mock_config.ELEVENLABS_API_KEY = None
+            mock_get_config.return_value = mock_config
+
+            configured = TranscriptionProviderFactory.get_configured_providers()
+
+            assert "stub" not in configured
+            assert "test" not in configured
+
+    def test_auto_select_ignores_test_env_vars_without_real_providers(self, monkeypatch):
+        """Ambient CI/pytest env vars must not make auto-select pick test aliases."""
+        monkeypatch.setenv("AUDIO_TEST_MODE", "1")
+        monkeypatch.setenv("CI", "true")
+        monkeypatch.setenv("PYTEST_CURRENT_TEST", "tests::runtime-policy")
+
+        with patch("src.providers.factory.get_config") as mock_get_config:
+            mock_config = Mock()
+            mock_config.DEEPGRAM_API_KEY = None
+            mock_config.ELEVENLABS_API_KEY = None
+            mock_get_config.return_value = mock_config
+
+            with pytest.raises(ValueError, match="No transcription providers configured"):
+                TranscriptionProviderFactory.auto_select_provider()
+
 
 class TestCheckSdkAvailable:
     """Test the check_sdk_available helper function."""

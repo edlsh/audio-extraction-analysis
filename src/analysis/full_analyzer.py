@@ -7,7 +7,7 @@ full transcript, and key insights.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from src.utils.logger import get_logger
 
@@ -130,7 +130,7 @@ class FullAnalyzer(BaseAnalyzer):
         """Get chapter title from topics or default."""
         return ", ".join(topics) if topics else f"Chapter {idx}"
 
-    def _render_chapter_details(self, chapters: list, total_duration: float) -> list[str]:
+    def _render_chapter_details(self, chapters: list[Any], total_duration: float) -> list[str]:
         """Render detailed chapter sections."""
         lines: list[str] = []
         for idx, ch in enumerate(chapters, 1):
@@ -150,7 +150,9 @@ class FullAnalyzer(BaseAnalyzer):
             lines.append("\n---\n")
         return lines
 
-    def _render_chapter_summary_table(self, chapters: list, total_duration: float) -> list[str]:
+    def _render_chapter_summary_table(
+        self, chapters: list[Any], total_duration: float
+    ) -> list[str]:
         """Render chapter summary table."""
         lines = [
             "\n## Chapter Summary Table\n",
