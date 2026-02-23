@@ -399,6 +399,46 @@ class TestCLIProcessCommand:
 
         assert exit_code == 0
 
+    @pytest.mark.asyncio
+    async def test_execute_processing_pipeline_accepts_v2_result(self, tmp_path) -> None:
+        """_execute_processing_pipeline should support PipelineResult dataclass responses."""
+        import argparse
+
+        from src.cli.commands.process import _execute_processing_pipeline
+        from src.pipeline.result import PipelineResult as PipelineResultDataclass
+        from src.services.audio_extraction import AudioQuality
+
+        video_file = tmp_path / "video.mp4"
+        video_file.write_bytes(b"data")
+
+        output_dir = tmp_path / "out"
+        output_dir.mkdir()
+
+        fake_transcript = Mock()
+        v2_result = PipelineResultDataclass(
+            success=True,
+            transcript=fake_transcript,
+            audio_path=str(output_dir / "audio.mp3"),
+        )
+
+        args = argparse.Namespace(language="en", provider="auto", analysis_style="concise")
+
+        with patch(
+            "src.cli.commands.process.process_pipeline",
+            AsyncMock(return_value=v2_result),
+        ):
+            pipeline_result, transcription_result = await _execute_processing_pipeline(
+                input_path=video_file,
+                output_dir=output_dir,
+                quality=AudioQuality.SPEECH,
+                args=args,
+                console_manager=None,
+            )
+
+        assert pipeline_result["success"] is True
+        assert pipeline_result["audio_path"] == str(output_dir / "audio.mp3")
+        assert transcription_result is fake_transcript
+
 
 class TestCLILogging:
     """Test CLI logging functionality."""

@@ -12,7 +12,7 @@ from ...config import get_config
 from ...error_handlers import handle_cli_error
 from ...exceptions import UrlIngestionError
 from ...models.transcription import TranscriptionResult
-from ...pipeline.simple_pipeline import process_pipeline
+from ...pipeline.simple_pipeline import process_pipeline_v2 as process_pipeline
 from ...services.audio_extraction import AudioQuality
 from ...services.url_ingestion import UrlIngestionService
 from ...ui.console import ConsoleManager
@@ -85,8 +85,11 @@ async def _execute_processing_pipeline(
     args: argparse.Namespace,
     console_manager: ConsoleManager | None,
 ) -> tuple[dict[str, object], TranscriptionResult | None]:
-    """Execute the audio processing pipeline."""
-    pipeline_result = await process_pipeline(
+    """Execute the audio processing pipeline.
+
+    Uses the v2 pipeline API and normalizes to legacy dict shape for CLI callers.
+    """
+    pipeline_result_raw = await process_pipeline(
         input_path=str(input_path),
         output_dir=str(output_dir),
         quality=quality,
@@ -95,6 +98,13 @@ async def _execute_processing_pipeline(
         analysis_style=args.analysis_style,
         console_manager=console_manager,
     )
+
+    if hasattr(pipeline_result_raw, "to_legacy_dict"):
+        pipeline_result = pipeline_result_raw.to_legacy_dict()
+    elif isinstance(pipeline_result_raw, dict):
+        pipeline_result = pipeline_result_raw
+    else:
+        raise TypeError(f"Unexpected pipeline result type: {type(pipeline_result_raw).__name__}")
 
     # Extract the transcription result from pipeline results
     if pipeline_result.get("success", False):
