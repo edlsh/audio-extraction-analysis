@@ -88,8 +88,7 @@ def check_sdk_available(meta: ProviderMeta) -> bool:
 
     if not available and should_warn:
         logger.warning(
-            f"{meta.name} provider dependencies not installed: "
-            f"missing {', '.join(missing_modules)}"
+            f"{meta.name} provider dependencies not installed: missing {', '.join(missing_modules)}"
         )
 
     return available
